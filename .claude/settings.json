@@ -29,6 +29,17 @@
       "Bash(cat *.env*)",
       "Bash(type *.env*)",
       "Read(**/.env*)"
+    ],
+    "ask": [
+      "Skill(team-combat)",
+      "Skill(team-narrative)",
+      "Skill(team-ui)",
+      "Skill(team-release)",
+      "Skill(team-polish)",
+      "Skill(team-audio)",
+      "Skill(team-level)",
+      "Skill(team-live-ops)",
+      "Skill(team-qa)"
     ]
   },
   "hooks": {
