@@ -5,11 +5,11 @@ Each agent owns a specific domain, enforcing separation of concerns and quality.
 
 ## Technology Stack
 
-- **Engine**: Unreal Engine 5
-- **Language**: [CHOOSE: C++ / Blueprint]
+- **Engine**: Unreal Engine 5.8
+- **Language**: C++ (primary), Blueprint (gameplay prototyping)
 - **Version Control**: Git with trunk-based development
-- **Build System**: [SPECIFY after choosing language]
-- **Asset Pipeline**: [SPECIFY after choosing language]
+- **Build System**: Unreal Build Tool (UBT)
+- **Asset Pipeline**: Unreal Content Pipeline
 
 > **Note**: Engine-specialist agents: `ue-blueprint-specialist`, `ue-gas-specialist`,
 > `ue-replication-specialist`, `ue-umg-specialist`.
@@ -38,12 +38,17 @@ Every task follows: **Question -> Options -> Decision -> Draft -> Approval**
 - Agents MUST ask "May I write this to [filepath]?" before using Write/Edit tools
 - Agents MUST show drafts or summaries before requesting approval
 - Multi-file changes require explicit approval for the full changeset
-- No commits without user instruction
+- No commits without user instruction, **except** the standing override in
+  `.claude/docs/ollama-delegation.md` (commit + push after every completed task)
 
 See `docs/COLLABORATIVE-DESIGN-PRINCIPLE.md` for full protocol and examples.
 
 > **First session?** If the project has no engine configured and no game concept,
 > run `/start` to begin the guided onboarding flow.
+
+## Ollama Delegation & Auto-Commit Policy
+
+@.claude/docs/ollama-delegation.md
 
 ## Coding Standards
 

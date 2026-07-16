@@ -1,9 +1,11 @@
-# Unreal Engine 5.7 — Breaking Changes
+# Unreal Engine 5.8 — Breaking Changes
 
-**Last verified:** 2026-02-13
+**Last verified:** 2026-07-16
 
 This document tracks breaking API changes and behavioral differences between Unreal Engine 5.3
-(likely in model training) and Unreal Engine 5.7 (current version). Organized by risk level.
+(likely in model training) and Unreal Engine 5.8 (current project version). Organized by risk level.
+Original 5.3→5.7 content below is unchanged; see the **5.7 → 5.8 Delta** section at the end for
+what's new since this project's prior pin.
 
 ## HIGH RISK — Will Break Existing Code
 
@@ -148,3 +150,45 @@ When upgrading from UE 5.3 to UE 5.7:
 **Sources:**
 - https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-5-7-release-notes
 - https://dev.epicgames.com/documentation/en-us/unreal-engine/upgrading-projects-to-newer-versions-of-unreal-engine
+
+---
+
+## 5.7 → 5.8 Delta (added 2026-07-16)
+
+Epic's official 5.8 release notes report **no breaking changes for typical gameplay C++ projects**.
+The items below are config/architecture changes worth knowing, plus one unverified community claim.
+
+### MEDIUM RISK — Config/Architecture Changes
+
+- **Zen Server remote networking**: `AllowRemoteNetworkService` project setting renamed to
+  `RemoteNetworkService`, new enum values (`None`, `Unsecured`, `GeneratedStaticKey`). Update any
+  project config referencing the old key.
+- **Mass Framework split**: Core entity system moved into new `MassCore` module, separated from
+  `MassGameplay`. Projects with heavy Mass usage may need updated module dependencies in `Build.cs`.
+- **Input system consolidation**: Enhanced Input and Common Input/UI unified — removes duplicate
+  data asset requirements. Review custom Input Mapping Context setup for now-redundant assets.
+- **IK Retargeter operation stack restructured**: Blend to Source, Scale Goals, Offset Goals now
+  split as separate ops. Existing retargeter assets should still load; custom op-stack tooling may
+  need updates.
+- **Windows audio backend**: Default switched XAudio2 → WASAPI (`AudioMixerWasapi`, auto-selected).
+  No code changes required. Revert via `AudioMixerModuleName=AudioMixerXAudio2` in `WindowsEngine.ini`.
+
+### LOW RISK — Now Production-Ready (was experimental)
+
+- **Iris Replication**: production-ready for licensees in 5.8 (was experimental) — see
+  `deprecated-apis.md` Networking section for the Iris vs. legacy Replication Graph note.
+- **Megalights**: production-ready in 5.8 (was newer in 5.5-5.7).
+
+### UNVERIFIED — Build Toolchain (community-reported, confirm locally)
+
+Community migration notes (not confirmed against official Epic docs) claim 5.8 prefers
+**Visual Studio 2026 / MSVC v145 toolset** over VS 2022 (v143), producing an error like:
+`"Visual Studio compiler version 14.38.33145 is not a preferred version. Please use the latest
+preferred version 14.50.35717"` if the older toolset is used.
+
+If this appears: set `DefaultBuildSettings = V7` and `IncludeOrderVersion = Unreal5_8` in
+`Target.cs`, update VC++ Redistributables via the engine's bundled installer, and clear `.vs/`,
+`Binaries/`, `DerivedDataCache/`, `Intermediate/` before rebuilding.
+
+**Source:** https://jakubpradeniak.com/posts/dev-notes/migrating-unreal-engine-5-8-cpp-project/
+(community blog, not official — treat as a first troubleshooting step, not a guarantee)

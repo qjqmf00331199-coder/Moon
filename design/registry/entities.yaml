@@ -37,7 +37,7 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
-last_updated: ""
+last_updated: "2026-07-16"
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -48,7 +48,26 @@ last_updated: ""
 # Attribute fields: any key stats that could appear in another GDD
 #   (health, damage, drops, faction, etc.)
 
-entities: []
+entities:
+  - name: grunt
+    status: active
+    source: design/gdd/enemy-ai-base.md
+    referenced_by:
+      - design/gdd/enemy-ai-base.md
+    health: 30
+    archetype_tag: Enemy.Archetype.Grunt
+    added: 2026-07-16
+    revised: ""
+
+  - name: ranged
+    status: active
+    source: design/gdd/enemy-ai-base.md
+    referenced_by:
+      - design/gdd/enemy-ai-base.md
+    health: 20
+    archetype_tag: Enemy.Archetype.Ranged
+    added: 2026-07-16
+    revised: ""
 
 # Example (remove when first real entry is added):
 #
@@ -106,7 +125,120 @@ items: []
 #   output_range[min, max], added
 # Optional: expression (the actual formula), notes
 
-formulas: []
+formulas:
+  - name: effective_move_speed
+    status: active
+    source: design/gdd/player-movement.md
+    referenced_by:
+      - design/gdd/player-movement.md
+    variables:
+      - InputMagnitude
+      - MaxWalkSpeed
+    output_range: [0, 900]
+    expression: "InputMagnitude * MaxWalkSpeed"
+    notes: "InputMagnitude is 0.0-1.0 analog input. Output range uses the MaxWalkSpeed
+      safe range upper bound (900); default tuning gives 0-600 uu/s."
+    added: 2026-07-16
+    revised: ""
+
+  - name: jump_air_time
+    status: active
+    source: design/gdd/player-movement.md
+    referenced_by:
+      - design/gdd/player-movement.md
+    variables:
+      - JumpZVelocity
+      - GravityScale
+      - WorldGravityZ
+    output_range: [0.8, 1.5]
+    expression: "(2 * JumpZVelocity) / (GravityScale * WorldGravityZ)"
+    notes: "WorldGravityZ is the UE engine default (980 uu/s^2), not a design tuning
+      knob. Feeds Arena Morphing's aerial combat pacing (undesigned as of 2026-07-16)."
+    added: 2026-07-16
+    revised: ""
+
+  - name: effective_damage_applied
+    status: active
+    source: design/gdd/health-damage-core.md
+    referenced_by:
+      - design/gdd/health-damage-core.md
+    variables:
+      - RawDamage
+      - IsInvulnerable
+      - HasActiveShield
+      - bBypassDefense
+    output_range: [0, 0]
+    expression: "IsInvulnerable ? 0 : (HasActiveShield AND NOT bBypassDefense) ? 0 : RawDamage"
+    notes: "Binary output, not a numeric range — always exactly 0 or RawDamage (no
+      partial mitigation in this system, see health-damage-core.md Core Rule 2).
+      output_range left as [0,0] since RawDamage is source-defined and unbounded;
+      the real contract is 'either RawDamage or 0', not a continuous range."
+    added: 2026-07-16
+    revised: ""
+
+  - name: new_health
+    status: active
+    source: design/gdd/health-damage-core.md
+    referenced_by:
+      - design/gdd/health-damage-core.md
+    variables:
+      - CurrentHealth
+      - EffectiveDamageApplied
+      - MaxHealth
+    output_range: [0, 150]
+    expression: "clamp(CurrentHealth - EffectiveDamageApplied, 0, MaxHealth)"
+    notes: "Upper bound 150 reflects MaxHealth's Safe Range ceiling (max_health_player
+      constant); actual per-entity MaxHealth varies (enemies defined in Enemy AI GDD)."
+    added: 2026-07-16
+    revised: ""
+
+  - name: attack_telegraph_window
+    status: active
+    source: design/gdd/enemy-ai-base.md
+    referenced_by:
+      - design/gdd/enemy-ai-base.md
+    variables:
+      - AttackTelegraphFrame_Time
+      - AttackCommitFrame_Time
+    output_range: [0.3, 0.6]
+    expression: "AttackCommitFrame_Time - AttackTelegraphFrame_Time"
+    notes: "Must stay >= min_telegraph_window (0.4s default) or the attack is not
+      fairly dodgeable. Consumed by Dash/Evasion (undesigned as of 2026-07-16) for
+      just-dodge timing."
+    added: 2026-07-16
+    revised: ""
+
+  - name: noise_detection_radius
+    status: active
+    source: design/gdd/enemy-ai-base.md
+    referenced_by:
+      - design/gdd/enemy-ai-base.md
+    variables:
+      - BaseHearingRadius
+      - NoiseLoudness
+    output_range: [0, 1200]
+    expression: "BaseHearingRadius * NoiseLoudness"
+    notes: "NoiseLoudness (0.0-1.0) is set by whichever system calls MakeNoise
+      (player landing, spell impact, destructible collapse, etc.)."
+    added: 2026-07-16
+    revised: ""
+
+  - name: ranged_engage_distance_check
+    status: active
+    source: design/gdd/enemy-ai-base.md
+    referenced_by:
+      - design/gdd/enemy-ai-base.md
+    variables:
+      - PlayerDistance
+      - MinEngageRange
+      - MaxEngageRange
+    output_range: [0, 1]
+    expression: "ShouldRetreat = PlayerDistance < MinEngageRange; ShouldAttack = MinEngageRange <= PlayerDistance <= MaxEngageRange"
+    notes: "Boolean pair, not a continuous range — output_range left as [0,1] as a
+      placeholder for 'one of two booleans', see health-damage-core.md's
+      effective_damage_applied entry for the same convention."
+    added: 2026-07-16
+    revised: ""
 
 # Example:
 #
@@ -139,7 +271,108 @@ formulas: []
 #
 # Required fields: name, status, source, referenced_by, value, unit, added
 
-constants: []
+constants:
+  - name: max_walk_speed
+    status: active
+    source: design/gdd/player-movement.md
+    referenced_by:
+      - design/gdd/player-movement.md
+    value: 600
+    unit: uu/s
+    added: 2026-07-16
+    revised: ""
+
+  - name: jump_z_velocity
+    status: active
+    source: design/gdd/player-movement.md
+    referenced_by:
+      - design/gdd/player-movement.md
+    value: 600
+    unit: uu/s
+    added: 2026-07-16
+    revised: ""
+
+  - name: gravity_scale
+    status: active
+    source: design/gdd/player-movement.md
+    referenced_by:
+      - design/gdd/player-movement.md
+    value: 1.0
+    unit: multiplier
+    added: 2026-07-16
+    revised: ""
+
+  - name: air_control
+    status: active
+    source: design/gdd/player-movement.md
+    referenced_by:
+      - design/gdd/player-movement.md
+    value: 0.6
+    unit: coefficient (0.0-1.0)
+    added: 2026-07-16
+    revised: "2026-07-16"
+    # was 0.2 — revised in player-movement.md's 2026-07-16 design-review pass
+    # (Core Rule 4 responsiveness change); registry wasn't updated at the time.
+
+  - name: max_health_player
+    status: active
+    source: design/gdd/health-damage-core.md
+    referenced_by:
+      - design/gdd/health-damage-core.md
+    value: 100
+    unit: HP
+    added: 2026-07-16
+    revised: ""
+
+  - name: max_health_grunt
+    status: active
+    source: design/gdd/enemy-ai-base.md
+    referenced_by:
+      - design/gdd/enemy-ai-base.md
+    value: 30
+    unit: HP
+    added: 2026-07-16
+    revised: ""
+
+  - name: max_health_ranged
+    status: active
+    source: design/gdd/enemy-ai-base.md
+    referenced_by:
+      - design/gdd/enemy-ai-base.md
+    value: 20
+    unit: HP
+    added: 2026-07-16
+    revised: ""
+
+  - name: min_engage_range
+    status: active
+    source: design/gdd/enemy-ai-base.md
+    referenced_by:
+      - design/gdd/enemy-ai-base.md
+    value: 400
+    unit: uu
+    added: 2026-07-16
+    revised: ""
+
+  - name: max_engage_range
+    status: active
+    source: design/gdd/enemy-ai-base.md
+    referenced_by:
+      - design/gdd/enemy-ai-base.md
+    value: 1200
+    unit: uu
+    added: 2026-07-16
+    revised: ""
+
+  - name: min_telegraph_window
+    status: active
+    source: design/gdd/enemy-ai-base.md
+    referenced_by:
+      - design/gdd/enemy-ai-base.md
+    value: 0.4
+    unit: seconds
+    added: 2026-07-16
+    revised: ""
 
 # Example:
 #

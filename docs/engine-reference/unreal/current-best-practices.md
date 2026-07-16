@@ -1,6 +1,8 @@
-# Unreal Engine 5.7 — Current Best Practices
+# Unreal Engine 5.8 — Current Best Practices
 
-**Last verified:** 2026-02-13
+**Last verified:** 2026-07-16
+
+> Base content below verified for 5.7 and still applies. See **5.8 Additions** near the bottom.
 
 Modern UE5 patterns that may not be in the LLM's training data.
 These are production-ready recommendations as of UE 5.7.
@@ -338,3 +340,37 @@ UE_VLOG_LOCATION(this, LogTemp, Log, TargetLocation, 50.f, FColor::Green, TEXT("
 **Sources:**
 - https://docs.unrealengine.com/5.7/en-US/
 - https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-5-7-release-notes
+
+---
+
+## 5.8 Additions (added 2026-07-16)
+
+### Prefer Iris for Replication (Production-Ready in 5.8)
+
+```cpp
+// Iris is now production-ready — prefer it over legacy Replication Graph for new
+// networked systems (relevant when this project's combat/ability systems go multiplayer).
+// Enable: Project Settings > Engine > Networking > Enable Iris
+```
+
+### Mass Framework — Import from MassCore for Core Entity Types
+
+```cpp
+// ✅ 5.8: core Mass entity types now live in MassCore, separate from MassGameplay
+#include "MassEntityTypes.h"  // verify against MassCore module in 5.8 docs before heavy Mass usage
+```
+
+### Input System — No Separate Common Input Assets Needed
+
+Enhanced Input and Common Input/UI are unified in 5.8. When setting up cross-platform input
+(keyboard/mouse + gamepad, per this project's Input & Platform preferences), don't create
+duplicate Common Input data assets alongside Enhanced Input ones — one Input Mapping Context
+setup now covers both.
+
+### MCP Server (Experimental, 5.8) — Editor-Side Only
+
+The in-editor MCP plugin (used to connect Claude Code to this project) is itself an experimental
+5.8 feature. Treat editor-side automation via MCP as unstable — verify any structural change it
+makes (actor placement, asset creation) manually before committing.
+
+**Source:** https://dev.epicgames.com/documentation/unreal-engine/unreal-engine-5-8-release-notes

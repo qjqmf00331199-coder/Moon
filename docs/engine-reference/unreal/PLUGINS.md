@@ -1,6 +1,6 @@
-# Unreal Engine 5.7 — Optional Plugins & Systems
+# Unreal Engine 5.8 — Optional Plugins & Systems
 
-**Last verified:** 2026-02-13
+**Last verified:** 2026-07-16
 
 This document indexes **optional plugins and systems** available in Unreal Engine 5.7.
 These are NOT part of the core engine but are commonly used for specific game types.
@@ -173,8 +173,22 @@ These are NOT part of the core engine but are commonly used for specific game ty
 ---
 
 ### ❌ Old Replication Graph
-- **Deprecated:** Replaced by Iris (UE 5.1+)
-- **Status:** Use Iris for modern networking
+- **Deprecated:** Replaced by Iris (UE 5.1+, **production-ready as of 5.8**)
+- **Status:** Use Iris for modern networking — this project should default to Iris for any
+  multiplayer/replication work (`ue-replication-specialist` should treat Iris as the default,
+  not the experimental option)
+
+---
+
+### 🆕 MCP Server (Experimental, 5.8)
+- **Purpose:** Agentic AI systems (e.g. Claude Code) connect to UE Editor via MCP; enables
+  understanding engine/project state, assists asset/system building
+- **When to use:** This project uses it — `.mcp.json` at repo root connects to the editor's
+  `http://127.0.0.1:8000/mcp` endpoint (editor must be running)
+- **Status:** ⚠️ Experimental — verify any structural change it makes manually before trusting it
+- **Plugin:** Enable in `Edit > Plugins` search "MCP", generate config via editor console:
+  `ModelContextProtocol.GenerateClientConfig Claude`
+- **Official:** https://dev.epicgames.com/documentation/unreal-engine/unreal-mcp-in-unreal-editor
 
 ---
 
@@ -205,6 +219,6 @@ For plugins NOT listed above, use the following approach when users ask:
 
 ---
 
-**Last Updated:** 2026-02-13
-**Engine Version:** Unreal Engine 5.7
+**Last Updated:** 2026-07-16
+**Engine Version:** Unreal Engine 5.8
 **LLM Knowledge Cutoff:** May 2025

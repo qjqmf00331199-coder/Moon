@@ -1,6 +1,9 @@
-# Unreal Engine 5.7 — Deprecated APIs
+# Unreal Engine 5.8 — Deprecated APIs
 
-**Last verified:** 2026-02-13
+**Last verified:** 2026-07-16
+
+> See the **5.8 Additions** section near the bottom for what's new since the prior 5.7 pin.
+> Everything above that section was verified for 5.7 and still applies.
 
 Quick lookup table for deprecated APIs and their replacements.
 Format: **Don't use X** → **Use Y instead**
@@ -168,3 +171,24 @@ UNiagaraComponent* NiagaraComp = CreateDefaultSubobject<UNiagaraComponent>(TEXT(
 **Sources:**
 - https://docs.unrealengine.com/5.7/en-US/deprecated-and-removed-features/
 - https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-5-7-release-notes
+
+---
+
+## 5.8 Additions (added 2026-07-16)
+
+Will be removed in 5.9 — project compiles with deprecation warnings in 5.8, address now:
+
+| Deprecated | Replacement | Notes |
+|------------|-------------|-------|
+| `UCharacterMovementComponent::SetMovementMode()` (legacy overload) | `SetMovementModeWithCustomMode()` | Movement system |
+| `FText::FromStringTable()` (legacy overload) | Overload taking `FStringTable&` reference | Localization |
+| Legacy GAS attribute set initialization functions | Updated GAS attribute init pattern (see UE 5.8 GAS docs) | Gameplay Ability System — relevant to this project's combat/ability systems |
+| MetaSound `FVertexInterface` in `FNodeClassMetadata::DefaultInterface` | `FClassInterface` (exits experimental in 5.8) | Audio/MetaSound |
+| MetaSound deprecated input/output node creation helpers (`IDataTypeRegistry`) | New node creation API | Audio/MetaSound |
+| Control Rig "Transform Constraint" node | Individual Point/Rotation/Parent Constraint nodes, or new "Parent Constraint" node | Animation/Control Rig |
+| `AllowRemoteNetworkService` config key | `RemoteNetworkService` (enum: `None`/`Unsecured`/`GeneratedStaticKey`) | Zen Server config, not gameplay code |
+
+**Networking note:** Iris Replication is now production-ready in 5.8 (was experimental) — for a
+new project, prefer Iris over the legacy Replication Graph mentioned in the Networking section above.
+
+**Source:** https://dev.epicgames.com/documentation/unreal-engine/unreal-engine-5-8-release-notes
