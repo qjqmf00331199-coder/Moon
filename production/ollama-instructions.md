@@ -170,6 +170,38 @@ task directly; if something real turns up, fix it by hand in the relevant GDD(s)
 
 ---
 
+## [ ] Task 5 — Registry vs. GDD fact-check (Enemy AI)
+
+**Why queued**: We just approved `enemy-ai-base.md` this session. A mechanical check to ensure that the registry constants (`max_health_grunt`, `max_health_ranged`, `min_engage_range`, `max_engage_range`, `min_telegraph_window`, etc.) and formulas in `entities.yaml` match the values and descriptions in the approved GDD.
+
+**Risk**: Low. Report-only task that edits no files. Mismatches are easy to verify.
+
+**Context to inject**: full contents of `design/registry/entities.yaml` AND full contents of `design/gdd/enemy-ai-base.md`
+
+**Prompt**: identical template to Task 2, swap `{{CONTEXT_GDD}}` for `enemy-ai-base.md`'s content.
+
+**Output path**: `production/overnight-output/task5-registry-check-enemy-ai.md`
+
+**Review checklist** (under 2 min): Same as Task 2.
+
+---
+
+## [ ] Task 6 — Korean/English terminology consistency report (Enemy AI vs. Health/Damage Core)
+
+**Why queued**: Both are core systems that interact with each other (e.g., `OnDeath` trigger, `MaxHealth` attributes, and tag checking). This report flags naming and casing inconsistencies for concepts shared between the two files.
+
+**Risk**: Low. Report-only task.
+
+**Context to inject**: full contents of `design/gdd/enemy-ai-base.md` AND full contents of `design/gdd/health-damage-core.md`
+
+**Prompt**: identical template to Task 4.
+
+**Output path**: `production/overnight-output/task6-terminology-consistency-enemy-ai.md`
+
+**Review checklist** (under 2 min): Same as Task 4.
+
+---
+
 ## Adding new tasks
 
 Only add a task here if it fits `overnight-protocol.md`'s three criteria: self-contained,
