@@ -2,6 +2,7 @@ import discord
 import requests
 import google.generativeai as genai
 import os
+import re
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -17,6 +18,7 @@ OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b")
 REPO_ROOT = os.environ.get("REPO_ROOT", "/Users/t2025-m0206/moon-fragment-hunt")
 PRODUCTION_DIR = f"{REPO_ROOT}/production"
 OUTPUT_DIR = f"{PRODUCTION_DIR}/overnight-output"
+QUEUE_PATH = f"{REPO_ROOT}/OLLAMA-INSTRUCTIONS.md"
 # ==============================================================================
 
 genai.configure(api_key=GEMINI_API_KEY)
@@ -32,85 +34,51 @@ STRICT_SYSTEM_PREFIX = (
     "모든 결과는 Draft(초안)로 간주함.\n\n"
 )
 
-# production/ollama-instructions.md의 태스크 정의를 그대로 옮긴 것.
-# 새 태스크를 큐에 추가하면 여기도 같이 추가해야 실제로 돌아감 — queue.md는 사람이 읽는 스펙,
-# 이 리스트가 봇이 실제로 실행하는 소스.
-TASKS = [
-    {
-        "id": "task1-arena-morphing-concept",
-        "context_files": {
-            "{{CONTEXT}}": "prototypes/arena-morphing-spike-2026-07-16/SPIKE-NOTE.md",
-        },
-        "prompt": """다음 스파이크 노트를 읽고 아래 구조로 요약해. 노트에 없는 내용은 절대 지어내지 말고,
-불명확하면 "소스에 명시 안 됨"이라고 써.
+# 태스크는 하드코딩하지 않는다 — repo 루트의 OLLAMA-INSTRUCTIONS.md 큐 파일을 직접 파싱해서 얻는다.
+# 큐 파일 하나가 사람이 읽는 스펙이자 봇이 실행하는 소스, 두 곳을 따로 관리할 필요 없음.
+# 큐 파일의 "Format contract" 절이 이 파서가 기대하는 정확한 구조를 정의한다.
+TASK_BLOCK_RE = re.compile(r"^## \[( |x|~)\] Task \d+ — (.+)$", re.MULTILINE)
+CONTEXT_FILE_RE = re.compile(r"^- (\{\{[A-Z_]+\}\}): (.+)$", re.MULTILINE)
+PROMPT_RE = re.compile(r"\*\*Prompt\*\*:\s*```\n(.*?)\n```", re.DOTALL)
+OUTPUT_PATH_RE = re.compile(r"\*\*Output path\*\*:\s*`([^`]+)`")
 
-# Arena Morphing — Nanite/Geometry Collection Spike
 
-## What was tested
-## Result
-## Method
-## Gotchas found
-## Still open / follow-up needed
+def parse_task_queue(queue_path):
+    """OLLAMA-INSTRUCTIONS.md를 읽어 `[ ]`(아직 안 돌린) 태스크를 (tasks, skipped_titles)로 반환.
+    형식이 안 맞는 태스크 블록은 죽지 않고 건너뛰지만, 제목은 skipped_titles에 담아 호출자가
+    경고할 수 있게 한다 — 사람이 큐에 뭔가 넣었다고 믿는데 조용히 안 돌아가는 상황 방지."""
+    with open(queue_path, "r", encoding="utf-8") as f:
+        text = f.read()
 
----
-SOURCE SPIKE NOTE:
-{{CONTEXT}}""",
-    },
-    {
-        "id": "task2-registry-check-player-movement",
-        "context_files": {
-            "{{CONTEXT_REGISTRY}}": "design/registry/entities.yaml",
-            "{{CONTEXT_GDD}}": "design/gdd/player-movement.md",
-        },
-        "prompt": """두 문서에서 같은 이름의 수치/상수/공식이 서로 다른 값으로 적혀있는 곳만 찾아서
-"- [이름]: registry는 [X], GDD는 [Y] (GDD 섹션: [섹션명])" 형식으로 나열해.
-불일치가 없으면 없다고 명시해. 다른 건(스타일, 누락 등) 언급하지 말 것.
+    headings = list(TASK_BLOCK_RE.finditer(text))
+    tasks = []
+    skipped_titles = []
+    for i, m in enumerate(headings):
+        if m.group(1) != " ":
+            continue  # [x] 완료됐거나 [~] 폐기된 태스크는 스킵
 
----
-REGISTRY (entities.yaml):
-{{CONTEXT_REGISTRY}}
+        block_start = m.end()
+        block_end = headings[i + 1].start() if i + 1 < len(headings) else len(text)
+        block = text[block_start:block_end]
 
----
-GDD (player-movement.md):
-{{CONTEXT_GDD}}""",
-    },
-    {
-        "id": "task3-registry-check-health-damage-core",
-        "context_files": {
-            "{{CONTEXT_REGISTRY}}": "design/registry/entities.yaml",
-            "{{CONTEXT_GDD}}": "design/gdd/health-damage-core.md",
-        },
-        "prompt": """두 문서에서 같은 이름의 수치/상수/공식이 서로 다른 값으로 적혀있는 곳만 찾아서
-"- [이름]: registry는 [X], GDD는 [Y] (GDD 섹션: [섹션명])" 형식으로 나열해.
-불일치가 없으면 없다고 명시해. 다른 건(스타일, 누락 등) 언급하지 말 것.
+        context_files = dict(CONTEXT_FILE_RE.findall(block))
+        prompt_match = PROMPT_RE.search(block)
+        output_match = OUTPUT_PATH_RE.search(block)
 
----
-REGISTRY (entities.yaml):
-{{CONTEXT_REGISTRY}}
+        if not context_files or not prompt_match or not output_match:
+            skipped_titles.append(m.group(2).strip())  # 형식이 깨진 블록 — 실행하지 않고 건너뜀
+            continue
 
----
-GDD (health-damage-core.md):
-{{CONTEXT_GDD}}""",
-    },
-    {
-        "id": "task4-terminology-consistency",
-        "context_files": {
-            "{{CONTEXT_A}}": "design/gdd/player-movement.md",
-            "{{CONTEXT_B}}": "design/gdd/health-damage-core.md",
-        },
-        "prompt": """두 한국어 게임 기획서에서 같은 개념을 서로 다른 용어로 부르는 경우만 찾아서
-"- 개념: [무엇] — A는 \\"[용어]\\", B는 \\"[용어]\\"" 형식으로 나열해.
-한쪽에만 등장하는 용어는 불일치가 아니니 무시. 문법/번역 품질은 언급하지 말 것.
+        output_path = output_match.group(1)
+        task_id = os.path.splitext(os.path.basename(output_path))[0]
 
----
-DOCUMENT A (player-movement.md):
-{{CONTEXT_A}}
-
----
-DOCUMENT B (health-damage-core.md):
-{{CONTEXT_B}}""",
-    },
-]
+        tasks.append({
+            "id": task_id,
+            "title": m.group(2).strip(),
+            "context_files": context_files,
+            "prompt": prompt_match.group(1),
+        })
+    return tasks, skipped_titles
 
 
 def build_prompt(task):
@@ -151,7 +119,7 @@ client = discord.Client(intents=intents)
 @client.event
 async def on_ready():
     print(f"봇 로그인 완료: {client.user}")
-    print("'!야간시작' = 큐 4개 태스크 순차 실행 / '!작업 <내용>' = 자유 작업 1건 실행")
+    print("'!야간시작' = OLLAMA-INSTRUCTIONS.md의 큐 태스크 순차 실행 / '!작업 <내용>' = 자유 작업 1건 실행")
 
 
 @client.event
@@ -161,10 +129,26 @@ async def on_message(message):
 
     if message.content.strip() == "!야간시작":
         os.makedirs(OUTPUT_DIR, exist_ok=True)
-        await message.channel.send(f"⏳ **큐 태스크 {len(TASKS)}개 순차 실행 시작**")
+
+        try:
+            tasks, skipped_titles = parse_task_queue(QUEUE_PATH)
+        except FileNotFoundError:
+            await message.channel.send(f"❌ 큐 파일 없음: `{QUEUE_PATH}`")
+            return
+
+        if skipped_titles:
+            await message.channel.send(
+                "⚠️ 형식이 안 맞아 스킵된 태스크: " + ", ".join(f"`{t}`" for t in skipped_titles)
+            )
+
+        if not tasks:
+            await message.channel.send("ℹ️ 큐에 실행할 `[ ]` 태스크가 없음 — 전부 완료/폐기됐거나 큐가 비어있음.")
+            return
+
+        await message.channel.send(f"⏳ **큐 태스크 {len(tasks)}개 순차 실행 시작**")
 
         saved_files = []
-        for task in TASKS:
+        for task in tasks:
             await message.channel.send(f"▶ `{task['id']}` 실행 중...")
             prompt = build_prompt(task)
             try:
@@ -185,7 +169,7 @@ async def on_message(message):
             )
 
         await message.channel.send(
-            f"🌅 **큐 실행 종료 ({len(saved_files)}/{len(TASKS)} 성공)**. "
+            f"🌅 **큐 실행 종료 ({len(saved_files)}/{len(tasks)} 성공)**. "
             "아침에 Claude/Antigravity로 전체 승격 심사하세요."
         )
 

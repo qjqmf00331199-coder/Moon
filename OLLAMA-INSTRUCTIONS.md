@@ -1,11 +1,29 @@
 # Ollama 지시사항 (Overnight Task Queue)
 
+> Repo root에 위치 — 디스코드 봇(`tools/overnight-bot/discord_ollama_bot.py`)이 다른 어떤 파일보다
+> 먼저 이 파일 하나만 파싱해서 그날 밤 실행할 태스크를 뽑는다. Gemini는 이 파일도, 레포의 다른
+> 어떤 파일도 읽지 않는다 — Gemini는 Ollama가 만든 결과를 3줄 요약하는 데만 쓰인다(자세한 구조는
+> `production/ollama-delegation-criteria.md` 참고). 이 파일이 루트에 있고 각 태스크가 완전히
+> self-contained해야(다른 태스크를 참조하지 않아야) 봇이 매번 레포 전체를 뒤지지 않고 이 파일만
+> 읽고 끝낼 수 있다 — Gemini 무료 티어 호출 자체가 최소화되는 지점은 여기(반복 호출 억제)이지,
+> 파일 위치가 Gemini 토큰을 직접 줄여주는 것은 아니다.
+>
+> **Claude Code와 Antigravity CLI 둘 다 이 큐를 지켜야 한다**: 저위험 하위 작업을 발견하면 직접
+> 하지 말고 여기에 태스크로 등록할 것 (`.claude/docs/ollama-delegation.md` / `AGENTS.md` 참조).
+
 See `production/overnight-protocol.md` for the trust model and review routine before running
-any of these. Each task below is self-contained: whatever runs Ollama must read the referenced
-file(s) and paste their full content in place of `{{CONTEXT}}` before sending the prompt.
-Save Ollama's raw reply, unedited, to the listed output path.
+any of these. Each task below is self-contained: the bot reads the referenced file(s) and pastes
+their full content in place of the placeholders shown in **Context files** before sending the
+prompt. Save Ollama's raw reply, unedited, to the listed output path.
 
 Status legend: `[ ]` queued · `[x]` done, reviewed · `[~]` done, discarded (bad output)
+
+**Format contract (for the bot's parser — keep this shape when adding tasks):**
+- Heading: `## [ ] Task N — Title`
+- `**Context files**:` followed by one `- {{PLACEHOLDER}}: relative/path/from/repo/root` line per file
+- `**Prompt**:` followed by a single fenced ` ``` ` block containing the full, self-contained prompt
+  (placeholders from Context files must appear inside it — no "same as Task X" references)
+- `**Output path**: \`production/overnight-output/....md\``
 
 ---
 
@@ -18,8 +36,8 @@ of an already-completed, already-verified spike — nothing to invent, nothing t
 **Risk**: Low. Source of truth (`SPIKE-NOTE.md`) is fixed and already verified — a wrong summary
 is trivially caught by comparing the two side by side.
 
-**Context to inject**: full contents of
-`prototypes/arena-morphing-spike-2026-07-16/SPIKE-NOTE.md`
+**Context files**:
+- {{CONTEXT}}: prototypes/arena-morphing-spike-2026-07-16/SPIKE-NOTE.md
 
 **Prompt**:
 ```
@@ -71,8 +89,9 @@ check a weak model can do reliably — it's pattern matching, not judgment.
 **Risk**: Low. This produces a report only — no file is edited. Worst case, a false-positive
 "mismatch" that a human dismisses in 10 seconds by checking the actual number.
 
-**Context to inject**: full contents of `design/registry/entities.yaml` AND full contents of
-`design/gdd/player-movement.md`
+**Context files**:
+- {{CONTEXT_REGISTRY}}: design/registry/entities.yaml
+- {{CONTEXT_GDD}}: design/gdd/player-movement.md
 
 **Prompt**:
 ```
@@ -111,22 +130,47 @@ the actual values at the cited locations.
 
 ## [ ] Task 3 — Registry vs. GDD fact-check (Health/Damage Core)
 
-Same task as Task 2, same prompt template, different GDD target — run once Health/Damage Core
-has values worth registry-checking (it does: `max_health_player`, `effective_damage_applied`,
-`new_health` were just added to the registry this session).
+**Why queued**: run once Health/Damage Core has values worth registry-checking (it does:
+`max_health_player`, `effective_damage_applied`, `new_health` were just added to the registry).
 
-**Context to inject**: full contents of `design/registry/entities.yaml` AND full contents of
-`design/gdd/health-damage-core.md`
+**Risk**: Low. Report-only, no file edited.
 
-**Prompt**: identical template to Task 2, swap `{{CONTEXT_GDD}}` for health-damage-core.md's content.
+**Context files**:
+- {{CONTEXT_REGISTRY}}: design/registry/entities.yaml
+- {{CONTEXT_GDD}}: design/gdd/health-damage-core.md
+
+**Prompt**:
+```
+You are cross-checking two documents for a game design registry. The first is a YAML registry
+of named constants/formulas; the second is a design document that should agree with it wherever
+they both mention the same named value.
+
+List every case where a numeric value, formula, or named constant appears in BOTH documents
+but with DIFFERENT values. Format each finding as:
+
+- [name]: registry says [X], GDD says [Y] (GDD section: [section name])
+
+If you find no mismatches, say so explicitly — do not invent a mismatch to have something to
+report. Do not comment on anything else (style, completeness, missing sections) — ONLY numeric/
+value disagreements between the two documents.
+
+---
+REGISTRY (entities.yaml):
+{{CONTEXT_REGISTRY}}
+
+---
+GDD (health-damage-core.md):
+{{CONTEXT_GDD}}
+```
 
 **Output path**: `production/overnight-output/task3-registry-check-health-damage-core.md`
 
-**Review checklist**: same as Task 2.
+**Review checklist** (under 2 min): same as Task 2 — open both source files, check actual values
+at the cited locations.
 
 ---
 
-## [ ] Task 4 — Korean/English terminology consistency report
+## [ ] Task 4 — Korean/English terminology consistency report (Player Movement vs. Health/Damage Core)
 
 **Why queued**: this project's GDDs mix Korean prose with English technical terms
 (`bUseControllerRotationYaw`, "저스트회피", "코어 적출" vs "Core Extraction" etc.) — a report-only
@@ -136,8 +180,9 @@ documents is mechanical text comparison, not design judgment.
 **Risk**: Low. Report only, no file touched. A missed inconsistency just means the queue runs
 this task again later; a false positive costs a human 10 seconds to dismiss.
 
-**Context to inject**: full contents of `design/gdd/player-movement.md` AND full contents of
-`design/gdd/health-damage-core.md`
+**Context files**:
+- {{CONTEXT_A}}: design/gdd/player-movement.md
+- {{CONTEXT_B}}: design/gdd/health-damage-core.md
 
 **Prompt**:
 ```
@@ -172,40 +217,97 @@ task directly; if something real turns up, fix it by hand in the relevant GDD(s)
 
 ## [ ] Task 5 — Registry vs. GDD fact-check (Enemy AI)
 
-**Why queued**: We just approved `enemy-ai-base.md` this session. A mechanical check to ensure that the registry constants (`max_health_grunt`, `max_health_ranged`, `min_engage_range`, `max_engage_range`, `min_telegraph_window`, etc.) and formulas in `entities.yaml` match the values and descriptions in the approved GDD.
+**Why queued**: `enemy-ai-base.md` was approved this session. A mechanical check to ensure the
+registry constants (`max_health_grunt`, `max_health_ranged`, `min_engage_range`,
+`max_engage_range`, `min_telegraph_window`, etc.) and formulas in `entities.yaml` match the
+values and descriptions in the approved GDD.
 
 **Risk**: Low. Report-only task that edits no files. Mismatches are easy to verify.
 
-**Context to inject**: full contents of `design/registry/entities.yaml` AND full contents of `design/gdd/enemy-ai-base.md`
+**Context files**:
+- {{CONTEXT_REGISTRY}}: design/registry/entities.yaml
+- {{CONTEXT_GDD}}: design/gdd/enemy-ai-base.md
 
-**Prompt**: identical template to Task 2, swap `{{CONTEXT_GDD}}` for `enemy-ai-base.md`'s content.
+**Prompt**:
+```
+You are cross-checking two documents for a game design registry. The first is a YAML registry
+of named constants/formulas; the second is a design document that should agree with it wherever
+they both mention the same named value.
+
+List every case where a numeric value, formula, or named constant appears in BOTH documents
+but with DIFFERENT values. Format each finding as:
+
+- [name]: registry says [X], GDD says [Y] (GDD section: [section name])
+
+If you find no mismatches, say so explicitly — do not invent a mismatch to have something to
+report. Do not comment on anything else (style, completeness, missing sections) — ONLY numeric/
+value disagreements between the two documents.
+
+---
+REGISTRY (entities.yaml):
+{{CONTEXT_REGISTRY}}
+
+---
+GDD (enemy-ai-base.md):
+{{CONTEXT_GDD}}
+```
 
 **Output path**: `production/overnight-output/task5-registry-check-enemy-ai.md`
 
-**Review checklist** (under 2 min): Same as Task 2.
+**Review checklist** (under 2 min): same as Task 2 — open both source files, check actual values
+at the cited locations.
 
 ---
 
 ## [ ] Task 6 — Korean/English terminology consistency report (Enemy AI vs. Health/Damage Core)
 
-**Why queued**: Both are core systems that interact with each other (e.g., `OnDeath` trigger, `MaxHealth` attributes, and tag checking). This report flags naming and casing inconsistencies for concepts shared between the two files.
+**Why queued**: Both are core systems that interact with each other (e.g., `OnDeath` trigger,
+`MaxHealth` attributes, and tag checking). This report flags naming and casing inconsistencies
+for concepts shared between the two files.
 
 **Risk**: Low. Report-only task.
 
-**Context to inject**: full contents of `design/gdd/enemy-ai-base.md` AND full contents of `design/gdd/health-damage-core.md`
+**Context files**:
+- {{CONTEXT_A}}: design/gdd/enemy-ai-base.md
+- {{CONTEXT_B}}: design/gdd/health-damage-core.md
 
-**Prompt**: identical template to Task 4.
+**Prompt**:
+```
+Below are two Korean-language game design documents that share some concepts (they're
+core systems in the same project that interact directly). List every case where the SAME
+concept appears to be referred to with inconsistent terminology between the two documents —
+different Korean phrasing, inconsistent English term choice, or Korean vs. English used
+inconsistently for the same thing. Format each finding as:
+
+- Concept: [what it refers to] — Doc A says "[term]", Doc B says "[term]"
+
+Only flag genuine same-concept naming inconsistencies. Do not flag terms that only appear in one
+document (that's not an inconsistency, just scope). Do not comment on grammar, style, or
+translation quality — ONLY cross-document naming consistency.
+
+---
+DOCUMENT A (enemy-ai-base.md):
+{{CONTEXT_A}}
+
+---
+DOCUMENT B (health-damage-core.md):
+{{CONTEXT_B}}
+```
 
 **Output path**: `production/overnight-output/task6-terminology-consistency-enemy-ai.md`
 
-**Review checklist** (under 2 min): Same as Task 4.
+**Review checklist** (under 2 min): skim the list — for each flagged pair, decide if it's a real
+inconsistency worth standardizing or an intentional distinction. No file gets edited from this
+task directly; if something real turns up, fix it by hand in the relevant GDD(s).
 
 ---
 
 ## Adding new tasks
 
 Only add a task here if it fits `overnight-protocol.md`'s three criteria: self-contained,
-low-risk-if-wrong, fast-to-verify. Good candidate shapes going forward as the project grows:
+low-risk-if-wrong, fast-to-verify — and follows the **Format contract** above exactly (the bot
+parses this file directly; a malformed task block is silently skipped, not run). Good candidate
+shapes going forward as the project grows:
 - More registry-vs-GDD fact-checks, one per newly-approved GDD
 - More terminology-consistency passes between newly-approved GDD pairs
 - Reverse-documenting any other prototype/spike that lands without a doc

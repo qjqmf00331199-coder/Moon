@@ -6,6 +6,30 @@ Task: Enemy AI (base) GDD reviewed and Approved. NEXT: draft Spell Casting (base
 
 # Session State
 
+## What changed this session (/design-review enemy-ai-base.md + Ollama pipeline restructure)
+- Ran a formal `/design-review` on `design/gdd/enemy-ai-base.md` (solo depth, per project default) —
+  **APPROVED**, no blockers, no doc edits needed. Doc's front-matter already said Approved from the
+  prior manual pass; this was the first pass through the actual `/design-review` skill.
+- Restructured the Ollama overnight pipeline at the user's request:
+  - Moved the task queue `production/ollama-instructions.md` → `OLLAMA-INSTRUCTIONS.md` (repo root),
+    so the bot reads it directly instead of the (never-actually-implemented) "Gemini scans the
+    whole repo" design the docs used to describe.
+  - Reformatted every task's "Context to inject" into strict `- {{PLACEHOLDER}}: path` lines and
+    made Tasks 3/5/6 fully self-contained (they used to say "same prompt as Task 2/4") — required
+    for the new parser, which treats each task block independently.
+  - Rewrote `tools/overnight-bot/discord_ollama_bot.py`: removed the hardcoded `TASKS` list, added
+    `parse_task_queue()` (regex-parses `OLLAMA-INSTRUCTIONS.md`, only runs `[ ]` blocks, warns in
+    Discord about malformed ones instead of silently dropping them). Verified with a standalone
+    parse test (all 6 tasks parse correctly) and `python -m py_compile` (syntax OK) — have not
+    run the live bot (needs Discord/Gemini/Ollama credentials not available in this session).
+  - Corrected the stale "Gemini reads the repo and picks tasks" framing in
+    `production/ollama-delegation-criteria.md` and `production/overnight-protocol.md` to match
+    reality: Gemini only 3-line-summarizes Ollama's output, never reads the queue or the repo.
+  - Updated all path references: `.claude/docs/ollama-delegation.md`, `AGENTS.md`,
+    `tools/overnight-bot/README.md`, `tools/overnight-bot/setup-plan-macbook.md`.
+  - Note: this was a detour, not a step in the GDD design order below — next real design work is
+    still Spell Casting (base).
+
 ## Cross-tool note (added 2026-07-16, updated 2026-07-16 — 3rd worker added)
 
 This project now rotates across **three** workers: **Claude Code** and **Antigravity CLI**
@@ -15,7 +39,7 @@ directly — see below). Whichever tool picks up next:
 
 - Read this file first, always — it's the shared handoff point for all three workers.
 - **Check `production/overnight-output/` before starting real work** — if Ollama ran overnight,
-  review its drafts against `production/ollama-instructions.md`'s checklists (a couple minutes),
+  review its drafts against `OLLAMA-INSTRUCTIONS.md`'s (repo root) checklists (a couple minutes),
   promote what's good into the real files, discard the rest, then clear the directory. Full
   protocol: `production/overnight-protocol.md`. Ollama has no file/tool access — it only ever
   produces draft text that a human or one of you reviews; it never edits `design/gdd/`, `docs/`,

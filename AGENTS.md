@@ -79,7 +79,7 @@ same shape: PASS/CONCERNS/FAIL-style verdict + specific section-by-section gaps,
 ## Overnight worker (Ollama)
 
 A third worker, Ollama, runs unattended overnight on a small queue of low-risk, self-contained,
-fast-to-verify tasks (see `production/ollama-instructions.md` and `production/overnight-protocol.md`).
+fast-to-verify tasks (see `OLLAMA-INSTRUCTIONS.md` (repo root) and `production/overnight-protocol.md`).
 It has no file/tool access and never touches canonical files — it only writes drafts to
 `production/overnight-output/`. **Check that directory at the start of any session** — review and
 promote/discard its drafts before starting new work, then clear the directory.
@@ -96,19 +96,19 @@ If it matches the "맡기기 좋은 작업" list (documentation, comments, boile
 simple UPROPERTY/UFUNCTION declarations, commit-message polish, TODO extraction, log/error
 summarization, small deterministic utility scripts, folder/naming cleanup, text formatting/
 translation) — **do not do it yourself**. Instead, add a new task entry to
-`production/ollama-instructions.md` (follow the existing task template: Why queued / Risk / Context
-to inject / Prompt / Output path / Review checklist), leave the actual work undone, and commit +
+`OLLAMA-INSTRUCTIONS.md` (repo root, follow the existing task template: Why queued / Risk / Context
+files / Prompt / Output path / Review checklist), leave the actual work undone, and commit +
 push so the entry is live for the overnight run. Never route cross-cutting design judgment,
 engine-API-accurate debugging, or perf/threading/replication work to Ollama — that stays with you.
 
-**Auto-queueing on GDD Approval**: Whenever a GDD is reviewed and approved (e.g. via `/design-review` or manual design review), you MUST automatically append the corresponding registry-vs-GDD fact-check and terminology-consistency tasks to `production/ollama-instructions.md`, stage the file, and commit/push it along with the approved GDD changes. Do not wait for the user to explicitly remind you.
+**Auto-queueing on GDD Approval**: Whenever a GDD is reviewed and approved (e.g. via `/design-review` or manual design review), you MUST automatically append the corresponding registry-vs-GDD fact-check and terminology-consistency tasks to `OLLAMA-INSTRUCTIONS.md` (repo root), stage the file, and commit/push it along with the approved GDD changes. Do not wait for the user to explicitly remind you.
 
 ### Commit + push after every completed task
 
 The Collaboration norm below still holds ("don't commit unless asked") **except** for this one
 standing override: commit and push to GitHub after finishing each discrete task or session,
 without waiting to be asked each time. The multi-tool handoff model depends on
-`production/ollama-instructions.md`, `production/session-state/active.md`, and any newly-registered
+`OLLAMA-INSTRUCTIONS.md` (repo root), `production/session-state/active.md`, and any newly-registered
 tasks being live on the remote, not sitting uncommitted in one tool's local working tree. Stage
 only the files that are actually part of the task you just completed — don't sweep in unrelated
 pre-existing dirty-tree changes from other sessions without asking first — and never commit

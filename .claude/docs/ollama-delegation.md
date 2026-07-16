@@ -13,7 +13,7 @@ commit-message polish, TODO extraction, log/error summarization, small determini
 scripts, folder/naming cleanup, text formatting/translation) — **do not do it yourself**, even
 partially. Instead:
 
-1. Add a new task entry to `production/ollama-instructions.md`, following the existing task template
+1. Add a new task entry to `OLLAMA-INSTRUCTIONS.md` (repo root), following the existing task template
    (Why queued / Risk / Context to inject / Prompt / Output path / Review checklist).
 2. Leave the actual work undone — Ollama does it overnight, a human or the next session reviews
    the draft in `production/overnight-output/` before it's promoted into any canonical file.
@@ -25,7 +25,7 @@ threading/replication work, or any final code that would be risky if committed u
 work stays with Claude Code / Antigravity CLI as normal.
 
 ### Auto-queueing on GDD Approval
-Whenever a GDD is reviewed and approved (e.g. via `/design-review` or manual design review), you MUST automatically append the corresponding registry-vs-GDD fact-check and terminology-consistency tasks to `production/ollama-instructions.md`, stage the file, and commit/push it along with the approved GDD changes. Do not wait for the user to explicitly remind you.
+Whenever a GDD is reviewed and approved (e.g. via `/design-review` or manual design review), you MUST automatically append the corresponding registry-vs-GDD fact-check and terminology-consistency tasks to `OLLAMA-INSTRUCTIONS.md` (repo root), stage the file, and commit/push it along with the approved GDD changes. Do not wait for the user to explicitly remind you.
 
 ## Commit + push after every completed task
 
@@ -33,7 +33,7 @@ This project's default Collaboration Protocol (see `CLAUDE.md`) is "no commits w
 instruction." **That default is overridden for this specific case**: commit and push to GitHub
 after finishing each discrete task or session, without waiting for the user to ask each time.
 The multi-tool handoff model (Claude Code / Antigravity CLI / overnight Ollama) depends on
-`production/ollama-instructions.md`, `production/session-state/active.md`, and any newly-registered
+`OLLAMA-INSTRUCTIONS.md` (repo root), `production/session-state/active.md`, and any newly-registered
 tasks being live on the remote — not sitting uncommitted in one tool's local working tree.
 
 - Still follow normal git hygiene: stage only the files that are actually part of the task you
@@ -49,6 +49,6 @@ tasks being live on the remote — not sitting uncommitted in one tool's local w
 
 - `production/ollama-delegation-criteria.md` — the actual selection criteria (Gemini reads this
   too, for when the overnight bot picks its own tasks)
-- `production/ollama-instructions.md` — the live task queue
+- `OLLAMA-INSTRUCTIONS.md` (repo root) — the live task queue
 - `production/overnight-protocol.md` — trust model + morning review routine
 - `tools/overnight-bot/discord_ollama_bot.py` — the runner script
