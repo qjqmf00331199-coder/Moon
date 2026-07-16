@@ -101,6 +101,8 @@ to inject / Prompt / Output path / Review checklist), leave the actual work undo
 push so the entry is live for the overnight run. Never route cross-cutting design judgment,
 engine-API-accurate debugging, or perf/threading/replication work to Ollama — that stays with you.
 
+**Auto-queueing on GDD Approval**: Whenever a GDD is reviewed and approved (e.g. via `/design-review` or manual design review), you MUST automatically append the corresponding registry-vs-GDD fact-check and terminology-consistency tasks to `production/ollama-instructions.md`, stage the file, and commit/push it along with the approved GDD changes. Do not wait for the user to explicitly remind you.
+
 ### Commit + push after every completed task
 
 The Collaboration norm below still holds ("don't commit unless asked") **except** for this one

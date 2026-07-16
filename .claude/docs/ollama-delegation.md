@@ -24,6 +24,9 @@ Never route anything on the "맡기면 안 되는 작업" list to Ollama: cross-
 threading/replication work, or any final code that would be risky if committed unreviewed. That
 work stays with Claude Code / Antigravity CLI as normal.
 
+### Auto-queueing on GDD Approval
+Whenever a GDD is reviewed and approved (e.g. via `/design-review` or manual design review), you MUST automatically append the corresponding registry-vs-GDD fact-check and terminology-consistency tasks to `production/ollama-instructions.md`, stage the file, and commit/push it along with the approved GDD changes. Do not wait for the user to explicitly remind you.
+
 ## Commit + push after every completed task
 
 This project's default Collaboration Protocol (see `CLAUDE.md`) is "no commits without user
