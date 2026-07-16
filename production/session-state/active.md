@@ -1,7 +1,7 @@
 <!-- STATUS -->
 Epic: Moon Fragment Hunt — DDD Expansion
 Feature: Systems Design > Enemy AI (base) GDD
-Task: All 8 sections + UI/Open Questions written and approved (solo mode, no specialist agents consulted). Status: Designed (pending review). NEXT: run /design-review design/gdd/enemy-ai-base.md in a fresh session, then design Spell Casting (base).
+Task: Enemy AI (base) GDD reviewed and Approved. NEXT: draft Spell Casting (base) GDD.
 <!-- /STATUS -->
 
 # Session State
@@ -37,16 +37,12 @@ directly — see below). Whichever tool picks up next:
 
 ## Current task — READY FOR HANDOFF TO A NEW SESSION
 
-- **Camera System (base) GDD**: Approved.
-- **Enemy AI (base) GDD**: Drafted (solo mode, all 8 sections + UI/Open Questions). Status: Designed (pending review) — not yet independently reviewed.
+- **Enemy AI (base) GDD**: Approved.
 
 **➤ NEXT COMMAND TO RUN (fresh session, either tool):**
-```
-/design-review design/gdd/enemy-ai-base.md
-```
-Then continue design order: Spell Casting (base) → Dash/Evasion → Combo/Tension Gauge → Luna Overdrive → Combat HUD.
+(Draft Spell Casting (base) GDD next)
 
-Do not begin implementation until this GDD is approved.
+Then continue design order: Spell Casting (base) → Dash/Evasion → Combo/Tension Gauge → Luna Overdrive → Combat HUD.
 
 **Key decisions baked into Enemy AI (base) (carry forward when designing dependents):**
 - MVP scope is 2 archetypes only: Grunt (melee, MaxHealth 30) and Ranged (MaxHealth 20, keeps a
@@ -98,8 +94,14 @@ Do not begin implementation until this GDD is approved.
   none of these blocked Health/Damage Core, still open for whoever designs those systems.
 
 **To resume in a new session:**
-1. Run design drafting for `enemy-ai-base` GDD (`/design-system enemy-ai-base`).
-2. Continue design order: **Enemy AI (base)** next → Spell Casting (base) → Dash/Evasion → Combo/Tension Gauge → Luna Overdrive → Combat HUD.
+1. Draft Spell Casting (base) GDD next.
+2. Continue design order: Spell Casting (base) → Dash/Evasion → Combo/Tension Gauge → Luna Overdrive → Combat HUD.
+
+## What changed this session (enemy-ai-base.md review pass)
+- Reviewed and **APPROVED** `design/gdd/enemy-ai-base.md` end-to-end (independent review session).
+- Generated complete design review artifact [design_review_enemy_ai_base.md](file:///C:/Users/qjqmf/.gemini/antigravity-cli/brain/9287b538-86da-45d5-a5b0-82928d6b1ac3/design_review_enemy_ai_base.md).
+- Updated `enemy-ai-base.md` status to `Approved`.
+- Updated `systems-index.md` row #4 to `Approved`, incremented progress metrics (reviewed 4, approved 4, MVP designed 4/9).
 
 ## What changed this session (enemy-ai-base.md drafting, /design-system enemy-ai-base)
 - Completed the 8-section GDD for Enemy AI (base) in [enemy-ai-base.md](file:///D:/moon-fragment-hunt/design/gdd/enemy-ai-base.md), plus UI Requirements and Open Questions. Solo review mode — no specialist agents (systems-designer, ai-programmer, qa-lead, art-director) consulted; needs manual review before Production.

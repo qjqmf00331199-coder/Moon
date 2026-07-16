@@ -24,7 +24,7 @@
 | 1 | Player Movement (inferred) | Core | MVP | Approved | design/gdd/player-movement.md | — |
 | 2 | Camera System (base) (inferred) | Core | MVP | Approved | design/gdd/camera-system-base.md | Player Movement (mutual — see player-movement.md Dependencies) |
 | 3 | Health/Damage Core (inferred) | Core | MVP | Approved | design/gdd/health-damage-core.md | — |
-| 4 | Enemy AI (base) (inferred) | Gameplay | MVP | Designed (pending review) | design/gdd/enemy-ai-base.md | Health/Damage Core |
+| 4 | Enemy AI (base) (inferred) | Gameplay | MVP | Approved | design/gdd/enemy-ai-base.md | Health/Damage Core |
 | 5 | Destructible Geometry (inferred) | Core | Vertical Slice | Not Started | — | — |
 | 6 | Spell Casting (base) (inferred) | Gameplay | MVP | Not Started | — | Player Movement, Health/Damage Core |
 | 7 | Dash/Evasion (inferred) | Gameplay | MVP | Not Started | — | Player Movement, Camera System (base), Health/Damage Core |
@@ -155,8 +155,8 @@
 |--------|-------|
 | Total systems identified | 20 |
 | Design docs started | 4 |
-| Design docs reviewed | 3 |
-| Design docs approved | 3 |
+| Design docs reviewed | 4 |
+| Design docs approved | 4 |
 | MVP systems designed | 4/9 |
 | Vertical Slice systems designed | 0/7 |
 

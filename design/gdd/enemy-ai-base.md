@@ -1,6 +1,6 @@
 # Enemy AI (base)
 
-> **Status**: Designed (pending review)
+> **Status**: Approved
 > **Author**: user + game-designer / ai-programmer (solo review mode)
 > **Last Updated**: 2026-07-16
 > **Implements Pillar**: Dopamine Driven Design — foundation supplying the enemy population that combo/overdrive/execution/chain-destruction all act upon
