@@ -15,7 +15,7 @@ directly — see below). Whichever tool picks up next:
 
 - Read this file first, always — it's the shared handoff point for all three workers.
 - **Check `production/overnight-output/` before starting real work** — if Ollama ran overnight,
-  review its drafts against `production/overnight-queue.md`'s checklists (a couple minutes),
+  review its drafts against `production/ollama-instructions.md`'s checklists (a couple minutes),
   promote what's good into the real files, discard the rest, then clear the directory. Full
   protocol: `production/overnight-protocol.md`. Ollama has no file/tool access — it only ever
   produces draft text that a human or one of you reviews; it never edits `design/gdd/`, `docs/`,

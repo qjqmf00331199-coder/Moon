@@ -1,7 +1,7 @@
 # Overnight Output (Ollama drafts — not canonical)
 
 Nothing in this directory is trusted or final. Ollama (see `production/overnight-protocol.md`
-and `production/overnight-queue.md`) writes its raw draft responses here. Every file must be
+and `production/ollama-instructions.md`) writes its raw draft responses here. Every file must be
 reviewed by a human or a stronger model (Claude Code / Antigravity CLI) before any of its
 content is promoted into a real project file (`design/gdd/`, `docs/`, `entities.yaml`, etc.).
 

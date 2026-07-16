@@ -32,7 +32,7 @@ STRICT_SYSTEM_PREFIX = (
     "모든 결과는 Draft(초안)로 간주함.\n\n"
 )
 
-# production/overnight-queue.md의 태스크 정의를 그대로 옮긴 것.
+# production/ollama-instructions.md의 태스크 정의를 그대로 옮긴 것.
 # 새 태스크를 큐에 추가하면 여기도 같이 추가해야 실제로 돌아감 — queue.md는 사람이 읽는 스펙,
 # 이 리스트가 봇이 실제로 실행하는 소스.
 TASKS = [

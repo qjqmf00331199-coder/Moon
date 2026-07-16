@@ -22,7 +22,7 @@ human/stronger-model review happens.
 
 ## Why these tasks and not others
 
-Tasks in `overnight-queue.md` are chosen to be:
+Tasks in `ollama-instructions.md` are chosen to be:
 - **Self-contained**: all context needed is inlined into the prompt — no multi-file reasoning,
   no judgment calls about which file to read next.
 - **Low-risk if wrong**: worst case is a bad draft that gets discarded, never a corrupted
@@ -38,24 +38,24 @@ wrong answer is hard to spot without re-deriving the right one.
 ## Morning review routine (Claude Code or Antigravity CLI, start of session)
 
 1. `ls production/overnight-output/` — see what Ollama produced overnight.
-2. For each file, run its task's "Review checklist" (see `overnight-queue.md`) — most take under
+2. For each file, run its task's "Review checklist" (see `ollama-instructions.md`) — most take under
    2 minutes since they're fact-checks against a known source, not open-ended review.
 3. Good output → promote: copy/adapt the relevant content into the real canonical file yourself
    (Ollama drafts are a starting point, not final copy — still reword/verify before it lands in
    `design/gdd/` etc.), following the normal Question→Options→Decision→Draft→Approval flow with
    the user.
 4. Bad/hallucinated output → discard, note in `production/session-state/active.md` if the task
-   seems mis-scoped for Ollama (too hard, ambiguous, etc.) so `overnight-queue.md` can be trimmed.
+   seems mis-scoped for Ollama (too hard, ambiguous, etc.) so `ollama-instructions.md` can be trimmed.
 5. Clear or archive `production/overnight-output/*` once reviewed, so tomorrow's run starts clean.
-6. Update `overnight-queue.md`: mark completed tasks, add new ones as the project's design/doc
+6. Update `ollama-instructions.md`: mark completed tasks, add new ones as the project's design/doc
    backlog changes (see "Restocking the queue" below).
 
 ## Restocking the queue
 
 When a session (Claude Code or Antigravity CLI) finishes real work and wants to leave Ollama
-something to do overnight, add a new entry to `overnight-queue.md` **only if it fits the shape**
+something to do overnight, add a new entry to `ollama-instructions.md` **only if it fits the shape**
 above (self-contained, low-risk, fast-to-verify) — the authoritative do/don't list is
-`production/ollama-instructions.md` (also the file the Discord bot feeds to Gemini). If
+`production/ollama-delegation-criteria.md` (also the file the Discord bot feeds to Gemini). If
 nothing in the current project state fits that shape, leave the queue short rather than force a
 bad-fit task in — an empty queue is better than a queue Ollama will confidently get wrong in ways
 that take longer to review than to just do yourself.

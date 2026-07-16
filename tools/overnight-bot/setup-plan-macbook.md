@@ -49,7 +49,7 @@
   - 에러 메시지(`❌ ...`)가 뜨면 터미널 로그도 함께 확인해 전체 에러 문구 캡처해둘 것
 
 - [ ] **6. 다음 날 아침**
-  `production/overnight-output/`의 결과 파일들을 `production/overnight-queue.md`의 리뷰
+  `production/overnight-output/`의 결과 파일들을 `production/ollama-instructions.md`의 리뷰
   체크리스트로 확인 → Claude Code/Antigravity CLI 세션에서 승격 심사 → 처리 끝난 파일은 삭제.
 
 ## 문제 생기면
