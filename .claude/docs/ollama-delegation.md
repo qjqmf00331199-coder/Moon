@@ -7,7 +7,7 @@ no `@`-import mechanism, so its copy is written out in full rather than referenc
 
 Before doing any sub-task (not just the main task the user asked for — any incidental cleanup,
 doc-writing, or boilerplate you notice along the way), check it against
-`production/ollama-delegation-criteria.md`. If it matches the "맡기기 좋은 작업" list
+`production/ollama-instructions.md`. If it matches the "맡기기 좋은 작업" list
 (documentation, comments, boilerplate getters/setters, simple UPROPERTY/UFUNCTION declarations,
 commit-message polish, TODO extraction, log/error summarization, small deterministic utility
 scripts, folder/naming cleanup, text formatting/translation) — **do not do it yourself**, even
@@ -44,7 +44,7 @@ tasks being live on the remote — not sitting uncommitted in one tool's local w
 
 ## See also
 
-- `production/ollama-delegation-criteria.md` — the actual selection criteria (Gemini reads this
+- `production/ollama-instructions.md` — the actual selection criteria (Gemini reads this
   too, for when the overnight bot picks its own tasks)
 - `production/overnight-queue.md` — the live task queue
 - `production/overnight-protocol.md` — trust model + morning review routine

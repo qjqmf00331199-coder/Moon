@@ -55,7 +55,7 @@ wrong answer is hard to spot without re-deriving the right one.
 When a session (Claude Code or Antigravity CLI) finishes real work and wants to leave Ollama
 something to do overnight, add a new entry to `overnight-queue.md` **only if it fits the shape**
 above (self-contained, low-risk, fast-to-verify) — the authoritative do/don't list is
-`production/ollama-delegation-criteria.md` (also the file the Discord bot feeds to Gemini). If
+`production/ollama-instructions.md` (also the file the Discord bot feeds to Gemini). If
 nothing in the current project state fits that shape, leave the queue short rather than force a
 bad-fit task in — an empty queue is better than a queue Ollama will confidently get wrong in ways
 that take longer to review than to just do yourself.

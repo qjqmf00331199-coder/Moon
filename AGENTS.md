@@ -84,14 +84,14 @@ It has no file/tool access and never touches canonical files — it only writes 
 `production/overnight-output/`. **Check that directory at the start of any session** — review and
 promote/discard its drafts before starting new work, then clear the directory.
 
-Selection criteria for what Ollama is and isn't allowed to do: `production/ollama-delegation-criteria.md`.
+Selection criteria for what Ollama is and isn't allowed to do: `production/ollama-instructions.md`.
 This is the same file the Discord bot (`tools/overnight-bot/discord_ollama_bot.py`) feeds to
 Gemini, so it's the single source of truth for both the bot and Antigravity/Claude Code.
 
 ### Delegate simple work to Ollama instead of doing it yourself
 
 Before doing any sub-task you notice along the way (not just the user's main ask — incidental
-doc-writing, boilerplate, cleanup), check it against `production/ollama-delegation-criteria.md`.
+doc-writing, boilerplate, cleanup), check it against `production/ollama-instructions.md`.
 If it matches the "맡기기 좋은 작업" list (documentation, comments, boilerplate getters/setters,
 simple UPROPERTY/UFUNCTION declarations, commit-message polish, TODO extraction, log/error
 summarization, small deterministic utility scripts, folder/naming cleanup, text formatting/
