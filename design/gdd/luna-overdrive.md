@@ -1,7 +1,7 @@
 # Luna Overdrive (Blood Moon)
 
-> **Status**: Designed (pending review)
-> **Author**: user + game-designer (solo design mode)
+> **Status**: Designed (pending re-review — 2026-07-17 full design-review: NEEDS REVISION, 5 blocking items revised in-session)
+> **Author**: user + game-designer (solo design mode) + 2026-07-17 full design-review (game-designer, systems-designer, qa-lead, ue-gas-specialist, creative-director)
 > **Last Updated**: 2026-07-17
 > **Implements Pillar**: Dopamine Driven Design — 텐션 곡선의 최고점(각성 발동 → 무제한의 학살 → 급격한 하락)
 
@@ -24,10 +24,14 @@ Luna Overdrive는 Combo/Tension Gauge가 Max 도달 시 발행하는 `OnOverdriv
 
 1. **트리거는 단일 소비 계약** — Combo/Tension Gauge의 `OnOverdriveTriggered` 이벤트를 구독하고, 수신 프레임에 즉시 Overdrive Active 상태로 진입한다. **페이로드 결정(상류 Open Question 해소)**: 페이로드 없음(무인자 이벤트)으로 확정 — 각성 효과가 전부 플레이어 중심(태그 부여 + 타이머)이고, 발동 연출에 필요한 위치/시점 정보는 수신 시점에 플레이어 참조로 직접 조회 가능하므로 추가 데이터가 불필요하다(가장 단순한 계약 선택, combo-tension-gauge.md Open Questions에 해소 반영).
 2. **발동 효과 = `CostBypass.Active` 태그 부여** — Spell Casting (base) Core Rule 10의 훅을 그대로 소비한다. 이 단일 태그가 마나비용과 쿨다운을 **동시에** 우회한다(부분 우회 모드 없음 — spell-casting-base.md Edge Cases에서 MVP 확정). MVP 범위에서 오버드라이브의 게임플레이 효과는 이 태그가 전부다 — 별도 데미지 배율/이동속도 버프 없음(컨셉 문서에 명시된 효과는 "마나 무한 + 쿨타임 제로 + 시각 반전"뿐이므로 가장 보수적으로 그 범위만 구현).
+   **구현 노트 (2026-07-17 design-review 반영, blocking)**: 이 태그는 정규 grantor가 Luna Overdrive **단 하나**이므로, 프로젝트의 참조카운트 loose tag 관례(health-damage-core.md `State.Invulnerable`/`State.Executable` — 그쪽은 grantor가 다수라서 카운트가 필요한 것)를 **따르지 않는다**. 구현은 카운트형 `AddLooseGameplayTag` 증감 API를 사용하지 말고 비카운트 set/clear(`SetLooseGameplayTagCount(1/0)` 상당)로 태그를 다룰 것 — 리프레시에서 관례대로 재-grant하면 카운트 2가 되어 단일 해제 후 태그가 잔존하는(영구 무한마나) 버그가 된다. 관례에서 이탈하는 문서화된 의도적 예외.
 3. **지속시간은 타이머 기반** — 발동 시점부터 `OverdriveDuration`(Tuning Knob, 기본 10초 — game-concept.md 명시값) 카운트다운. 만료 프레임에 종료 처리.
-4. **종료 = 태그 해제, 순서 계약 준수** — 종료 프레임에 `CostBypass.Active`를 해제하며, **태그 상태 변경이 그 프레임의 캐스트 게이트 평가보다 먼저 해소된다**(spell-casting-base.md Edge Cases의 bypass-release same-frame race 순서 계약을 그대로 채택 — 이 문서가 따라야 한다고 상류가 명시한 유일한 순서). 종료 프레임에 입력된 캐스트는 정상 코스트/쿨다운 검사를 받는다.
+   **구현 권장 (2026-07-17 design-review 반영)**: 수동 타이머 변수가 아니라 **Duration형 GameplayEffect가 태그 부여와 만료를 함께 소유**하는 패턴을 권장 — 스태킹 정책은 refresh-duration(재적용 시 지속시간 리셋, 스택 수 1 고정)으로 Rule 5의 리프레시 의미와 정확히 일치하고, `OverdriveTimeRemaining`은 해당 GE의 잔여시간 쿼리로 구현하며, loose tag 비복제 이슈(현재 싱글플레이어라 무관하나 전방 호환)도 회피된다. 단 GE 잔여시간 쿼리/refresh 스태킹 API 명칭은 UE5.8 헤더 실물 대조 필수(Open Questions의 knowledge-gap 항목).
+4. **종료 = 태그 해제, 순서 계약 준수 — 강제 메커니즘: lazy 시간 비교** — 종료 프레임에 `CostBypass.Active`를 해제하며, **태그 상태 변경이 그 프레임의 캐스트 게이트 평가보다 먼저 해소된다**(spell-casting-base.md Edge Cases의 bypass-release same-frame race 순서 계약을 그대로 채택). 종료 프레임에 입력된 캐스트는 정상 코스트/쿨다운 검사를 받는다.
+   **구현 계약 (2026-07-17 design-review 반영, blocking)**: 이 순서(및 Edge Cases의 모든 same-frame tie-break)는 콜백/타이머 실행 순서에 의존해서 달성하지 **않는다** — UE에서 타이머 콜백과 Enhanced Input 기반 게이트 평가의 프레임 내 인터리브 순서는 구성만으로 보장되지 않는다. 대신 **모든 판정 지점(캐스트 게이트, 만료 처리, 트리거/사망 핸들러)이 평가 시점에 `CurrentTime` vs `OverdriveEndTime`을 직접 비교**한다(lazy evaluation). 태그의 물리적 해제가 프레임 내 언제 일어나든, `CurrentTime >= OverdriveEndTime`이면 게이트는 이미 "우회 없음"으로 판정 — 순서 계약이 실행 순서 운에 의존하지 않고 구성상 참이 된다. Spell Casting Rule 10의 태그 검사 지점 2개(CanActivateAbility/커밋 분기)에는 이 시간 비교를 병행 조건으로 전달(태그 AND 미만료)하는 형태로 구현.
 5. **Active 중 재트리거 = 지속시간 리프레시** — 오버드라이브 중 게이지가 재차 Max에 도달해 `OnOverdriveTriggered`가 다시 오면(combo-tension-gauge.md Core Rule 6이 명시적으로 허용), 타이머를 `OverdriveDuration` 풀로 리셋한다. 태그는 이미 부여된 것을 유지(재부여 없음 — 단일 grant를 유지해 참조카운트 오염/이중해제 경합을 원천 차단). 스택/연장가산 없음 — 리프레시가 상류의 "재발동 허용" 계약과 "무제한의 학살" 판타지에 부합하는 가장 단순한 해석.
 6. **플레이어 사망 시 즉시 강제 종료** — Health/Damage Core의 플레이어 Death 상태 진입 시 타이머 취소 + 태그 즉시 해제. 재시작 후 오버드라이브 이월 없음(Combo/Tension Gauge의 사망 시 게이지 0 리셋과 일관).
+   **이중 해제 소유권 정리 (2026-07-17 design-review 반영, blocking)**: health-damage-core.md의 Death 전환 시 "모든 오버레이 태그 클리어" 규칙과 이 Rule의 해제가 같은 프레임에 겹칠 수 있다 — 태그가 비카운트형(Rule 2 구현 노트)이므로 이중 remove는 무해(멱등)하며, **정규 해제 소유자는 Luna Overdrive**다(HDC의 블랭킷 클리어는 안전망일 뿐). 향후 이 태그에 참조카운트를 도입하는 리비전이 생기면(예: 파편 흡수 트리거 추가) 이 이중 해제 경로를 먼저 해소해야 한다 — 그 전까지 카운트형 전환 금지.
 7. **발동 임계값을 재설계하지 않는다** — 게이지 Max(100), 축적 공식, 감쇠는 전부 Combo/Tension Gauge 소유(systems-index.md High-Risk 표의 소유 경계). 이 문서는 트리거 수신 이후만 소유.
 8. **상태 이벤트를 하류에 노출** — `OnOverdriveStarted`(발동 프레임), `OnOverdriveEnded(EndReason)`(종료 프레임, EndReason ∈ {Expired, PlayerDeath}) 이벤트와 잔여시간 조회 인터페이스(`OverdriveTimeRemaining`)를 노출한다. Combat HUD(각성 표시/잔여시간)와 Overdrive Visual State(크림슨 레드 연출 시작/해제)가 소비.
 9. **시각 반전의 트리거만 소유** — '푸른색 → 크림슨 레드' 전환의 본격 연출(라이팅/포스트프로세스/이펙트 팔레트 교체)은 Overdrive Visual State(#18, Vertical Slice, 미설계) 소유. 이 문서는 Rule 8의 시작/종료 이벤트가 그 연출의 유일한 트리거라는 계약과, MVP용 최소 피드백(Visual/Audio Requirements)만 소유.
@@ -82,17 +86,17 @@ Luna Overdrive는 Combo/Tension Gauge가 Max 도달 시 발행하는 `OnOverdriv
 
 `TheoreticalChainCondition = (오버드라이브 중 10초 내 누적 TensionGain) >= TensionGaugeMax`
 
-**Notes**: 쿨타임 제로 상태에서 Blackhole(텐션 70/명중) + Fire/Lightning(25/명중)을 난사하면 명중 2~3회로 게이지가 재차 Max에 도달할 수 있다 — 즉 적이 충분히 밀집한 상황에서는 리프레시 체인으로 오버드라이브가 사실상 연장 유지될 수 있다. 이것은 상류(combo-tension-gauge.md Core Rule 6)가 명시적으로 허용한 동작이며 "Endless Catharsis" 필라와 방향은 일치하나, 밸런스 붕괴(상시 각성) 위험은 플레이테스트 검증 대상이다(Open Questions 및 systems-index.md High-Risk 표의 "Combo/Tension Gauge → Luna Overdrive" 리스크와 동일 계열).
+**Notes**: 쿨타임 제로 상태에서 Blackhole(텐션 70/명중) + Fire/Lightning(25/명중)을 난사하면 명중 2~3회로 게이지가 재차 Max에 도달할 수 있다 — 즉 적이 충분히 밀집한 상황에서는 리프레시 체인으로 오버드라이브가 사실상 연장 유지될 수 있다. 경계값 악화 사례(2026-07-17 design-review): `TensionGainCoefficient`가 Safe Range 상한 1.5면 Blackhole 1발 = 70×1.5 = 105 → **매 캐스트가 리프레시** — OverdriveDuration이 기능적으로 무의미해진다. 이것은 상류(combo-tension-gauge.md Core Rule 6)가 명시적으로 허용한 동작이며 "Endless Catharsis" 필라와 방향은 일치하나, 상시 각성은 "급격한 하락" 필라 반쪽을 붕괴시킨다. **안전장치(동 리뷰에서 확보)**: 상류가 `OverdriveTensionGainMultiplier`(combo-tension-gauge.md Core Rule 7, 기본 1.0, 0.0이면 각성 중 게이지 동결 = 체인 원천 차단)를 소유한다 — 체인 억제는 그 노브로 수행하며 이 문서는 여전히 상한을 발명하지 않는다. 값 결정은 플레이테스트(Open Questions).
 
 ## Edge Cases
 
 | Scenario | Expected Behavior | Rationale |
 |----------|-------------------|-----------|
 | 종료 조건 경합: 시간 만료 vs 마나 소모 | **종료 조건은 시간 만료(및 사망)뿐** — 마나는 오버드라이브 중 소모 자체가 발생하지 않으므로(EffectiveManaCost=0) "마나 고갈로 조기 종료" 경로는 존재하지 않음 | Spell Casting의 코스트 우회가 게이트 자체를 건너뛰므로 마나 기반 종료는 정의 불가능 — 미정의 상태로 남기지 않고 "발생 안 함"을 명시(spell-casting-base.md의 부분 우회 명시 패턴과 동일) |
-| 만료 프레임에 캐스트 입력이 겹침 | 태그 해제가 먼저 해소된 후 게이트 평가 — 해당 캐스트는 정상 코스트/쿨다운 검사를 받음(공짜 마지막 한 발 없음) | spell-casting-base.md Edge Cases의 bypass-release same-frame race 순서 계약 그대로 채택(Rule 4) — 프레임 복불복 제거 |
-| 만료 프레임과 재트리거(`OnOverdriveTriggered`)가 같은 프레임에 겹침 | 트리거 수신 처리를 만료 판정보다 먼저 수행 — 리프레시 성립, 오버드라이브 연속 유지(Ended/Started 이벤트 발행 없음) | 게이지를 Max까지 채운 성과가 프레임 타이밍 때문에 증발하면 안 됨 — 플레이어에게 유리한 쪽으로 결정론적 순서 고정 |
+| 만료 프레임에 캐스트 입력이 겹침 | 태그 해제가 먼저 해소된 후 게이트 평가 — 해당 캐스트는 정상 코스트/쿨다운 검사를 받음(공짜 마지막 한 발 없음). **강제 수단**: 게이트가 평가 시점에 `CurrentTime >= OverdriveEndTime` lazy 비교(Rule 4 구현 계약) — 태그 물리 해제 시점과 무관하게 성립 | spell-casting-base.md Edge Cases의 bypass-release same-frame race 순서 계약 그대로 채택(Rule 4) — 실행 순서 운이 아니라 구성상 참 |
+| 만료 프레임과 재트리거(`OnOverdriveTriggered`)가 같은 프레임에 겹침 | 트리거 수신 처리가 리프레시 성립 — 오버드라이브 연속 유지(Ended/Started 이벤트 발행 없음). **강제 수단**: 만료 확정(Ended 발행+태그 해제)은 프레임 말미 — 그 프레임의 이벤트 디스패치가 모두 끝난 뒤 — 에 `CurrentTime >= OverdriveEndTime`을 최종 평가해 수행(Rule 4의 lazy 원칙 연장). 같은 프레임 트리거가 `OverdriveEndTime`을 미래로 갱신해 두면 말미 평가가 자연히 불성립 — 핸들러 간 실행 순서 규칙 불요 | 게이지를 Max까지 채운 성과가 프레임 타이밍 때문에 증발하면 안 됨 — 플레이어에게 유리한 결과가 구성상 보장됨 |
 | 오버드라이브 중 플레이어 사망 | 즉시 종료: 타이머 취소, 태그 해제, `OnOverdriveEnded(PlayerDeath)` 1회 발행. 재시작 시 Inactive에서 시작 | Rule 6 — 사망 후 태그 잔존 시 부활 직후 공짜 캐스트가 성립하는 버그 방지. Combo/Tension Gauge의 사망 시 게이지 0 리셋과 일관 |
-| `OnOverdriveTriggered`와 플레이어 Death가 같은 프레임에 겹침 | Death 처리 우선 — 오버드라이브 발동 무효(Started 이벤트 미발행, 태그 미부여) | 죽는 프레임에 각성이 켜졌다 즉시 꺼지는 이벤트 노이즈(Started+Ended 동시 발행)가 하류(HUD/Visual State)에 잔상을 남기는 것을 방지 |
+| `OnOverdriveTriggered`와 플레이어 Death가 같은 프레임에 겹침 | Death 처리 우선 — 오버드라이브 발동 무효(Started 이벤트 미발행, 태그 미부여). **강제 수단**: 트리거 핸들러가 발동 확정 전에 플레이어 Death 상태를 평가 시점 조회(lazy) — Death면 발동 자체를 시작하지 않음. 핸들러 실행 순서에 의존하지 않도록, 발동 확정도 만료와 동일하게 프레임 말미 평가에서 Death 상태를 최종 재확인 후 커밋 | 죽는 프레임에 각성이 켜졌다 즉시 꺼지는 이벤트 노이즈(Started+Ended 동시 발행)가 하류(HUD/Visual State)에 잔상을 남기는 것을 방지 |
 | 오버드라이브 중 마나/쿨다운 상태 | 마나는 캐스트로 소모되지 않고 패시브 리젠은 계속 틱(대개 종료 시점에 만충) — 쿨다운 타이머는 진입 자체가 없어 종료 즉시 3속성 모두 Ready | spell-casting-base.md Edge Cases("우회 중 쿨다운 GE 진입 자체가 없음") 상속 — 종료 후 "숨겨진 쿨다운/빈 마나"가 판타지를 깨지 않음 |
 | `CostBypass.Active` 태그가 이 시스템 외부에서 조작됨 | 발생 금지 계약 — 이 태그의 부여/해제 권한은 Luna Overdrive 단독 소유(테스트 하네스 제외, spell-casting-base.md AC5의 스텁 예외). 외부 시스템이 필요해지면 참조카운트 설계로 리비전 | 단일 소유자 + 단일 grant(Rule 5)여야 이중 해제/조기 해제 경합이 구조적으로 불가능 |
 | 리프레시 직후 즉시 또 리프레시(연속 재트리거) | 각 트리거마다 EndTime 재계산만 반복 — 상한 없음(체인 허용) | 상류가 재발동을 허용한 이상 인위적 상한은 이 문서가 발명할 새 규칙 — 밸런스 상한이 필요하면 상류 게이지 쪽 축적 억제로 해결할 문제(Open Questions) |
@@ -102,7 +106,7 @@ Luna Overdrive는 Combo/Tension Gauge가 Max 도달 시 발행하는 `OnOverdriv
 | System | Direction | Nature of Dependency |
 |--------|-----------|----------------------|
 | Combo/Tension Gauge | 상류 (이 시스템이 의존, 하드) | `OnOverdriveTriggered` 이벤트 구독(무페이로드 — 페이로드 결정은 이 문서 Rule 1이 확정) |
-| Spell Casting (base) | 상류 (이 시스템이 의존, 하드) | `CostBypass.Active` 태그 부여/해제 — Core Rule 10 훅의 유일한 정규 구동자 |
+| Spell Casting (base) | 상류 (이 시스템이 의존, 하드) | `CostBypass.Active` 태그 부여/해제 — Core Rule 10 훅의 유일한 정규 구동자. **⚠ Blocking 교차 의존(2026-07-17 design-review)**: 오버드라이브 중 캐스트 레이트의 유일한 잔여 제약이 순수 입력 속도(터보/매크로 악용 가능)가 됨 — 최소 레이트 계약(스펠당 프레임당 1캐스트 또는 전역 초당 캐스트 상한 노브)은 **Spell Casting (base) 소유**로, 그쪽 리비전이 이 시스템의 구현 전 선행 조건. 이 문서가 캡을 발명하지 않음(소유권 규율) |
 | Health/Damage Core | 상류 (이 시스템이 의존, 소프트) | 플레이어 Death 상태(`OnDeath`) 구독 — 강제 종료 트리거 |
 | Combat HUD (미설계) | 하류 (이 시스템에 의존, 소프트) | `OnOverdriveStarted`/`OnOverdriveEnded` + `OverdriveTimeRemaining` read-only 소비 |
 | Overdrive Visual State (미설계) | 하류 (이 시스템에 의존, 하드) | 시작/종료 이벤트를 크림슨 레드 연출 트리거로 소비 — 연출 내용은 그쪽 소유 |
@@ -113,7 +117,7 @@ Luna Overdrive는 Combo/Tension Gauge가 Max 도달 시 발행하는 `OnOverdriv
 |---|---|---|---|---|
 | OverdriveDuration | 10.0초 (game-concept.md 명시값) | 6.0–15.0초 | 각성이 일상화 → 희소성/텐션곡선 붕괴, 리프레시 체인과 결합 시 상시 각성 위험 | 난사 리듬이 몸에 붙기 전에 종료 → "해방감" 미성립 |
 
-**교차 제약**: `OverdriveDuration`은 Combo/Tension Gauge의 축적 속도(`TensionGainCoefficient`, `TensionGaugeMax`)와 한 세트로 튜닝할 것 — 지속시간을 늘리면 오버드라이브 중 재충전(리프레시 체인) 성립이 쉬워져 사실상 지속시간이 기하급수적으로 늘어난다(Formulas의 체인 분석 참조). 상류 게이지 노브를 건드리지 않고 이 노브만 올리는 것은 금지 패턴.
+**교차 제약**: `OverdriveDuration`은 Combo/Tension Gauge의 축적 속도(`TensionGainCoefficient`, `TensionGaugeMax`) 및 **`OverdriveTensionGainMultiplier`**(오버드라이브 중 획득 감쇠 — 리프레시 체인의 공식 억제 레버, combo-tension-gauge.md Core Rule 7)와 한 세트로 튜닝할 것 — 지속시간을 늘리면 오버드라이브 중 재충전(리프레시 체인) 성립이 쉬워져 사실상 지속시간이 기하급수적으로 늘어난다(Formulas의 체인 분석 참조). 상류 게이지 노브를 건드리지 않고 이 노브만 올리는 것은 금지 패턴.
 
 > 이 시스템의 튜닝 노브는 위 1개뿐이다 — 데미지/이속 배율이 없고(Rule 2), 발동 임계값은 상류 소유(Rule 7). 노브가 적은 것이 의도된 설계: 각성의 정체성은 수치가 아니라 규칙 변경이다.
 
@@ -144,19 +148,25 @@ Luna Overdrive는 Combo/Tension Gauge가 Max 도달 시 발행하는 `OnOverdriv
 
 ## Acceptance Criteria
 
-1. **GIVEN** Inactive 상태, TensionGauge가 Max 도달로 `OnOverdriveTriggered` 발행, **WHEN** 이벤트 수신 프레임, **THEN** 같은 프레임에 `CostBypass.Active` 태그 부여 + `OnOverdriveStarted` 1회 발행 + `OverdriveTimeRemaining`=10.0(기본값).
-2. **GIVEN** Overdrive Active, **WHEN** Blackhole 연속 3회 캐스트(쿨다운 무시), **THEN** 3회 모두 즉시 발동, Mana 변화 없음(spell-casting-base.md AC5와 동일 결과가 실제 트리거 경로로 재현됨).
-3. **GIVEN** Overdrive Active 발동 후 10.0초 경과(리프레시 없음), **WHEN** 만료 프레임, **THEN** `CostBypass.Active` 해제 + `OnOverdriveEnded(Expired)` 1회 발행 + 3속성 쿨다운 모두 Ready(잔존 쿨다운 없음).
-4. **GIVEN** 만료 프레임에 Fire 캐스트 입력이 동시 발생, **WHEN** 프레임 처리, **THEN** 태그 해제가 먼저 반영되어 해당 캐스트는 정상 코스트(25) 차감 + 정상 쿨다운 진입(공짜 캐스트 아님).
-5. **GIVEN** Overdrive Active(잔여 4.0초), 게이지가 재차 Max 도달, **WHEN** `OnOverdriveTriggered` 재수신, **THEN** `OverdriveTimeRemaining`=10.0으로 리프레시, 태그는 연속 유지, `OnOverdriveStarted` 재발행 없음.
-6. **GIVEN** Overdrive Active, **WHEN** 플레이어 Death 상태 진입, **THEN** 즉시 태그 해제 + `OnOverdriveEnded(PlayerDeath)` 1회 발행, 재시작 후 Inactive 상태(태그 잔존 없음).
-7. **GIVEN** 같은 프레임에 `OnOverdriveTriggered`와 플레이어 Death가 동시 발생, **WHEN** 프레임 처리, **THEN** 오버드라이브 미발동(`OnOverdriveStarted` 미발행, 태그 미부여).
-8. **GIVEN** Overdrive Active 진입 시 Mana=30, **WHEN** 지속 10초간 캐스트 다수 수행 후 종료, **THEN** Mana는 캐스트로 감소하지 않고 패시브 리젠만 적용된 값(기본 리젠 8/s 기준 만충 100)으로 종료.
+> **테스트 진입 계약(전 AC 공통)**: "Overdrive Active" 진입은 테스트 하네스가 `OnOverdriveTriggered`를 직접 발행해 달성한다(상류 경계 스텁 — Combo/Tension Gauge 실축적 불요). `CostBypass.Active` 태그 직접 부여는 금지 — 그건 이 시스템의 검증 대상인 상태 기계 자체를 우회한다(spell-casting-base.md AC5의 스텁이 태그 직접 부여인 것과 반대인 이유: 그쪽은 태그 소비자, 이쪽은 태그 소유자). *(2026-07-17 design-review 반영)*
+> **증거 유형**: Logic(unit) = 이 시스템 상태 기계 단독, 캐스팅 스텁 / Integration = 실제 Spell Casting 코스트·쿨다운 코드 필요.
+
+1. **GIVEN** Inactive 상태, 하네스가 `OnOverdriveTriggered` 발행, **WHEN** 이벤트 수신 프레임, **THEN** 같은 프레임에 `CostBypass.Active` 태그 부여 + `OnOverdriveStarted` 1회 발행 + `OverdriveTimeRemaining`=`OverdriveDuration`(기본 10.0). *(Logic/unit)*
+2. **GIVEN** Overdrive Active(AC1 경로로 진입 — 트리거 스텁, 태그 직접 부여 아님), **WHEN** Blackhole 연속 3회 캐스트(쿨다운 무시), **THEN** 3회 모두 즉시 발동, Mana 변화 없음(spell-casting-base.md AC5와 동일 결과가 실제 트리거 경로로 재현됨). *(Integration — 실제 Spell Casting 게이트 코드)*
+3. **GIVEN** Overdrive Active 발동 후 `OverdriveDuration`(기본 10.0초) 경과(리프레시 없음), **WHEN** 만료 프레임, **THEN** `CostBypass.Active` 해제 + `OnOverdriveEnded(Expired)` 1회 발행 + 3속성 쿨다운 모두 Ready(잔존 쿨다운 없음). *(Logic/unit — 쿨다운 Ready 확인만 Integration)*
+4. **GIVEN** 만료 프레임에 Fire 캐스트 입력이 동시 발생, **WHEN** 프레임 처리, **THEN** lazy 시간 비교(Rule 4)에 의해 해당 캐스트는 정상 코스트(25) 차감 + 정상 쿨다운 진입(공짜 캐스트 아님). *(Integration — 실제 캐스트 게이트)*
+5. **GIVEN** Overdrive Active(잔여 4.0초), **WHEN** `OnOverdriveTriggered` 재수신, **THEN** `OverdriveTimeRemaining`=`OverdriveDuration`으로 리프레시, 태그는 연속 유지(카운트 증가 없음 — Rule 2 구현 노트), `OnOverdriveStarted` 재발행 없음. *(Logic/unit)*
+6. **GIVEN** Overdrive Active, **WHEN** 플레이어 Death 상태 진입, **THEN** 즉시 태그 해제 + `OnOverdriveEnded(PlayerDeath)` 1회 발행, 재시작 후 Inactive 상태(태그 잔존 없음 — HDC 블랭킷 클리어와의 이중 remove 무해 확인 포함, Rule 6 구현 노트). *(Logic/unit — Death 상태 스텁)*
+7. **GIVEN** 같은 프레임에 `OnOverdriveTriggered`와 플레이어 Death가 동시 발생, **WHEN** 프레임 처리, **THEN** 오버드라이브 미발동(`OnOverdriveStarted` 미발행, 태그 미부여) — 핸들러 발화 순서 양방향 모두에서 성립(Edge Cases 강제 수단). *(Logic/unit)*
+8. **GIVEN** Overdrive Active 진입 시 Mana=30, **WHEN** 지속 10초간 캐스트 다수 수행 후 종료, **THEN** Mana는 캐스트로 감소하지 않고 패시브 리젠만 적용된 값(기본 리젠 8/s 기준 만충 100)으로 종료. *(Integration — 실제 마나/리젠 코드)*
+9. **GIVEN** Overdrive Active, `OverdriveTimeRemaining`이 정확히 0에 도달하는 프레임에 `OnOverdriveTriggered`가 같은 프레임 수신, **WHEN** 프레임 처리(만료 확정은 프레임 말미 평가 — Edge Cases 강제 수단), **THEN** 리프레시 성립: `OverdriveTimeRemaining`=`OverdriveDuration`, 태그 연속 유지, `OnOverdriveEnded` **미발행** AND `OnOverdriveStarted` **미발행**. *(Logic/unit — 2026-07-17 design-review에서 추가, Edge Cases 계약의 증거 공백 해소)*
 
 ## Open Questions
 
-- **Owner: game-designer, Target: 프로토타입 플레이테스트** — 리프레시 체인(오버드라이브 중 재충전 → 사실상 상시 각성) 성립 여부와 체감 검증. 억제가 필요하면 상류(Combo/Tension Gauge)의 오버드라이브 중 획득 계수 노브 추가로 해결할 것 — 이 문서에 상한을 발명하지 않기로 결정(Edge Cases 참조).
-- **Owner: game-designer, Target: 파편 드랍/흡수 시스템 설계 시** — game-concept.md의 제2 발동 경로 "거대 파편 흡수"는 소유 시스템 미존재로 MVP 제외(Rule 10). 해당 시스템 설계 시 `OnOverdriveTriggered`와 동일한 트리거 계약으로 합류할지, 별도 이벤트로 둘지 확정 필요.
+- **Owner: game-designer, Target: 프로토타입 플레이테스트** — 리프레시 체인(오버드라이브 중 재충전 → 사실상 상시 각성) 체감 검증 및 `OverdriveTensionGainMultiplier`(combo-tension-gauge.md Core Rule 7 — 2026-07-17 리뷰에서 안전장치로 신설, 기본 1.0) 실값 결정. 이 문서에 상한을 발명하지 않는 결정은 유지(Edge Cases 참조) — 레버는 상류 게이지 소유.
+- ~~**Owner: systems-designer, Target: Spell Casting (base) 리비전 — 이 시스템 구현 전 (BLOCKING)**~~ **RESOLVED (2026-07-17)** — spell-casting-base.md에 Core Rule 11(캐스트 레이트 바닥: per-element per-frame cap + 전역 MaxCastsPerSecond=20)이 추가되어 터보/매크로 익스플로잇 구조적 차단 완료. `max_casts_per_second` 상수 레지스트리 등록 완료. 이 문서의 구현 전제조건(BLOCKING) 해소.
+- **Owner: gameplay-programmer/ue-gas-specialist, Target: 구현 시 (knowledge-gap)** — Duration GE 잔여시간 쿼리 API, refresh-duration 스태킹 정책 API 명칭, 복제형 loose tag 세만틱스 — 전부 UE5.8 헤더 실물 대조 필요(engine-reference에 미수록, 학습 데이터 밖 버전).
+- **Owner: game-designer, Target: 파편 드랍/흡수 시스템 설계 시** — game-concept.md의 제2 발동 경로 "거대 파편 흡수"는 소유 시스템 미존재로 MVP 제외(Rule 10). 해당 시스템 설계 시 `OnOverdriveTriggered`와 동일한 트리거 계약으로 합류할지, 별도 이벤트로 둘지 확정 필요. 리뷰 지적(game-designer, 2026-07-17): 이 컷으로 MVP의 모든 발동이 동일한 slow-build 케이던스가 됨 — 프로토타입에서 즉발(spike) 체감을 미리 확인하려면 디버그 트리거(치트 키로 `OnOverdriveTriggered` 발행)로 충분, 별도 시스템 불요.
 - **Owner: art-director, Target: Overdrive Visual State GDD 설계 시** — MVP 크림슨 틴트(단순 포스트프로세스)와 본격 라이팅 반전 연출의 경계/이관 범위 확정. 이 문서의 Visual/Audio Requirements는 임시 대역임.
 - **Owner: qa-lead, Target: Production 진입 전** — 위 Acceptance Criteria는 solo 모드로 작성, qa-lead 미검증.
 

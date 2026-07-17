@@ -1,8 +1,51 @@
 <!-- STATUS -->
 Epic: Moon Fragment Hunt — DDD Expansion
 Feature: Systems Design > MVP complete (9/9 designed)
-Task: All 9 MVP GDDs designed. Luna Overdrive + Combat HUD are "Designed (pending review)". NEXT: /design-review on combo-tension-gauge.md, luna-overdrive.md, combat-hud.md in fresh sessions, then /review-all-gdds + /gate-check pre-production.
+Task: luna-overdrive.md design-review done (NEEDS REVISION → 5 blockers fixed → re-review pending). spell-casting-base.md revised (cast-rate floor Rule 11 added, BLOCKING cross-dep resolved). NEXT: fresh-session /design-review design/gdd/luna-overdrive.md (re-review), then combo-tension-gauge.md + combat-hud.md reviews, then /review-all-gdds + /gate-check pre-production.
 <!-- /STATUS -->
+
+## What changed this session (spell-casting-base.md cast-rate floor revision — BLOCKING cross-dep from luna-overdrive.md review)
+- **Cast-rate floor added** to `spell-casting-base.md` as Core Rule 11 — per-element per-frame cap
+  (동일 속성 프레임당 1회 제한) + 전역 `MaxCastsPerSecond` Tuning Knob (기본 20, Safe Range 10–30).
+  이 규칙은 `CostBypass.Active` 우회 여부와 무관하게 항상 적용.
+- **Edge Case 추가**: 오버드라이브 중 터보/매크로 장치로 프레임마다 동일 속성 캐스트 연사 시나리오.
+- **AC 2건 추가**: AC10 (per-frame cap 검증) + AC11 (MaxCastsPerSecond 전역 상한 검증).
+- **Tuning Knob 추가**: MaxCastsPerSecond (기본 20, 하드 클램프 최소 10).
+- **Registry 등록**: `max_casts_per_second` 상수 — `entities.yaml`에 추가 완료.
+- **luna-overdrive.md 반영**: BLOCKING Open Question을 RESOLVED로 마킹.
+- **Status 헤더 업데이트**: spell-casting-base.md의 revision 내역 반영.
+- Fable(Claude Code)의 luna-overdrive.md design-review 세션에서 식별된 유일한 BLOCKING 크로스
+  의존성이 해소됨 — re-review 전제조건 충족.
+
+## What changed this session (/design-review luna-overdrive.md — full depth)
+- Full adversarial review: game-designer, systems-designer, qa-lead, ue-gas-specialist in parallel
+  + creative-director senior synthesis. Verdict **NEEDS REVISION** → all 5 blocking items fixed
+  in-session → status now "Designed (pending re-review)". Log:
+  `design/gdd/reviews/luna-overdrive-review-log.md`.
+- **Blocker fixes applied to luna-overdrive.md**:
+  1. Same-frame ordering (release>gate, retrigger>expiry, death>trigger) now has an enforcement
+     mechanism: lazy CurrentTime-vs-OverdriveEndTime comparison at every evaluation point +
+     end-of-frame expiry/activation finalization — ordering true by construction, not tick luck.
+  2. CostBypass.Active implementation note: NON-ref-counted set/clear mandated (documented
+     exception to the HDC ref-count convention — single-grantor tag); death-path double-remove
+     (LO Rule 6 vs HDC blanket overlay clear) pinned as idempotent/benign, LO owns release,
+     ref-count adoption forbidden until that overlap is resolved.
+  3. AC9 added (expiry+retrigger same-frame → refresh, NO Ended/Started events).
+  4. Refresh-chain damper: **OverdriveTensionGainMultiplier** added to combo-tension-gauge.md
+     (new Core Rule 7 — all tension gains ×multiplier while CostBypass.Active present; default
+     1.0 = behavior unchanged, 0.0 = gauge frozen during overdrive). Registered in registry.
+     Boundary case documented (coefficient 1.5 ⇒ Blackhole=105 ⇒ every cast refreshes).
+  5. Cast-rate floor registered as BLOCKING cross-dependency on Spell Casting (base) —
+     turbo/macro exploit (frame-instant + no recovery + bypass = input-rate-bound output);
+     min contract (1 cast/spell/frame or global CPS knob) is spell-casting-base.md's to add
+     before LO implementation. LO does not invent the cap (creative-director adjudication).
+- **Recommended fixes also applied**: AC test-entry contract (harness publishes OnOverdriveTriggered;
+  direct tag grant forbidden — opposite of spell-casting AC5's stub, reason documented), per-AC
+  Logic/Integration evidence tags, Duration-GE implementation recommendation (refresh-duration
+  stacking, GE remaining-time query — 5.8 header check flagged), fragment-absorption debug-trigger
+  note.
+- systems-index.md row #11 left at "Designed (pending review)" — accurate until re-review passes.
+- Not run this session (by protocol): re-review — needs fresh session.
 
 ## What changed this session (handoff execution — Combat HUD GDD, 2 of 2 — MVP 9/9 designed)
 - Authored complete GDD at `design/gdd/combat-hud.md`, solo review mode, status "Designed (pending review)".

@@ -632,6 +632,20 @@ constants:
     added: 2026-07-17
     revised: ""
 
+  - name: overdrive_tension_gain_multiplier
+    status: active
+    source: design/gdd/combo-tension-gauge.md
+    referenced_by:
+      - design/gdd/combo-tension-gauge.md
+      - design/gdd/luna-overdrive.md
+    value: 1.0
+    unit: multiplier
+    added: 2026-07-17
+    revised: ""
+    # Added during luna-overdrive.md's 2026-07-17 design-review as the official
+    # refresh-chain damper (gauge-side lever, Core Rule 7 in combo-tension-gauge.md).
+    # Default 1.0 preserves pre-review behavior; Safe Range 0.0-1.0, playtest decides.
+
   - name: overdrive_duration
     status: active
     source: design/gdd/luna-overdrive.md
@@ -658,6 +672,21 @@ constants:
     # combo-tension-gauge.md Visual/Audio gives "예: 90%+" as an example and
     # explicitly delegates the exact threshold to Combat HUD — combat-hud.md
     # owns the value (Charged Highlight Gate formula, Safe Range 0.80-0.95).
+
+  - name: max_casts_per_second
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+      - design/gdd/luna-overdrive.md
+    value: 20
+    unit: casts/second
+    added: 2026-07-17
+    revised: ""
+    # Added per luna-overdrive.md 2026-07-17 design-review (BLOCKING cross-dep).
+    # Prevents turbo/macro exploit when CostBypass.Active removes cost+cooldown gates.
+    # Safe Range 10-30; hard clamp minimum 10 (below that, normal human tapping ~10-12 CPS
+    # gets blocked, breaking the instant-cast fantasy). Default 20 is well above human limit.
 
 # Example:
 #
