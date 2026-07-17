@@ -302,6 +302,96 @@ task directly; if something real turns up, fix it by hand in the relevant GDD(s)
 
 ---
 
+## [ ] Task 7 — Registry vs. GDD fact-check (Spell Casting base)
+
+**Why queued**: `spell-casting-base.md` was approved 2026-07-17 (full design-review). The review
+itself changed a registry value (`mana_cost_blackhole` 100→70) — exactly the moment drift bugs
+get introduced. Mechanical check that registry constants (`max_mana`, `mana_cost_blackhole`,
+`mana_cost_fire`, `mana_cost_lightning`, `cooldown_blackhole`, `cooldown_fire`,
+`cooldown_lightning`, `mana_regen_rate`) and formulas (`effective_mana_cost`, `cast_gate_check`,
+`new_mana`, `spell_noise_loudness`) match the approved GDD.
+
+**Risk**: Low. Report-only, no file edited.
+
+**Context files**:
+- {{CONTEXT_REGISTRY}}: design/registry/entities.yaml
+- {{CONTEXT_GDD}}: design/gdd/spell-casting-base.md
+
+**Prompt**:
+```
+You are cross-checking two documents for a game design registry. The first is a YAML registry
+of named constants/formulas; the second is a design document that should agree with it wherever
+they both mention the same named value.
+
+List every case where a numeric value, formula, or named constant appears in BOTH documents
+but with DIFFERENT values. Format each finding as:
+
+- [name]: registry says [X], GDD says [Y] (GDD section: [section name])
+
+If you find no mismatches, say so explicitly — do not invent a mismatch to have something to
+report. Do not comment on anything else (style, completeness, missing sections) — ONLY numeric/
+value disagreements between the two documents.
+
+---
+REGISTRY (entities.yaml):
+{{CONTEXT_REGISTRY}}
+
+---
+GDD (spell-casting-base.md):
+{{CONTEXT_GDD}}
+```
+
+**Output path**: `production/overnight-output/task7-registry-check-spell-casting.md`
+
+**Review checklist** (under 2 min): same as Task 2 — open both source files, check actual values
+at the cited locations. Note: `mana_cost_blackhole` should be 70 in BOTH (revised 2026-07-17);
+if either side still says 100, that side is stale.
+
+---
+
+## [ ] Task 8 — Korean/English terminology consistency report (Spell Casting vs. Health/Damage Core)
+
+**Why queued**: `spell-casting-base.md` was approved 2026-07-17. It interacts directly with
+Health/Damage Core (`OnExecuted` subscription, `ApplyDamage` single entry point, `bBypassDefense`
+flag, `TryExecute`) — shared concepts are where naming drift shows up first.
+
+**Risk**: Low. Report-only task.
+
+**Context files**:
+- {{CONTEXT_A}}: design/gdd/spell-casting-base.md
+- {{CONTEXT_B}}: design/gdd/health-damage-core.md
+
+**Prompt**:
+```
+Below are two Korean-language game design documents that share some concepts (they're
+core systems in the same project that interact directly). List every case where the SAME
+concept appears to be referred to with inconsistent terminology between the two documents —
+different Korean phrasing, inconsistent English term choice, or Korean vs. English used
+inconsistently for the same thing. Format each finding as:
+
+- Concept: [what it refers to] — Doc A says "[term]", Doc B says "[term]"
+
+Only flag genuine same-concept naming inconsistencies. Do not flag terms that only appear in one
+document (that's not an inconsistency, just scope). Do not comment on grammar, style, or
+translation quality — ONLY cross-document naming consistency.
+
+---
+DOCUMENT A (spell-casting-base.md):
+{{CONTEXT_A}}
+
+---
+DOCUMENT B (health-damage-core.md):
+{{CONTEXT_B}}
+```
+
+**Output path**: `production/overnight-output/task8-terminology-consistency-spell-casting.md`
+
+**Review checklist** (under 2 min): skim the list — for each flagged pair, decide if it's a real
+inconsistency worth standardizing or an intentional distinction. No file gets edited from this
+task directly; if something real turns up, fix it by hand in the relevant GDD(s).
+
+---
+
 ## Adding new tasks
 
 Only add a task here if it fits `overnight-protocol.md`'s three criteria: self-contained,

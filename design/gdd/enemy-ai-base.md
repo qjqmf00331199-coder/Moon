@@ -76,7 +76,7 @@ Enemy AI (base)는 이 확장 범위의 모든 적 캐릭터가 공유하는 인
 | Variable | Symbol | Type | Range | Description |
 |----------|--------|------|-------|-------------|
 | BaseHearingRadius | — | float(uu) | 아키타입별, 기본 Grunt 800 / Ranged 600, Safe Range 400–1200 | 아키타입 기본 청각 반경 |
-| NoiseLoudness | — | float | 0.0–1.0, 소음 발신 시스템이 `MakeNoise` 호출 시 지정 | 소음 세기 배율(착지=0.6, 스펠 피격=0.8, 구조물 붕괴=1.0 예시) |
+| NoiseLoudness | — | float | 0.0–1.0, 소음 발신 시스템이 `MakeNoise` 호출 시 지정 | 소음 세기 배율(착지=0.6 추정치, 스펠 피격=속성별 상이(0.6~1.0, `spell-casting-base.md` 소유 — `spell_noise_loudness` 참조), 구조물 붕괴=1.0 추정치) |
 
 **Output Range**: 0–1200uu. **Example**: Grunt(800uu) 기준 구조물 붕괴 소음(1.0) → 800uu 반경 내 즉시 Alert 전환.
 

@@ -37,7 +37,7 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
-last_updated: "2026-07-16"
+last_updated: "2026-07-17"
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -213,6 +213,7 @@ formulas:
     source: design/gdd/enemy-ai-base.md
     referenced_by:
       - design/gdd/enemy-ai-base.md
+      - design/gdd/spell-casting-base.md
     variables:
       - BaseHearingRadius
       - NoiseLoudness
@@ -238,6 +239,78 @@ formulas:
       placeholder for 'one of two booleans', see health-damage-core.md's
       effective_damage_applied entry for the same convention."
     added: 2026-07-16
+    revised: ""
+
+  - name: effective_mana_cost
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+    variables:
+      - ManaCost
+      - bCostBypassed
+    output_range: [0, 100]
+    expression: "bCostBypassed ? 0 : ManaCost[Element]"
+    notes: "Binary output — always exactly 0 or ManaCost[Element] (no partial cost).
+      bCostBypassed set by Luna Overdrive (undesigned as of 2026-07-17) via the
+      CostBypass.Active tag."
+    added: 2026-07-17
+    revised: ""
+
+  - name: cast_gate_check
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+    variables:
+      - Mana
+      - ManaCost
+      - OnCooldown
+      - bCostBypassed
+      - bCooldownBypassed
+    output_range: [0, 1]
+    expression: "CanCast = bCostBypassed ? true : (Mana >= ManaCost[Element]) AND (bCooldownBypassed ? true : NOT OnCooldown[Element])"
+    notes: "Boolean output — output_range left as [0,1] per the health-damage-core.md
+      convention for boolean-result formulas. NOTE: bCostBypassed and bCooldownBypassed
+      look independent but are both driven by the single CostBypass.Active tag in MVP
+      (spell-casting-base.md Core Rule 10) — they cannot diverge until Luna Overdrive
+      splits the tag."
+    added: 2026-07-17
+    revised: ""
+
+  - name: new_mana
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+    variables:
+      - CurrentMana
+      - EffectiveManaCost
+      - MaxMana
+    output_range: [0, 100]
+    expression: "clamp(CurrentMana - EffectiveManaCost, 0, MaxMana)"
+    notes: "Mirrors health-damage-core.md's new_health formula structure. Core
+      Extraction Execution's OnExecuted event bypasses this formula entirely and
+      snaps Mana directly to MaxMana (see Mana_OnExecuted in spell-casting-base.md)."
+    added: 2026-07-17
+    revised: ""
+
+  - name: spell_noise_loudness
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+      - design/gdd/enemy-ai-base.md
+    variables:
+      - Element
+    output_range: [0.6, 1.0]
+    expression: "NoiseLoudness[Element] = Blackhole:1.0, Fire:0.6, Lightning:0.7"
+    notes: "Feeds directly into enemy-ai-base.md's noise_detection_radius formula
+      as the NoiseLoudness input — the two formulas are chained across documents.
+      output_range [0.6,1.0] reflects CURRENT default values; the tuning Safe Range
+      is 0.3-1.0 with ordinal invariant Blackhole >= Lightning >= Fire
+      (spell-casting-base.md Tuning Knobs, 2026-07-17 review)."
+    added: 2026-07-17
     revised: ""
 
 # Example:
@@ -372,6 +445,89 @@ constants:
     value: 0.4
     unit: seconds
     added: 2026-07-16
+    revised: ""
+
+  - name: max_mana
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+    value: 100
+    unit: mana
+    added: 2026-07-17
+    revised: ""
+
+  - name: mana_cost_blackhole
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+    value: 70
+    unit: mana
+    added: 2026-07-17
+    revised: "2026-07-17"
+    # was 100 — lowered in spell-casting-base.md's 2026-07-17 full design-review:
+    # cost==MaxMana locked out ALL spells for ~3.1s after cast, breaking the
+    # weave-into-synergy path (초신성). New cross-constraint: MaxMana - cost >= 25.
+
+  - name: mana_cost_fire
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+    value: 25
+    unit: mana
+    added: 2026-07-17
+    revised: ""
+
+  - name: mana_cost_lightning
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+    value: 25
+    unit: mana
+    added: 2026-07-17
+    revised: ""
+
+  - name: cooldown_blackhole
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+    value: 6.0
+    unit: seconds
+    added: 2026-07-17
+    revised: ""
+
+  - name: cooldown_fire
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+    value: 2.0
+    unit: seconds
+    added: 2026-07-17
+    revised: ""
+
+  - name: cooldown_lightning
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+    value: 2.5
+    unit: seconds
+    added: 2026-07-17
+    revised: ""
+
+  - name: mana_regen_rate
+    status: active
+    source: design/gdd/spell-casting-base.md
+    referenced_by:
+      - design/gdd/spell-casting-base.md
+    value: 8
+    unit: mana/s
+    added: 2026-07-17
     revised: ""
 
 # Example:

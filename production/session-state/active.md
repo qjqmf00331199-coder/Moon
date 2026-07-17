@@ -1,10 +1,72 @@
 <!-- STATUS -->
 Epic: Moon Fragment Hunt — DDD Expansion
-Feature: Systems Design > Enemy AI (base) GDD
-Task: Enemy AI (base) GDD reviewed and Approved. NEXT: draft Spell Casting (base) GDD.
+Feature: Systems Design > Spell Casting (base) GDD
+Task: Spell Casting (base) GDD APPROVED (2026-07-17 full /design-review — 5 specialists, initial NEEDS REVISION, blockers fixed in-session: Blackhole ManaCost 100→70 + weave-guarantee cross-constraint, Rule 4/10 GAS contracts pinned, AC5/7/8 rewritten). NEXT: draft Dash/Evasion GDD (/design-system, #6 in design order).
 <!-- /STATUS -->
 
+## What changed this session (/design-review spell-casting-base.md — full depth)
+- Full adversarial review: game-designer, systems-designer, qa-lead, ue-gas-specialist in
+  parallel + creative-director senior synthesis. Initial verdict **NEEDS REVISION** → all 5
+  blocking items fixed in-session → **APPROVED**. Log:
+  `design/gdd/reviews/spell-casting-base-review-log.md`.
+- **Design change**: Blackhole ManaCost 100 → **70**. Cost==MaxMana locked out ALL spells ~3.1s
+  after cast, contradicting Rule 4 ("no forced recovery") and sealing the Supernova weave path.
+  Registry `mana_cost_blackhole` updated (revised 2026-07-17, old value commented).
+- **3 new tuning cross-constraints** (Tuning Knobs): (1) no-infinite-spam
+  `ManaCost > Regen×CD`, (2) cooldown-binds-Blackhole, (3) weave-guarantee
+  `MaxMana − Cost(BH) ≥ 25` — pillar-critical.
+- **GAS contracts pinned** (were blank): Rule 4 — same-frame ability lifecycle, presentation-only
+  cancel, no CancelAbility; Rule 10 — skip CommitAbility() when `CostBypass.Active` (documented
+  exception to GE-only principle); mana snap Override GE vs periodic regen = benign race.
+- **ACs**: AC1/2 renumbered values; AC5 stubbed (test harness applies tag directly); AC7 rewritten
+  observable (800uu hearing check); old AC8 (Supernova shield-pierce) removed → deferred to
+  Spell Weaving GDD; new AC8 = weave-guarantee execution check.
+- **3 new edge cases**: Mana=0 cast, all-3-elements-on-cooldown, bypass-release same-frame race
+  (tag change resolves BEFORE gate evaluation — Luna Overdrive GDD must assume this order).
+- systems-index row #6 → Approved (reviewed 5, approved 5). Ollama queue: Task 7 (registry
+  fact-check spell-casting) + Task 8 (terminology spell-casting vs health-damage-core) appended
+  per auto-queueing policy.
+
+<!-- CONSISTENCY-CHECK: 2026-07-17 | GDDs checked: 5 | Conflicts found: 1 (resolved) | Log: docs/consistency-failures.md -->
+
 # Session State
+
+## What changed this session (/design-system spell-casting-base)
+- Authored the complete 8-section GDD for Spell Casting (base) at
+  [spell-casting-base.md](file:///D:/moon-fragment-hunt/design/gdd/spell-casting-base.md), solo review mode
+  (no specialist agents consulted — needs manual review before Production, and an independent
+  `/design-review` pass in a fresh session before being marked Approved).
+- **MVP scope**: 3 fixed elemental spell slots (Blackhole/Radial Force, Fire, Lightning) — no
+  loadout swapping. Instant-cast (no windup/charge), per-element independent cooldowns, single
+  shared Mana pool with passive regen + Core Extraction full-refill bonus.
+- **Key numbers** (solo-proposed, unplaytested): MaxMana=100, ManaCost Blackhole=100/Fire=25/
+  Lightning=25, Cooldown Blackhole=6.0s/Fire=2.0s/Lightning=2.5s, ManaRegenRate=8/s,
+  NoiseLoudness Blackhole=1.0/Fire=0.6/Lightning=0.7.
+- **Key interface contracts established** (carry forward when designing dependents):
+  - Casting NEVER blocks movement (`MovementLocked` not used) — symmetric counterpart to Player
+    Movement Core Rule 7, both docs now own this contract from their own side.
+  - All spell damage goes through Health/Damage Core's single `ApplyDamage` entry point
+    (Rule 1); base 3 spells default `bBypassDefense=false` — only Spell Weaving's synergy
+    combos (Supernova etc.) may override to `true`.
+  - This doc is the one that defines the Core Extraction Execution mana-refund amount
+    (100% / snap to MaxMana on `OnExecuted`) — Health/Damage Core Rule 9 explicitly deferred
+    that number to whichever system subscribes to the event, and this is that system.
+  - Every spell impact must call `MakeNoise(loudness)` per Enemy AI (base)'s hearing contract —
+    `NoiseLoudness` per element is a new registry formula (`spell_noise_loudness`) that chains
+    directly into Enemy AI's `noise_detection_radius` formula.
+  - Luna Overdrive (undesigned) will consume a single `CostBypass.Active` GameplayTag that
+    bypasses BOTH mana cost and cooldown gating simultaneously — no partial-bypass mode exists
+    in this MVP scope (Edge Cases explicitly closes that gap).
+- **Registered in `design/registry/entities.yaml`**: 8 new constants (max_mana, mana_cost_*,
+  cooldown_*, mana_regen_rate), 4 new formulas (effective_mana_cost, cast_gate_check, new_mana,
+  spell_noise_loudness). Also appended `design/gdd/spell-casting-base.md` to the existing
+  `noise_detection_radius` formula's `referenced_by` (cross-doc formula chain).
+- **Updated `systems-index.md`**: row #6 → "Designed (pending review)", Design Doc link added,
+  progress counts incremented (started 5, MVP designed 5/9).
+- **Open questions flagged, not resolved by this doc** (see GDD's own Open Questions section):
+  cast aiming method (auto-aim/skillshot/cursor) undecided, gamepad button mapping for
+  3 spells + movement + dash undecided, UE5.8 GAS attribute-init pattern needs
+  `ue-gas-specialist` header verification (same gap as health-damage-core.md).
 
 ## What changed this session (/design-review enemy-ai-base.md + Ollama pipeline restructure)
 - Ran a formal `/design-review` on `design/gdd/enemy-ai-base.md` (solo depth, per project default) —
@@ -62,11 +124,13 @@ directly — see below). Whichever tool picks up next:
 ## Current task — READY FOR HANDOFF TO A NEW SESSION
 
 - **Enemy AI (base) GDD**: Approved.
+- **Spell Casting (base) GDD**: Designed (pending review) — all 8 sections + Visual/Audio/UI/Open
+  Questions written to `design/gdd/spell-casting-base.md`. NOT yet run through `/design-review`.
 
 **➤ NEXT COMMAND TO RUN (fresh session, either tool):**
-(Draft Spell Casting (base) GDD next)
+`/design-review design/gdd/spell-casting-base.md` (must run in a session that did NOT author it)
 
-Then continue design order: Spell Casting (base) → Dash/Evasion → Combo/Tension Gauge → Luna Overdrive → Combat HUD.
+Then continue design order: Dash/Evasion → Combo/Tension Gauge → Luna Overdrive → Combat HUD.
 
 **Key decisions baked into Enemy AI (base) (carry forward when designing dependents):**
 - MVP scope is 2 archetypes only: Grunt (melee, MaxHealth 30) and Ranged (MaxHealth 20, keeps a
@@ -118,8 +182,9 @@ Then continue design order: Spell Casting (base) → Dash/Evasion → Combo/Tens
   none of these blocked Health/Damage Core, still open for whoever designs those systems.
 
 **To resume in a new session:**
-1. Draft Spell Casting (base) GDD next.
-2. Continue design order: Spell Casting (base) → Dash/Evasion → Combo/Tension Gauge → Luna Overdrive → Combat HUD.
+1. Run `/design-review design/gdd/spell-casting-base.md` (fresh session — independent of the authoring session).
+2. Then draft Dash/Evasion GDD next.
+3. Continue design order: Dash/Evasion → Combo/Tension Gauge → Luna Overdrive → Combat HUD.
 
 ## What changed this session (enemy-ai-base.md review pass)
 - Reviewed and **APPROVED** `design/gdd/enemy-ai-base.md` end-to-end (independent review session).
