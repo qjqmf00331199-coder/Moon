@@ -1,8 +1,52 @@
 <!-- STATUS -->
 Epic: Moon Fragment Hunt — DDD Expansion
-Feature: Systems Design > Dash/Evasion GDD
-Task: Dash/Evasion GDD APPROVED. NEXT: Draft Combo/Tension Gauge GDD in a fresh session.
+Feature: Systems Design > Luna Overdrive GDD
+Task: Luna Overdrive GDD complete (all 8 sections + Visual/Audio + UI + Open Questions), solo mode. NEXT: Combat HUD GDD (last MVP system), then /design-review on both in fresh sessions.
 <!-- /STATUS -->
+
+## What changed this session (handoff execution — Luna Overdrive GDD, 1 of 2)
+- Executed `production/handoff/fable-mvp-remaining-2-systems.md` (user pre-approved, no-questions run).
+- Authored complete GDD at `design/gdd/luna-overdrive.md`, solo review mode, status "Designed (pending review)".
+- Core design: pure consumer of Combo/Tension Gauge's `OnOverdriveTriggered`; activation = grant
+  `CostBypass.Active` (spell-casting-base.md Rule 10 hook — single tag bypasses mana AND cooldown
+  simultaneously); duration timer 10.0s (`overdrive_duration`, game-concept.md value, Safe Range 6–15s);
+  end = tag release with the bypass-release same-frame order contract (tag resolves BEFORE cast gate).
+  Re-trigger while Active = refresh timer to full (no stacking, single tag grant maintained).
+  End reasons: Expired | PlayerDeath (death forces immediate end, no carry-over).
+  Emits `OnOverdriveStarted`/`OnOverdriveEnded(EndReason)` + `OverdriveTimeRemaining` for Combat HUD
+  and Overdrive Visual State (#18, still undesigned — owns the real crimson inversion; this GDD only
+  ships a minimal crimson post-process tint as MVP stand-in).
+- **Upstream open question resolved**: `OnOverdriveTriggered` payload = NONE (parameterless) —
+  reflected in combo-tension-gauge.md Open Questions (strikethrough + RESOLVED note, body unchanged).
+- **Bidirectionality fix**: health-damage-core.md gained a one-line Luna Overdrive downstream entry
+  (Interactions + Dependencies) for the player-Death subscription; systems-index.md row #11 and
+  Dependency Map gained the same soft dependency.
+- **Known risk documented, not capped**: refresh-chain (re-filling gauge during overdrive with free
+  Blackhole spam can sustain overdrive indefinitely in dense packs) — allowed by upstream Core Rule 6,
+  flagged as playtest Open Question; any future damper belongs on the gauge side, not here.
+- Registry: added `overdrive_duration` constant; appended luna-overdrive.md to referenced_by on
+  `effective_mana_cost`, `cast_gate_check`, `tension_gauge_max`; updated stale "undesigned" notes.
+- systems-index.md: row #11 → "Designed (pending review)" + doc link, progress started 8, MVP 8/9.
+- OLLAMA-INSTRUCTIONS.md: queued Task 11 (registry fact-check LO), Task 12 (terminology LO vs
+  combo-tension-gauge), Task 13 (AC → QA checklist, new task type per handoff template).
+- Solo mode skipped agent spawns: creative-director, systems-designer, art-director, qa-lead —
+  flagged in GDD as needing manual review before Production.
+
+## What changed this session (/design-system combo-tension-gauge)
+- Authored complete 8-section GDD at `design/gdd/combo-tension-gauge.md`, solo review mode.
+- Core design: single GAS Attribute `TensionGauge` (0-100), gains from `OnSpellHit` (proportional to
+  spell-casting-base.md's ManaCost — Blackhole=70, Fire/Lightning=25) and Just-Dodge success (flat +20,
+  detected indirectly via `OnTagAdded(State.Executable)` — dash-evasion.md left unmodified). Decays after
+  3s grace at 10/sec, damage-taken penalty -20% (proportional), resets to 0 on Overdrive trigger or death.
+- Resolved a scope conflict during design: game-concept.md's tension curve explicitly names "스펠 위빙
+  콤보" as a tension-rising source — confirmed both spell-hit AND just-dodge count toward the gauge
+  (not just-dodge alone).
+- Registered 6 new constants in `design/registry/entities.yaml` (tension_gauge_max, tension_gain_coefficient,
+  just_dodge_tension_bonus, tension_decay_grace_period, tension_decay_rate_per_sec, damage_penalty_percent).
+  Added combo-tension-gauge.md to `referenced_by` on mana_cost_blackhole/fire/lightning (reuses those values).
+- Updated `systems-index.md`: row #9 → "Designed (pending review)", progress counts (started 7, MVP 7/9).
+- Solo mode skipped agent spawns: creative-director, systems-designer, art-director, qa-lead — flagged
+  in GDD as needing manual review before Production.
 
 ## What changed this session (/design-review dash-evasion.md)
 - Reviewed and **APPROVED** `design/gdd/dash-evasion.md` end-to-end (independent review session).
@@ -271,3 +315,5 @@ Full writeup: `prototypes/arena-morphing-spike-2026-07-16/SPIKE-NOTE.md`
 
 ## Open questions
 - Perf budget test (see above) — the only remaining unknown for Arena Morphing feasibility.
+
+<!-- CONSISTENCY-CHECK: 2026-07-17 | GDDs checked: 7 | Conflicts found: 0 | Scope: combo-tension-gauge.md 추가 반영 -->

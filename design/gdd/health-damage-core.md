@@ -53,6 +53,7 @@ Health/Damage Core는 이 게임의 모든 피해/사망 처리를 관장하는 
 - **Core Extraction Execution (미설계, 하류)**: `State.Executable` 태그 소비 + `TryExecute` API 호출자. 근접 판정/카메라 연출은 해당 GDD 소유.
 - **Combo/Tension Gauge (미설계, 하류)**: 데미지 적용 이벤트(추후 `OnDamageApplied`류)를 구독해 콤보 누적에 활용할 것으로 예상 — 무엇이 "콤보 가치가 있는 히트"인지 판단은 해당 GDD 소유.
 - **Boss Phase (미설계, 하류)**: Rule 10의 `OnHealthPercentCrossed` 이벤트를 페이즈 전환 트리거로 소비할 것으로 예상.
+- **Luna Overdrive (하류)**: 플레이어 Death 상태(`OnDeath`)를 구독해 각성 강제 종료 트리거로 사용 — 이 문서는 이벤트 발행까지만 소유. (2026-07-17 Luna Overdrive 설계 시 양방향 의존 명기 목적으로 추가된 항목 — 계약 변경 없음.)
 - **Environmental Chain-Destruction (미설계, 하류)**: 환경 데미지(낙사, 붕괴)도 Rule 1의 동일 진입점을 통해 적용 — 별도 경로 불필요.
 
 ## Formulas
@@ -127,6 +128,7 @@ NewHealth = clamp(CurrentHealth - EffectiveDamageApplied, 0, MaxHealth)
 | Core Extraction Execution (미설계) | 이 시스템에 의존 | `State.Executable` 태그 소비, `TryExecute` API 호출 |
 | Combo/Tension Gauge (미설계) | 이 시스템에 의존 | 데미지 적용 이벤트를 콤보 누적 트리거로 소비 예상 |
 | Boss Phase (미설계) | 이 시스템에 의존 | `OnHealthPercentCrossed` 이벤트를 페이즈 전환 트리거로 소비 |
+| Luna Overdrive | 이 시스템에 의존 | 플레이어 Death 상태(`OnDeath`) 구독 — 각성 강제 종료 트리거 (2026-07-17 추가) |
 | Environmental Chain-Destruction (미설계) | 이 시스템에 의존 | 환경 데미지도 Rule 1 동일 진입점 사용 |
 
 > 이 시스템은 어떤 것에도 의존하지 않음 (Foundation Layer, systems-index 일치).

@@ -37,7 +37,7 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
-last_updated: "2026-07-17"
+last_updated: "2026-07-17"  # luna-overdrive.md 등록 반영 (직전: combo-tension-gauge.md)
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -246,13 +246,14 @@ formulas:
     source: design/gdd/spell-casting-base.md
     referenced_by:
       - design/gdd/spell-casting-base.md
+      - design/gdd/luna-overdrive.md
     variables:
       - ManaCost
       - bCostBypassed
     output_range: [0, 100]
     expression: "bCostBypassed ? 0 : ManaCost[Element]"
     notes: "Binary output — always exactly 0 or ManaCost[Element] (no partial cost).
-      bCostBypassed set by Luna Overdrive (undesigned as of 2026-07-17) via the
+      bCostBypassed set by Luna Overdrive (designed 2026-07-17) via the
       CostBypass.Active tag."
     added: 2026-07-17
     revised: ""
@@ -262,6 +263,7 @@ formulas:
     source: design/gdd/spell-casting-base.md
     referenced_by:
       - design/gdd/spell-casting-base.md
+      - design/gdd/luna-overdrive.md
     variables:
       - Mana
       - ManaCost
@@ -274,7 +276,8 @@ formulas:
       convention for boolean-result formulas. NOTE: bCostBypassed and bCooldownBypassed
       look independent but are both driven by the single CostBypass.Active tag in MVP
       (spell-casting-base.md Core Rule 10) — they cannot diverge until Luna Overdrive
-      splits the tag."
+      splits the tag. Luna Overdrive (designed 2026-07-17) kept the single tag —
+      no split in MVP scope (luna-overdrive.md Core Rule 2)."
     added: 2026-07-17
     revised: ""
 
@@ -462,6 +465,7 @@ constants:
     source: design/gdd/spell-casting-base.md
     referenced_by:
       - design/gdd/spell-casting-base.md
+      - design/gdd/combo-tension-gauge.md
     value: 70
     unit: mana
     added: 2026-07-17
@@ -475,6 +479,7 @@ constants:
     source: design/gdd/spell-casting-base.md
     referenced_by:
       - design/gdd/spell-casting-base.md
+      - design/gdd/combo-tension-gauge.md
     value: 25
     unit: mana
     added: 2026-07-17
@@ -485,6 +490,7 @@ constants:
     source: design/gdd/spell-casting-base.md
     referenced_by:
       - design/gdd/spell-casting-base.md
+      - design/gdd/combo-tension-gauge.md
     value: 25
     unit: mana
     added: 2026-07-17
@@ -529,6 +535,109 @@ constants:
     unit: mana/s
     added: 2026-07-17
     revised: ""
+
+  - name: just_dodge_window
+    status: active
+    source: design/gdd/dash-evasion.md
+    referenced_by:
+      - design/gdd/dash-evasion.md
+    value: 0.2
+    unit: seconds
+    added: 2026-07-17
+    revised: ""
+
+  - name: dash_invuln_duration
+    status: active
+    source: design/gdd/dash-evasion.md
+    referenced_by:
+      - design/gdd/dash-evasion.md
+    value: 0.2
+    unit: seconds
+    added: 2026-07-17
+    revised: ""
+
+  - name: executable_duration
+    status: active
+    source: design/gdd/dash-evasion.md
+    referenced_by:
+      - design/gdd/dash-evasion.md
+    value: 3.0
+    unit: seconds
+    added: 2026-07-17
+    revised: ""
+
+  - name: tension_gauge_max
+    status: active
+    source: design/gdd/combo-tension-gauge.md
+    referenced_by:
+      - design/gdd/combo-tension-gauge.md
+      - design/gdd/luna-overdrive.md
+    value: 100
+    unit: tension
+    added: 2026-07-17
+    revised: ""
+
+  - name: tension_gain_coefficient
+    status: active
+    source: design/gdd/combo-tension-gauge.md
+    referenced_by:
+      - design/gdd/combo-tension-gauge.md
+    value: 1.0
+    unit: multiplier
+    added: 2026-07-17
+    revised: ""
+
+  - name: just_dodge_tension_bonus
+    status: active
+    source: design/gdd/combo-tension-gauge.md
+    referenced_by:
+      - design/gdd/combo-tension-gauge.md
+    value: 20
+    unit: tension
+    added: 2026-07-17
+    revised: ""
+
+  - name: tension_decay_grace_period
+    status: active
+    source: design/gdd/combo-tension-gauge.md
+    referenced_by:
+      - design/gdd/combo-tension-gauge.md
+    value: 3.0
+    unit: seconds
+    added: 2026-07-17
+    revised: ""
+
+  - name: tension_decay_rate_per_sec
+    status: active
+    source: design/gdd/combo-tension-gauge.md
+    referenced_by:
+      - design/gdd/combo-tension-gauge.md
+    value: 10
+    unit: tension/s
+    added: 2026-07-17
+    revised: ""
+
+  - name: damage_penalty_percent
+    status: active
+    source: design/gdd/combo-tension-gauge.md
+    referenced_by:
+      - design/gdd/combo-tension-gauge.md
+    value: 0.20
+    unit: ratio
+    added: 2026-07-17
+    revised: ""
+
+  - name: overdrive_duration
+    status: active
+    source: design/gdd/luna-overdrive.md
+    referenced_by:
+      - design/gdd/luna-overdrive.md
+    value: 10.0
+    unit: seconds
+    added: 2026-07-17
+    revised: ""
+    # game-concept.md states 10s explicitly; exposed as a Tuning Knob with the
+    # concept value as default (luna-overdrive.md Tuning Knobs, Safe Range 6.0-15.0).
 
 # Example:
 #

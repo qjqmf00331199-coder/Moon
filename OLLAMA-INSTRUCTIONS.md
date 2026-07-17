@@ -487,3 +487,119 @@ DOCUMENT B (health-damage-core.md):
 
 **Review checklist** (under 2 min): skim the list — for each flagged pair, decide if it's a real
 inconsistency worth standardizing or an intentional distinction.
+
+---
+
+## [ ] Task 11 — Registry vs. GDD fact-check (Luna Overdrive)
+
+**Why queued**: `luna-overdrive.md` was designed 2026-07-17. Mechanical check to ensure registry
+entries (`overdrive_duration`, plus reused values `tension_gauge_max`, `mana_cost_*` tension-gain
+references) match the new GDD.
+
+**Risk**: Low. Report-only, no file edited.
+
+**Context files**:
+- {{CONTEXT_REGISTRY}}: design/registry/entities.yaml
+- {{CONTEXT_GDD}}: design/gdd/luna-overdrive.md
+
+**Prompt**:
+```
+You are cross-checking two documents for a game design registry. The first is a YAML registry
+of named constants/formulas; the second is a design document that should agree with it wherever
+they both mention the same named value.
+
+List every case where a numeric value, formula, or named constant appears in BOTH documents
+but with DIFFERENT values. Format each finding as:
+
+- [name]: registry says [X], GDD says [Y] (GDD section: [section name])
+
+If you find no mismatches, say so explicitly — do not invent a mismatch to have something to
+report. Do not comment on anything else (style, completeness, missing sections) — ONLY numeric/
+value disagreements between the two documents.
+
+---
+REGISTRY (entities.yaml):
+{{CONTEXT_REGISTRY}}
+
+---
+GDD (luna-overdrive.md):
+{{CONTEXT_GDD}}
+```
+
+**Output path**: `production/overnight-output/task11-registry-check-luna-overdrive.md`
+
+**Review checklist** (under 2 min): open both source files, check actual values at the cited locations.
+
+---
+
+## [ ] Task 12 — Korean/English terminology consistency report (Luna Overdrive vs. Combo/Tension Gauge)
+
+**Why queued**: `luna-overdrive.md` was designed 2026-07-17. It is the direct downstream consumer
+of Combo/Tension Gauge (`OnOverdriveTriggered` event, gauge Max/reset contract) — shared concepts
+are where naming drift shows up first.
+
+**Risk**: Low. Report-only task.
+
+**Context files**:
+- {{CONTEXT_A}}: design/gdd/luna-overdrive.md
+- {{CONTEXT_B}}: design/gdd/combo-tension-gauge.md
+
+**Prompt**:
+```
+Below are two Korean-language game design documents that share some concepts (they're
+core systems in the same project that interact directly). List every case where the SAME
+concept appears to be referred to with inconsistent terminology between the two documents —
+different Korean phrasing, inconsistent English term choice, or Korean vs. English used
+inconsistently for the same thing. Format each finding as:
+
+- Concept: [what it refers to] — Doc A says "[term]", Doc B says "[term]"
+
+Only flag genuine same-concept naming inconsistencies. Do not flag terms that only appear in one
+document (that's not an inconsistency, just scope). Do not comment on grammar, style, or
+translation quality — ONLY cross-document naming consistency.
+
+---
+DOCUMENT A (luna-overdrive.md):
+{{CONTEXT_A}}
+
+---
+DOCUMENT B (combo-tension-gauge.md):
+{{CONTEXT_B}}
+```
+
+**Output path**: `production/overnight-output/task12-terminology-consistency-luna-overdrive.md`
+
+**Review checklist** (under 2 min): skim the list — for each flagged pair, decide if it's a real
+inconsistency worth standardizing or an intentional distinction.
+
+---
+
+## [ ] Task 13 — Acceptance Criteria를 QA 체크리스트로 변환 (Luna Overdrive)
+
+**Why queued**: luna-overdrive.md GDD가 완성됨. GIVEN-WHEN-THEN 형식의 Acceptance Criteria를
+QA가 바로 쓸 수 있는 평문 체크리스트로 기계적으로 변환 — 판단 없는 순수 재서식.
+
+**Risk**: Low. Report-only, 원본 GDD는 수정하지 않음.
+
+**Context files**:
+- {{CONTEXT}}: design/gdd/luna-overdrive.md
+
+**Prompt**:
+```
+아래는 게임 디자인 문서의 Acceptance Criteria 섹션이다(GIVEN-WHEN-THEN 형식). 이것을
+QA 테스터가 체크박스로 바로 쓸 수 있는 평문 체크리스트로 변환해라. 각 항목은:
+
+- [ ] [조건을 간결한 평서문으로 — GIVEN/WHEN/THEN 구조를 자연스러운 한 문장으로 합칠 것]
+
+형식만 바꿀 것 — 새 조건을 추가하거나 기존 조건을 생략/수정하지 마라. 원문에 없는 내용은
+절대 넣지 마라.
+
+---
+ACCEPTANCE CRITERIA:
+{{CONTEXT}}
+```
+
+**Output path**: `production/overnight-output/task13-qa-checklist-luna-overdrive.md`
+
+**Review checklist** (under 2 min): 원본 AC 개수와 체크리스트 항목 개수 일치 확인, 조건
+누락/추가 없는지 대조.

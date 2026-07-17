@@ -29,9 +29,9 @@
 | 6 | Spell Casting (base) (inferred) | Gameplay | MVP | Approved | design/gdd/spell-casting-base.md | Player Movement, Health/Damage Core |
 | 7 | Dash/Evasion | Gameplay | MVP | Approved | design/gdd/dash-evasion.md | Player Movement, Camera System (base), Health/Damage Core, Enemy AI (base) |
 | 8 | Status Effect (inferred) | Gameplay | Vertical Slice | Not Started | — | Health/Damage Core |
-| 9 | Combo/Tension Gauge | Gameplay | MVP | Not Started | — | Spell Casting (base), Health/Damage Core, Dash/Evasion |
+| 9 | Combo/Tension Gauge | Gameplay | MVP | Designed (pending review) | design/gdd/combo-tension-gauge.md | Spell Casting (base), Health/Damage Core, Dash/Evasion |
 | 10 | Spell Weaving / Synergy | Gameplay | Vertical Slice | Not Started | — | Spell Casting (base), Status Effect |
-| 11 | Luna Overdrive (Blood Moon) | Gameplay | MVP | Not Started | — | Combo/Tension Gauge, Spell Casting (base) |
+| 11 | Luna Overdrive (Blood Moon) | Gameplay | MVP | Designed (pending review) | design/gdd/luna-overdrive.md | Combo/Tension Gauge, Spell Casting (base), Health/Damage Core (soft — added 2026-07-17 during luna-overdrive.md authoring: player Death subscription for forced overdrive end) |
 | 12 | Core Extraction Execution | Gameplay | Vertical Slice | Not Started | — | Dash/Evasion, Enemy AI (base), Health/Damage Core |
 | 13 | Enemy Elite Shield (inferred) | Gameplay | Alpha | Not Started | — | Enemy AI (base), Health/Damage Core |
 | 14 | Super Armor / CC Interrupt (inferred) | Gameplay | Alpha | Not Started | — | Status Effect, Enemy AI (base), Health/Damage Core |
@@ -85,7 +85,7 @@
 
 1. Combo/Tension Gauge — depends on: Spell Casting (base), Health/Damage Core, Dash/Evasion
 2. Spell Weaving / Synergy — depends on: Spell Casting (base), Status Effect
-3. Luna Overdrive (Blood Moon) — depends on: Combo/Tension Gauge, Spell Casting (base)
+3. Luna Overdrive (Blood Moon) — depends on: Combo/Tension Gauge, Spell Casting (base), Health/Damage Core (soft — player Death subscription, added 2026-07-17)
 4. Core Extraction Execution — depends on: Dash/Evasion, Enemy AI (base), Health/Damage Core
 5. Enemy Elite Shield — depends on: Enemy AI (base), Health/Damage Core
 6. Super Armor / CC Interrupt — depends on: Status Effect, Enemy AI (base), Health/Damage Core
@@ -154,10 +154,10 @@
 | Metric | Count |
 |--------|-------|
 | Total systems identified | 20 |
-| Design docs started | 6 |
+| Design docs started | 8 |
 | Design docs reviewed | 6 |
 | Design docs approved | 6 |
-| MVP systems designed | 6/9 |
+| MVP systems designed | 8/9 |
 | Vertical Slice systems designed | 0/7 |
 
 ---
