@@ -1,3 +1,4 @@
+import asyncio
 import discord
 import requests
 import google.generativeai as genai
@@ -5,6 +6,8 @@ import os
 import re
 from datetime import datetime
 from dotenv import load_dotenv
+
+import night_agent
 
 # ============ 설정 (실제 값은 .env 파일에 — 이 파일에는 절대 하드코딩하지 말 것) ============
 load_dotenv()
@@ -20,6 +23,11 @@ OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b")
 # 컨텍스트를 지원하니 기본을 32768로 올려둔다 — VRAM 부족하면 OLLAMA_NUM_CTX 환경변수로 낮출 것.
 OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "32768"))
 OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "2048"))
+# `!개발` 에이전트 모드 설정 — 추론(thinking) 모델을 따로 쓴다. qwen3:8b는 답하기 전에
+# <think> 블록으로 실제 사고 과정을 거치는 모델이라 "스스로 계획하고 해결하는" 용도에 맞다.
+AGENT_MODEL = os.environ.get("AGENT_MODEL", "qwen3:8b")
+AGENT_MAX_STEPS = int(os.environ.get("AGENT_MAX_STEPS", "8"))
+AGENT_NUM_PREDICT = int(os.environ.get("AGENT_NUM_PREDICT", "4096"))  # 사고 토큰까지 포함해야 해서 넉넉히
 
 # 리포지토리 루트 — 이 맥에서 moon-fragment-hunt를 clone/sync 해둔 실제 경로로 바꿀 것
 REPO_ROOT = os.environ.get("REPO_ROOT", "/Users/t2025-m0206/moon-fragment-hunt")
@@ -106,9 +114,9 @@ OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "7200"))
 
 def run_ollama(prompt):
     # 원래 timeout=300(5분)이었으나 Task 2/4처럼 player-movement.md(7만자) 전체를 붙이는
-    # 태스크는 num_ctx를 32768로 늘려도 5분을 넘겨 응답 전에 끊긴다(2026-07-17, 실측 381초).
-    # 이 봇은 밤새 무인으로 돌아 아무도 결과를 기다리지 않으므로, 로컬 Ollama를 쓰는 취지대로
-    # 오래 걸리더라도 끝까지 생각하게 두는 쪽이 맞다 — 잘라서 빨리 받는 것보다 우선.
+    # 태스크는 이 맥(M4 16GB)에서 5분을 넘겨 응답 전에 끊겼다(2026-07-17 검증 확인).
+    # 이 봇은 밤새 무인으로 돌아 아무도 결과를 기다리지 않으므로, 로컬 Ollama를 쓰는 이유대로
+    # 시간이 오래 걸리더라도 끝까지 생각하게 두는 쪽이 맞다 — 잘라서 빨리 받는 것보다 우선.
     res = requests.post(
         OLLAMA_URL,
         json={
@@ -193,7 +201,9 @@ async def on_message(message):
             await message.channel.send(f"▶ `{task['id']}` 실행 중...")
             prompt = build_prompt(task)
             try:
-                result = run_ollama(prompt)
+                # to_thread 필수: 동기 호출로 이벤트 루프를 막으면 6분짜리 태스크 동안
+                # Discord heartbeat가 끊겨 게이트웨이 연결이 죽는다.
+                result = await asyncio.to_thread(run_ollama, prompt)
             except Exception as e:
                 await message.channel.send(f"❌ `{task['id']}` Ollama 에러: {e}")
                 continue
@@ -213,7 +223,7 @@ async def on_message(message):
                 )
                 continue
 
-            summary = gemini_summary(result)
+            summary = await asyncio.to_thread(gemini_summary, result)
             await message.channel.send(
                 f"✅ `{task['id']}` 완료 → `{output_path}`\n**[요약]** {summary}"
             )
@@ -234,7 +244,7 @@ async def on_message(message):
 
         prompt = STRICT_SYSTEM_PREFIX + free_text
         try:
-            result = run_ollama(prompt)
+            result = await asyncio.to_thread(run_ollama, prompt)
         except Exception as e:
             await message.channel.send(f"❌ Ollama 에러: {e}")
             return
@@ -252,9 +262,67 @@ async def on_message(message):
             )
             return
 
-        summary = gemini_summary(result)
+        summary = await asyncio.to_thread(gemini_summary, result)
         await message.channel.send(
             f"✅ 완료 → `{output_path}`\n**[요약]** {summary}\n\n"
+            "🌅 이것도 draft임 — Claude/Antigravity 승격 심사 필요."
+        )
+
+    elif message.content.startswith("!개발 "):
+        request_text = message.content[len("!개발 "):].strip()
+        if not request_text:
+            await message.channel.send("사용법: `!개발 <요청>` (예: !개발 design/gdd 문서 상태를 표로 정리)")
+            return
+
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        await message.channel.send(
+            f"🤖 **에이전트 작업 시작** (모델: `{AGENT_MODEL}`, 최대 탐색 {AGENT_MAX_STEPS}회)\n"
+            "저장소를 스스로 탐색하며 계획 → 확인 → 초안 → 자체 검토 순서로 진행합니다. "
+            "오래 걸릴 수 있음 — 끝까지 생각하게 두는 게 이 봇의 취지."
+        )
+
+        channel = message.channel
+        loop = asyncio.get_running_loop()
+
+        def progress(text):
+            # 워커 스레드에서 이벤트 루프로 안전하게 진행 상황을 쏜다 (실패해도 무시됨)
+            asyncio.run_coroutine_threadsafe(channel.send(text), loop)
+
+        try:
+            outcome = await asyncio.to_thread(
+                night_agent.run_agent,
+                request_text, REPO_ROOT, OLLAMA_URL, AGENT_MODEL,
+                OLLAMA_NUM_CTX, AGENT_NUM_PREDICT, OLLAMA_TIMEOUT,
+                AGENT_MAX_STEPS, progress,
+            )
+        except Exception as e:
+            await message.channel.send(f"❌ 에이전트 에러: {e}")
+            return
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = f"{OUTPUT_DIR}/agent_{timestamp}.md"
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(f"# 에이전트 작업 — {timestamp}\n\n")
+            f.write(f"## 요청\n\n{request_text}\n\n")
+            f.write("## 탐색 로그\n\n")
+            f.write("\n".join(f"- {t}" for t in outcome["trail"]) or "(파일 탐색 없이 바로 답변)")
+            f.write("\n\n## 자체 검토 전 초안\n\n")
+            f.write(outcome["draft"] + "\n\n")
+            f.write("## 최종 결과 (자체 검토 반영)\n\n")
+            f.write(outcome["final"] + "\n")
+
+        result = outcome["final"]
+        degenerate_reason = find_degenerate_reason(result)
+        if degenerate_reason:
+            await message.channel.send(
+                f"⚠️ 응답이 의심스러움 ({degenerate_reason}) → `{output_path}`"
+            )
+            return
+
+        preview = result if len(result) <= 1500 else result[:1500] + "\n... (전체는 저장 파일 참고)"
+        await message.channel.send(
+            f"✅ 에이전트 작업 완료 → `{output_path}`\n"
+            f"탐색한 파일: {len(outcome['trail'])}개\n\n{preview}\n\n"
             "🌅 이것도 draft임 — Claude/Antigravity 승격 심사 필요."
         )
 
