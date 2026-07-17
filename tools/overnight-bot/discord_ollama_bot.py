@@ -13,6 +13,13 @@ DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b")
+# num_ctx 미지정 시 Ollama가 모델 기본값(보통 2048~4096)을 씀 — 이 큐의 태스크는 GDD/registry
+# 파일 전체를 프롬프트에 파스팅하므로 (player-movement.md 하나만 7만자) 기본값으로는 앞부분
+# 지시문이 잘려나가 모델이 "IDK"나 프롬프트 구조 자체를 그대로 반복하는 증상이 나온다
+# (2026-07-16 밤 실행에서 Task 1~6 전부 이 증상으로 무효 처리됨). qwen2.5-coder:7b는 32k 네이티브
+# 컨텍스트를 지원하니 기본을 32768로 올려둔다 — VRAM 부족하면 OLLAMA_NUM_CTX 환경변수로 낮출 것.
+OLLAMA_NUM_CTX = int(os.environ.get("OLLAMA_NUM_CTX", "32768"))
+OLLAMA_NUM_PREDICT = int(os.environ.get("OLLAMA_NUM_PREDICT", "2048"))
 
 # 리포지토리 루트 — 이 맥에서 moon-fragment-hunt를 clone/sync 해둔 실제 경로로 바꿀 것
 REPO_ROOT = os.environ.get("REPO_ROOT", "/Users/t2025-m0206/moon-fragment-hunt")
@@ -97,11 +104,38 @@ def build_prompt(task):
 def run_ollama(prompt):
     res = requests.post(
         OLLAMA_URL,
-        json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+        json={
+            "model": OLLAMA_MODEL,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "num_ctx": OLLAMA_NUM_CTX,
+                "num_predict": OLLAMA_NUM_PREDICT,
+                "temperature": 0.1,
+            },
+        },
         timeout=300,
     )
     res.raise_for_status()
     return res.json().get("response", "생성 실패")
+
+
+# 컨텍스트 잘림/모델 혼란으로 나오는 전형적인 증상: 지시문 대신 프롬프트 구조를 그대로 반복하거나
+# ("**Prompt**:", "**Context files**:", "**Output path**:" 같은 큐 파일 자체의 서식 마커가 응답에
+# 나타남) 답 대신 "IDK" 류의 무의미한 단답만 나오는 경우. 둘 다 2026-07-16 밤 실행에서 실제로 발생.
+DEGENERATE_MARKERS = ("**context files**", "**prompt**:", "**output path**:", "**why queued**")
+
+
+def find_degenerate_reason(result):
+    """결과가 유효한 답변이 아니라 잘림/혼란 증상으로 보이면 이유 문자열을, 정상이면 None을 반환."""
+    stripped = result.strip()
+    if len(stripped) < 30:
+        return f"응답이 지나치게 짧음 ({len(stripped)}자) — 컨텍스트 잘림 의심"
+    lowered = stripped.lower()
+    for marker in DEGENERATE_MARKERS:
+        if marker in lowered:
+            return f"큐 파일 서식 마커('{marker}')를 그대로 반복함 — 지시문이 안 보이고 있었을 가능성"
+    return None
 
 
 def gemini_summary(text):
@@ -163,6 +197,15 @@ async def on_message(message):
                 f.write(result)
             saved_files.append(output_path)
 
+            degenerate_reason = find_degenerate_reason(result)
+            if degenerate_reason:
+                await message.channel.send(
+                    f"⚠️ `{task['id']}` 응답이 의심스러움 ({degenerate_reason}) → `{output_path}`\n"
+                    "Gemini 요약 생략 — 아침 리뷰에서 최우선으로 열어볼 것. 원인이 반복되면 "
+                    "OLLAMA_NUM_CTX를 올리거나 해당 태스크의 컨텍스트 파일 크기를 줄일 것."
+                )
+                continue
+
             summary = gemini_summary(result)
             await message.channel.send(
                 f"✅ `{task['id']}` 완료 → `{output_path}`\n**[요약]** {summary}"
@@ -193,6 +236,14 @@ async def on_message(message):
         output_path = f"{OUTPUT_DIR}/adhoc_{timestamp}.md"
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(result)
+
+        degenerate_reason = find_degenerate_reason(result)
+        if degenerate_reason:
+            await message.channel.send(
+                f"⚠️ 응답이 의심스러움 ({degenerate_reason}) → `{output_path}`\n"
+                "Gemini 요약 생략 — 그대로 버리거나 프롬프트를 줄여서 다시 시도할 것."
+            )
+            return
 
         summary = gemini_summary(result)
         await message.channel.send(

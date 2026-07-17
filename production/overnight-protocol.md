@@ -46,6 +46,16 @@ wrong answer is hard to spot without re-deriving the right one.
    the user.
 4. Bad/hallucinated output → discard, note in `production/session-state/active.md` if the task
    seems mis-scoped for Ollama (too hard, ambiguous, etc.) so `OLLAMA-INSTRUCTIONS.md` can be trimmed.
+   - **Known failure signature (context truncation)**: if the saved `.md` file is a near-verbatim
+     answer of just a few words (e.g. "IDK") or echoes the queue's own formatting markers
+     (`**Context files**:`, `**Prompt**:`, `**Output path**:`) instead of doing the task, that's not
+     a bad-judgment draft — it's the model losing the instructions because the pasted context
+     file(s) exceeded the configured context window. The bot now flags this automatically with a
+     `⚠️` Discord message and skips the Gemini summary; treat any task without that flag but with
+     this symptom the same way — discard immediately, don't try to "interpret" a partial answer out
+     of it. Fix is tooling-side (see `production/ollama-delegation-criteria.md` → 컨텍스트 크기
+     예산), not a reason to hand-write the analysis yourself in place of Ollama — just re-queue the
+     same task for the next night once the fix is confirmed.
 5. Clear or archive `production/overnight-output/*` once reviewed, so tomorrow's run starts clean.
 6. Update `OLLAMA-INSTRUCTIONS.md`: mark completed tasks, add new ones as the project's design/doc
    backlog changes (see "Restocking the queue" below).
