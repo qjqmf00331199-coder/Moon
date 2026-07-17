@@ -101,7 +101,14 @@ def build_prompt(task):
     return STRICT_SYSTEM_PREFIX + prompt
 
 
+OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT", "7200"))
+
+
 def run_ollama(prompt):
+    # 원래 timeout=300(5분)이었으나 Task 2/4처럼 player-movement.md(7만자) 전체를 붙이는
+    # 태스크는 num_ctx를 32768로 늘려도 5분을 넘겨 응답 전에 끊긴다(2026-07-17, 실측 381초).
+    # 이 봇은 밤새 무인으로 돌아 아무도 결과를 기다리지 않으므로, 로컬 Ollama를 쓰는 취지대로
+    # 오래 걸리더라도 끝까지 생각하게 두는 쪽이 맞다 — 잘라서 빨리 받는 것보다 우선.
     res = requests.post(
         OLLAMA_URL,
         json={
@@ -114,7 +121,7 @@ def run_ollama(prompt):
                 "temperature": 0.1,
             },
         },
-        timeout=300,
+        timeout=OLLAMA_TIMEOUT,
     )
     res.raise_for_status()
     return res.json().get("response", "생성 실패")
