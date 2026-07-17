@@ -407,3 +407,83 @@ shapes going forward as the project grows:
 Do NOT add: formula/balance design, Player Fantasy writing, core rule design, anything that
 edits `design/gdd/*`, `docs/*`, or `entities.yaml` directly, anything needing multi-file judgment
 Ollama can't verify from the pasted context alone.
+
+---
+
+## [ ] Task 9 — Registry vs. GDD fact-check (Dash/Evasion)
+
+**Why queued**: `dash-evasion.md` was approved 2026-07-17. Mechanical check to ensure registry constants (`just_dodge_window`, `dash_invuln_duration`, `executable_duration`) match the approved GDD.
+
+**Risk**: Low. Report-only, no file edited.
+
+**Context files**:
+- {{CONTEXT_REGISTRY}}: design/registry/entities.yaml
+- {{CONTEXT_GDD}}: design/gdd/dash-evasion.md
+
+**Prompt**:
+```
+You are cross-checking two documents for a game design registry. The first is a YAML registry
+of named constants/formulas; the second is a design document that should agree with it wherever
+they both mention the same named value.
+
+List every case where a numeric value, formula, or named constant appears in BOTH documents
+but with DIFFERENT values. Format each finding as:
+
+- [name]: registry says [X], GDD says [Y] (GDD section: [section name])
+
+If you find no mismatches, say so explicitly — do not invent a mismatch to have something to
+report. Do not comment on anything else (style, completeness, missing sections) — ONLY numeric/
+value disagreements between the two documents.
+
+---
+REGISTRY (entities.yaml):
+{{CONTEXT_REGISTRY}}
+
+---
+GDD (dash-evasion.md):
+{{CONTEXT_GDD}}
+```
+
+**Output path**: `production/overnight-output/task9-registry-check-dash-evasion.md`
+
+**Review checklist** (under 2 min): open both source files, check actual values at the cited locations.
+
+---
+
+## [ ] Task 10 — Korean/English terminology consistency report (Dash/Evasion vs. Health/Damage Core)
+
+**Why queued**: `dash-evasion.md` was approved 2026-07-17. It interacts directly with Health/Damage Core (`State.Invulnerable`, `State.Executable` tags). Shared concepts need naming drift checks.
+
+**Risk**: Low. Report-only task.
+
+**Context files**:
+- {{CONTEXT_A}}: design/gdd/dash-evasion.md
+- {{CONTEXT_B}}: design/gdd/health-damage-core.md
+
+**Prompt**:
+```
+Below are two Korean-language game design documents that share some concepts (they're
+core systems in the same project that interact directly). List every case where the SAME
+concept appears to be referred to with inconsistent terminology between the two documents —
+different Korean phrasing, inconsistent English term choice, or Korean vs. English used
+inconsistently for the same thing. Format each finding as:
+
+- Concept: [what it refers to] — Doc A says "[term]", Doc B says "[term]"
+
+Only flag genuine same-concept naming inconsistencies. Do not flag terms that only appear in one
+document (that's not an inconsistency, just scope). Do not comment on grammar, style, or
+translation quality — ONLY cross-document naming consistency.
+
+---
+DOCUMENT A (dash-evasion.md):
+{{CONTEXT_A}}
+
+---
+DOCUMENT B (health-damage-core.md):
+{{CONTEXT_B}}
+```
+
+**Output path**: `production/overnight-output/task10-terminology-consistency-dash-evasion.md`
+
+**Review checklist** (under 2 min): skim the list — for each flagged pair, decide if it's a real
+inconsistency worth standardizing or an intentional distinction.

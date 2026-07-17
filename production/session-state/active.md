@@ -1,8 +1,15 @@
 <!-- STATUS -->
 Epic: Moon Fragment Hunt — DDD Expansion
-Feature: Systems Design > Spell Casting (base) GDD
-Task: Spell Casting (base) GDD APPROVED (2026-07-17 full /design-review — 5 specialists, initial NEEDS REVISION, blockers fixed in-session: Blackhole ManaCost 100→70 + weave-guarantee cross-constraint, Rule 4/10 GAS contracts pinned, AC5/7/8 rewritten). NEXT: draft Dash/Evasion GDD (/design-system, #6 in design order).
+Feature: Systems Design > Dash/Evasion GDD
+Task: Dash/Evasion GDD APPROVED. NEXT: Draft Combo/Tension Gauge GDD in a fresh session.
 <!-- /STATUS -->
+
+## What changed this session (/design-review dash-evasion.md)
+- Reviewed and **APPROVED** `design/gdd/dash-evasion.md` end-to-end (independent review session).
+- Generated complete design review artifact [design_review_dash_evasion.md](file:///C:/Users/qjqmf/.gemini/antigravity-cli/brain/c10d9217-e8ef-42ec-b6a5-00f7b4193e8a/design_review_dash_evasion.md).
+- Updated `dash-evasion.md` status to `Approved`. Fixed a missing `Combat HUD` dependency in its Dependencies table.
+- Updated `systems-index.md` row #7 to `Approved`, incremented progress metrics (reviewed 6, approved 6).
+- Auto-queued Task 9 (registry check) and Task 10 (terminology consistency vs Health/Damage Core) to `OLLAMA-INSTRUCTIONS.md` per auto-queueing policy.
 
 ## What changed this session (/design-review spell-casting-base.md — full depth)
 - Full adversarial review: game-designer, systems-designer, qa-lead, ue-gas-specialist in
@@ -30,6 +37,14 @@ Task: Spell Casting (base) GDD APPROVED (2026-07-17 full /design-review — 5 sp
 <!-- CONSISTENCY-CHECK: 2026-07-17 | GDDs checked: 5 | Conflicts found: 1 (resolved) | Log: docs/consistency-failures.md -->
 
 # Session State
+
+## What changed this session (/design-system dash-evasion)
+- Authored the complete 8-section GDD for Dash/Evasion at `design/gdd/dash-evasion.md`, solo review mode.
+- MVP scope: Charge-based dash (2 charges, 2.0s recharge), horizontal + vertical impulse, i-frames (`State.Invulnerable`), and Just-Dodge functionality.
+- Just-Dodge: Timing window of 0.2s before Enemy AI's `OnAttackCommitted`. Success grants `State.Executable` to the attacker and refunds 1 dash charge.
+- Key interface contracts established: Dash does not lock Movement or interrupt Casting. Future Status Effect can lock Dash via `MovementLocked`.
+- Registered in `design/registry/entities.yaml`: 3 new constants (`just_dodge_window`, `dash_invuln_duration`, `executable_duration`).
+- Updated `systems-index.md`: row #7 → "Designed (pending review)", progress counts incremented (started 6, MVP designed 6/9).
 
 ## What changed this session (/design-system spell-casting-base)
 - Authored the complete 8-section GDD for Spell Casting (base) at
@@ -123,14 +138,13 @@ directly — see below). Whichever tool picks up next:
 
 ## Current task — READY FOR HANDOFF TO A NEW SESSION
 
-- **Enemy AI (base) GDD**: Approved.
-- **Spell Casting (base) GDD**: Designed (pending review) — all 8 sections + Visual/Audio/UI/Open
-  Questions written to `design/gdd/spell-casting-base.md`. NOT yet run through `/design-review`.
+- **Dash/Evasion GDD**: Approved. Design review complete.
+- **Next System to Design**: Combo/Tension Gauge GDD.
 
 **➤ NEXT COMMAND TO RUN (fresh session, either tool):**
-`/design-review design/gdd/spell-casting-base.md` (must run in a session that did NOT author it)
+Draft Combo/Tension Gauge GDD (following the 8-section standard).
 
-Then continue design order: Dash/Evasion → Combo/Tension Gauge → Luna Overdrive → Combat HUD.
+Then continue design order: Luna Overdrive → Combat HUD.
 
 **Key decisions baked into Enemy AI (base) (carry forward when designing dependents):**
 - MVP scope is 2 archetypes only: Grunt (melee, MaxHealth 30) and Ranged (MaxHealth 20, keeps a
@@ -182,9 +196,8 @@ Then continue design order: Dash/Evasion → Combo/Tension Gauge → Luna Overdr
   none of these blocked Health/Damage Core, still open for whoever designs those systems.
 
 **To resume in a new session:**
-1. Run `/design-review design/gdd/spell-casting-base.md` (fresh session — independent of the authoring session).
-2. Then draft Dash/Evasion GDD next.
-3. Continue design order: Dash/Evasion → Combo/Tension Gauge → Luna Overdrive → Combat HUD.
+1. Draft Combo/Tension Gauge GDD next.
+2. Continue design order: Combo/Tension Gauge → Luna Overdrive → Combat HUD.
 
 ## What changed this session (enemy-ai-base.md review pass)
 - Reviewed and **APPROVED** `design/gdd/enemy-ai-base.md` end-to-end (independent review session).

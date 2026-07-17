@@ -27,7 +27,7 @@
 | 4 | Enemy AI (base) (inferred) | Gameplay | MVP | Approved | design/gdd/enemy-ai-base.md | Health/Damage Core |
 | 5 | Destructible Geometry (inferred) | Core | Vertical Slice | Not Started | — | — |
 | 6 | Spell Casting (base) (inferred) | Gameplay | MVP | Approved | design/gdd/spell-casting-base.md | Player Movement, Health/Damage Core |
-| 7 | Dash/Evasion (inferred) | Gameplay | MVP | Not Started | — | Player Movement, Camera System (base), Health/Damage Core |
+| 7 | Dash/Evasion | Gameplay | MVP | Approved | design/gdd/dash-evasion.md | Player Movement, Camera System (base), Health/Damage Core, Enemy AI (base) |
 | 8 | Status Effect (inferred) | Gameplay | Vertical Slice | Not Started | — | Health/Damage Core |
 | 9 | Combo/Tension Gauge | Gameplay | MVP | Not Started | — | Spell Casting (base), Health/Damage Core, Dash/Evasion |
 | 10 | Spell Weaving / Synergy | Gameplay | Vertical Slice | Not Started | — | Spell Casting (base), Status Effect |
@@ -154,10 +154,10 @@
 | Metric | Count |
 |--------|-------|
 | Total systems identified | 20 |
-| Design docs started | 5 |
-| Design docs reviewed | 5 |
-| Design docs approved | 5 |
-| MVP systems designed | 5/9 |
+| Design docs started | 6 |
+| Design docs reviewed | 6 |
+| Design docs approved | 6 |
+| MVP systems designed | 6/9 |
 | Vertical Slice systems designed | 0/7 |
 
 ---
