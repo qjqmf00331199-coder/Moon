@@ -37,7 +37,7 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
-last_updated: "2026-07-17"  # luna-overdrive.md 등록 반영 (직전: combo-tension-gauge.md)
+last_updated: "2026-07-17"  # combat-hud.md 등록 반영 (직전: luna-overdrive.md)
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -501,6 +501,7 @@ constants:
     source: design/gdd/spell-casting-base.md
     referenced_by:
       - design/gdd/spell-casting-base.md
+      - design/gdd/combat-hud.md
     value: 6.0
     unit: seconds
     added: 2026-07-17
@@ -511,6 +512,7 @@ constants:
     source: design/gdd/spell-casting-base.md
     referenced_by:
       - design/gdd/spell-casting-base.md
+      - design/gdd/combat-hud.md
     value: 2.0
     unit: seconds
     added: 2026-07-17
@@ -521,6 +523,7 @@ constants:
     source: design/gdd/spell-casting-base.md
     referenced_by:
       - design/gdd/spell-casting-base.md
+      - design/gdd/combat-hud.md
     value: 2.5
     unit: seconds
     added: 2026-07-17
@@ -561,6 +564,7 @@ constants:
     source: design/gdd/dash-evasion.md
     referenced_by:
       - design/gdd/dash-evasion.md
+      - design/gdd/combat-hud.md
     value: 3.0
     unit: seconds
     added: 2026-07-17
@@ -572,6 +576,7 @@ constants:
     referenced_by:
       - design/gdd/combo-tension-gauge.md
       - design/gdd/luna-overdrive.md
+      - design/gdd/combat-hud.md
     value: 100
     unit: tension
     added: 2026-07-17
@@ -632,12 +637,27 @@ constants:
     source: design/gdd/luna-overdrive.md
     referenced_by:
       - design/gdd/luna-overdrive.md
+      - design/gdd/combat-hud.md
     value: 10.0
     unit: seconds
     added: 2026-07-17
     revised: ""
     # game-concept.md states 10s explicitly; exposed as a Tuning Knob with the
     # concept value as default (luna-overdrive.md Tuning Knobs, Safe Range 6.0-15.0).
+
+  - name: tension_charged_highlight_threshold
+    status: active
+    source: design/gdd/combat-hud.md
+    referenced_by:
+      - design/gdd/combat-hud.md
+      - design/gdd/combo-tension-gauge.md
+    value: 0.90
+    unit: ratio
+    added: 2026-07-17
+    revised: ""
+    # combo-tension-gauge.md Visual/Audio gives "예: 90%+" as an example and
+    # explicitly delegates the exact threshold to Combat HUD — combat-hud.md
+    # owns the value (Charged Highlight Gate formula, Safe Range 0.80-0.95).
 
 # Example:
 #

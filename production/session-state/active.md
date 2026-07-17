@@ -1,8 +1,39 @@
 <!-- STATUS -->
 Epic: Moon Fragment Hunt — DDD Expansion
-Feature: Systems Design > Luna Overdrive GDD
-Task: Luna Overdrive GDD complete (all 8 sections + Visual/Audio + UI + Open Questions), solo mode. NEXT: Combat HUD GDD (last MVP system), then /design-review on both in fresh sessions.
+Feature: Systems Design > MVP complete (9/9 designed)
+Task: All 9 MVP GDDs designed. Luna Overdrive + Combat HUD are "Designed (pending review)". NEXT: /design-review on combo-tension-gauge.md, luna-overdrive.md, combat-hud.md in fresh sessions, then /review-all-gdds + /gate-check pre-production.
 <!-- /STATUS -->
+
+## What changed this session (handoff execution — Combat HUD GDD, 2 of 2 — MVP 9/9 designed)
+- Authored complete GDD at `design/gdd/combat-hud.md`, solo review mode, status "Designed (pending review)".
+- Core design: pure read-only mirror layer, 7-widget MVP inventory (health bar, low-health warning,
+  mana bar + ∞ overdrive state, 3 spell cooldown slots, dash charge pips (floor + fraction), tension
+  gauge with Building/Decaying/Charged visual language, overdrive indicator + execution prompt).
+  Event-driven updates only (tick allowed solely for active lerp/sweep), per-frame update coalescing,
+  display interpolation never gates gameplay signals (real-value triggers only). All widgets
+  non-focusable — pad nav requirement satisfied by staying out of the focus graph; F-key glyph swaps
+  to pad button glyph on device change.
+- **Assumed interface (handoff-mandated)**: execution prompt binds to `State.Executable` tag presence
+  + proximity assumption; precise trigger signal deferred to Core Extraction Execution GDD
+  (Open Question, Owner: game-designer).
+- **Value confirmed**: `TensionChargedHighlightThreshold` = 0.90 — the threshold combo-tension-gauge.md
+  explicitly delegated to Combat HUD ("예: 90%+"). Registered as new constant.
+- Registry: added `tension_charged_highlight_threshold`; appended combat-hud.md to referenced_by on
+  `tension_gauge_max`, `cooldown_blackhole/fire/lightning`, `executable_duration`, `overdrive_duration`.
+- systems-index.md: row #20 → "Designed (pending review)" + link; Dependency Map/enumeration row
+  gained Health/Damage Core, Spell Casting (base), Dash/Evasion (upstream UI Requirements delegations
+  the original index missed); progress started 9, **MVP 9/9 designed**.
+- OLLAMA-INSTRUCTIONS.md: queued Task 14 (registry fact-check HUD), Task 15 (terminology HUD vs
+  luna-overdrive), Task 16 (AC → QA checklist HUD).
+- Manual /consistency-check procedure run (registry vs all 9 GDDs, grep-targeted): **0 conflicts**.
+  Shared values verified: overdrive 10s, charged 0.90, tension gains 70/25, cooldowns 6.0/2.0/2.5,
+  executable_duration 3.0, telegraph 0.4, engage 400/1200. Known cosmetic staleness (not a value
+  conflict, left for review session): spell-casting-base.md prose still labels Luna Overdrive
+  "(미설계)" in Rules 10/Interactions — LO is now designed.
+- Solo mode skipped agent spawns: creative-director, ue-umg-specialist, ux-designer, art-director,
+  qa-lead — flagged in GDD as needing manual review before Production.
+
+<!-- CONSISTENCY-CHECK: 2026-07-17 | GDDs checked: 9 | Conflicts found: 0 | Scope: luna-overdrive.md + combat-hud.md 추가 반영 (MVP 9/9) -->
 
 ## What changed this session (handoff execution — Luna Overdrive GDD, 1 of 2)
 - Executed `production/handoff/fable-mvp-remaining-2-systems.md` (user pre-approved, no-questions run).

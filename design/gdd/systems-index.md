@@ -40,7 +40,7 @@
 | 17 | Arena Morphing | Gameplay | Alpha | Not Started | — | Boss Phase, Destructible Geometry, Dash/Evasion, Camera System (base) |
 | 18 | Overdrive Visual State (inferred) | UI | Vertical Slice | Not Started | — | Luna Overdrive |
 | 19 | Execution Camera/Cutscene (inferred) | UI | Vertical Slice | Not Started | — | Core Extraction Execution, Camera System (base) |
-| 20 | Combat HUD (inferred) | UI | MVP | Not Started | — | Combo/Tension Gauge, Luna Overdrive, Core Extraction Execution |
+| 20 | Combat HUD (inferred) | UI | MVP | Designed (pending review) | design/gdd/combat-hud.md | Combo/Tension Gauge, Luna Overdrive, Core Extraction Execution (미설계 — 가정 인터페이스), Health/Damage Core, Spell Casting (base), Dash/Evasion (3건은 2026-07-17 combat-hud.md 설계 시 명기 — 상류 UI Requirements 위임분) |
 
 ---
 
@@ -97,7 +97,7 @@
 1. Arena Morphing — depends on: Boss Phase, Destructible Geometry, Dash/Evasion, Camera System (base)
 2. Overdrive Visual State — depends on: Luna Overdrive
 3. Execution Camera/Cutscene — depends on: Core Extraction Execution, Camera System (base)
-4. Combat HUD — depends on: Combo/Tension Gauge, Luna Overdrive, Core Extraction Execution
+4. Combat HUD — depends on: Combo/Tension Gauge, Luna Overdrive, Core Extraction Execution (미설계 — 가정 인터페이스), Health/Damage Core, Spell Casting (base), Dash/Evasion (뒤 3건은 상류 UI Requirements가 위임한 표시 책임 — 2026-07-17 combat-hud.md 설계 시 추가)
 
 ### Polish Layer
 
@@ -154,10 +154,10 @@
 | Metric | Count |
 |--------|-------|
 | Total systems identified | 20 |
-| Design docs started | 8 |
+| Design docs started | 9 |
 | Design docs reviewed | 6 |
 | Design docs approved | 6 |
-| MVP systems designed | 8/9 |
+| MVP systems designed | 9/9 |
 | Vertical Slice systems designed | 0/7 |
 
 ---
