@@ -22,3 +22,14 @@ Disagreements adjudicated: single-grant tag (systems-designer BLOCKING vs ue-gas
 design kept, implementation note made blocking; cast-rate cap (game-designer BLOCKING here vs
 creative-director) → ownership moved to Spell Casting as cross-dependency.
 Prior verdict resolved: First review
+
+## Review — 2026-07-18 — Verdict: APPROVED
+Scope signal: M
+Specialists: (lean re-review — solo pass, no specialist delegation)
+Blocking items: 0 | Recommended: 0
+Summary: Re-review confirms all 5 prior blocking items resolved — cast-rate floor (Rule 11) landed
+in spell-casting-base.md (commit fd71aae), resolving the last BLOCKING cross-dependency. Formulas,
+edge cases, and dependency graph (Combo/Tension Gauge, Spell Casting base, Health/Damage Core,
+Combat HUD) all check out bidirectionally. Remaining Open Questions (refresh-chain tuning value,
+fragment-absorption trigger, UE5.8 GE API names) are correctly scoped as non-blocking.
+Prior verdict resolved: Yes

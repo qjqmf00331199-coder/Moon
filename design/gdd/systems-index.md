@@ -29,9 +29,9 @@
 | 6 | Spell Casting (base) (inferred) | Gameplay | MVP | Approved | design/gdd/spell-casting-base.md | Player Movement, Health/Damage Core |
 | 7 | Dash/Evasion | Gameplay | MVP | Approved | design/gdd/dash-evasion.md | Player Movement, Camera System (base), Health/Damage Core, Enemy AI (base) |
 | 8 | Status Effect (inferred) | Gameplay | Vertical Slice | Not Started | — | Health/Damage Core |
-| 9 | Combo/Tension Gauge | Gameplay | MVP | Designed (pending review) | design/gdd/combo-tension-gauge.md | Spell Casting (base), Health/Damage Core, Dash/Evasion |
+| 9 | Combo/Tension Gauge | Gameplay | MVP | Approved | design/gdd/combo-tension-gauge.md | Spell Casting (base), Health/Damage Core, Dash/Evasion |
 | 10 | Spell Weaving / Synergy | Gameplay | Vertical Slice | Not Started | — | Spell Casting (base), Status Effect |
-| 11 | Luna Overdrive (Blood Moon) | Gameplay | MVP | Designed (pending review) | design/gdd/luna-overdrive.md | Combo/Tension Gauge, Spell Casting (base), Health/Damage Core (soft — added 2026-07-17 during luna-overdrive.md authoring: player Death subscription for forced overdrive end) |
+| 11 | Luna Overdrive (Blood Moon) | Gameplay | MVP | Approved | design/gdd/luna-overdrive.md | Combo/Tension Gauge, Spell Casting (base), Health/Damage Core (soft — added 2026-07-17 during luna-overdrive.md authoring: player Death subscription for forced overdrive end) |
 | 12 | Core Extraction Execution | Gameplay | Vertical Slice | Not Started | — | Dash/Evasion, Enemy AI (base), Health/Damage Core |
 | 13 | Enemy Elite Shield (inferred) | Gameplay | Alpha | Not Started | — | Enemy AI (base), Health/Damage Core |
 | 14 | Super Armor / CC Interrupt (inferred) | Gameplay | Alpha | Not Started | — | Status Effect, Enemy AI (base), Health/Damage Core |
@@ -40,7 +40,7 @@
 | 17 | Arena Morphing | Gameplay | Alpha | Not Started | — | Boss Phase, Destructible Geometry, Dash/Evasion, Camera System (base) |
 | 18 | Overdrive Visual State (inferred) | UI | Vertical Slice | Not Started | — | Luna Overdrive |
 | 19 | Execution Camera/Cutscene (inferred) | UI | Vertical Slice | Not Started | — | Core Extraction Execution, Camera System (base) |
-| 20 | Combat HUD (inferred) | UI | MVP | Designed (pending review) | design/gdd/combat-hud.md | Combo/Tension Gauge, Luna Overdrive, Core Extraction Execution (미설계 — 가정 인터페이스), Health/Damage Core, Spell Casting (base), Dash/Evasion (3건은 2026-07-17 combat-hud.md 설계 시 명기 — 상류 UI Requirements 위임분) |
+| 20 | Combat HUD (inferred) | UI | MVP | Approved | design/gdd/combat-hud.md | Combo/Tension Gauge, Luna Overdrive, Core Extraction Execution (미설계 — 가정 인터페이스), Health/Damage Core, Spell Casting (base), Dash/Evasion (3건은 2026-07-17 combat-hud.md 설계 시 명기 — 상류 UI Requirements 위임분) |
 
 ---
 
@@ -155,8 +155,8 @@
 |--------|-------|
 | Total systems identified | 20 |
 | Design docs started | 9 |
-| Design docs reviewed | 6 |
-| Design docs approved | 6 |
+| Design docs reviewed | 9 |
+| Design docs approved | 9 |
 | MVP systems designed | 9/9 |
 | Vertical Slice systems designed | 0/7 |
 

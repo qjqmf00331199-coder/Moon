@@ -719,3 +719,88 @@ ACCEPTANCE CRITERIA:
 
 **Review checklist** (under 2 min): 원본 AC 개수와 체크리스트 항목 개수 일치 확인, 조건
 누락/추가 없는지 대조.
+
+---
+
+## [ ] Task 17 — Registry vs. GDD fact-check (Combo/Tension Gauge)
+
+**Why queued**: `combo-tension-gauge.md` was approved 2026-07-18. Mechanical check to ensure
+registry entries (`tension_gauge_max`, `tension_gain_coefficient`, `just_dodge_tension_bonus`,
+`tension_decay_grace_period`, `tension_decay_rate_per_sec`, `overdrive_tension_gain_multiplier`,
+`tension_charged_highlight_threshold`) match the approved GDD.
+
+**Risk**: Low. Report-only, no file edited.
+
+**Context files**:
+- {{CONTEXT_REGISTRY}}: design/registry/entities.yaml
+- {{CONTEXT_GDD}}: design/gdd/combo-tension-gauge.md
+
+**Prompt**:
+```
+You are cross-checking two documents for a game design registry. The first is a YAML registry
+of named constants/formulas; the second is a design document that should agree with it wherever
+they both mention the same named value.
+
+List every case where a numeric value, formula, or named constant appears in BOTH documents
+but with DIFFERENT values. Format each finding as:
+
+- [name]: registry says [X], GDD says [Y] (GDD section: [section name])
+
+If you find no mismatches, say so explicitly — do not invent a mismatch to have something to
+report. Do not comment on anything else (style, completeness, missing sections) — ONLY numeric/
+value disagreements between the two documents.
+
+---
+REGISTRY (entities.yaml):
+{{CONTEXT_REGISTRY}}
+
+---
+GDD (combo-tension-gauge.md):
+{{CONTEXT_GDD}}
+```
+
+**Output path**: `production/overnight-output/task17-registry-check-combo-tension-gauge.md`
+
+**Review checklist** (under 2 min): open both source files, check actual values at the cited locations.
+
+---
+
+## [ ] Task 18 — Korean/English terminology consistency report (Combo/Tension Gauge vs. Luna Overdrive)
+
+**Why queued**: `combo-tension-gauge.md` was approved 2026-07-18. Its direct downstream consumer
+is Luna Overdrive (`OnOverdriveTriggered` event, `OverdriveTensionGainMultiplier` shared knob,
+`CostBypass.Active` tag read) — shared concepts are where naming drift shows up first.
+
+**Risk**: Low. Report-only task.
+
+**Context files**:
+- {{CONTEXT_A}}: design/gdd/combo-tension-gauge.md
+- {{CONTEXT_B}}: design/gdd/luna-overdrive.md
+
+**Prompt**:
+```
+Below are two Korean-language game design documents that share some concepts (they're
+core systems in the same project that interact directly). List every case where the SAME
+concept appears to be referred to with inconsistent terminology between the two documents —
+different Korean phrasing, inconsistent English term choice, or Korean vs. English used
+inconsistently for the same thing. Format each finding as:
+
+- Concept: [what it refers to] — Doc A says "[term]", Doc B says "[term]"
+
+Only flag genuine same-concept naming inconsistencies. Do not flag terms that only appear in one
+document (that's not an inconsistency, just scope). Do not comment on grammar, style, or
+translation quality — ONLY cross-document naming consistency.
+
+---
+DOCUMENT A (combo-tension-gauge.md):
+{{CONTEXT_A}}
+
+---
+DOCUMENT B (luna-overdrive.md):
+{{CONTEXT_B}}
+```
+
+**Output path**: `production/overnight-output/task18-terminology-consistency-combo-tension-gauge.md`
+
+**Review checklist** (under 2 min): skim the list — for each flagged pair, decide if it's a real
+inconsistency worth standardizing or an intentional distinction.
