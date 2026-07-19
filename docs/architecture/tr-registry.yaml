@@ -24,33 +24,543 @@
 #
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
-version: 1
-last_updated: ""
+version: 2
+last_updated: "2026-07-18"
 
-requirements: []
+requirements:
 
-# --- EXAMPLE ENTRIES (remove when first real entries are added) ---
-#
-# - id: TR-combat-001
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Player takes damage from enemies based on attack power minus defence"
-#   created: 2026-03-10
-#   revised: ""
-#   status: active
-#
-# - id: TR-combat-002
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Combo window timing is 0.4 seconds between hits"
-#   created: 2026-03-10
-#   revised: "2026-04-01"
-#   status: active
-#
-# - id: TR-combat-003
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Old damage formula using raw stats"
-#   created: 2026-03-10
-#   revised: ""
-#   status: superseded-by: TR-combat-001
+  # --- Player Movement (player-movement.md) ---
+  - id: TR-mov-001
+    system: mov
+    gdd: design/gdd/player-movement.md
+    requirement: "Extended CharacterMovementComponent with camera-relative input mapping, facing decoupled from movement direction (bOrientRotationToMovement=false, bUseControllerRotationYaw=true), instant per-tick yaw snap"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-mov-002
+    system: mov
+    gdd: design/gdd/player-movement.md
+    requirement: "Movement input processing architecturally independent of spell/animation/execution/hitstop; Movement module must not reference SpellCasting types at compile time (Build.cs module-dependency exclusion)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-mov-003
+    system: mov
+    gdd: design/gdd/player-movement.md
+    requirement: "Airborne sub-states (Ascending/Falling) are not native movement modes; sign of Velocity.Z sampled after CMC tick is the authoritative transition trigger; handle external Z-impulse re-entry"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-mov-004
+    system: mov
+    gdd: design/gdd/player-movement.md
+    requirement: "Data-asset tuning with hard clamps enforced on load-time and runtime write paths, plus a two-variable Joint Bound (computed AirTime 0.5s-3.0s), validated individual-clamps-first then joint-check"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-mov-005
+    system: mov
+    gdd: design/gdd/player-movement.md
+    requirement: "Expose interface for external systems to inject velocity, including Z-axis launch/impulse API and temporary MaxWalkSpeed override (for Dash/Evasion, Arena Morphing)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-mov-006
+    system: mov
+    gdd: design/gdd/player-movement.md
+    requirement: "MovementLocked flag with write access restricted to the Status Effect system only (Spell Casting and Execution denied write access)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-mov-007
+    system: mov
+    gdd: design/gdd/player-movement.md
+    requirement: "Timer-based input grace windows (Jump Input Buffer 150ms, Coyote Time 150ms) owned by the Character class, delta-time based not fixed tick counts"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-mov-008
+    system: mov
+    gdd: design/gdd/player-movement.md
+    requirement: "Hitstop and execution cutscenes are presentation-only: no Time Dilation (SetGlobalTimeDilation/CustomTimeDilation forbidden); gameplay ticks continue at 100%, frozen pose uses captured-transform delta-offset"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-mov-009
+    system: mov
+    gdd: design/gdd/player-movement.md
+    requirement: "Input-to-response latency budget: p95 input->velocity-change <=33ms at 60fps, time-to-95%-speed <=50ms; measured via Unreal Insights trace scopes"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-mov-010
+    system: mov
+    gdd: design/gdd/player-movement.md
+    requirement: "All locomotion animations authored non-root-motion (in-place); pose never drives translation (bEnableRootMotion==false)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+
+  # --- Health/Damage Core (health-damage-core.md) ---
+  - id: TR-hp-001
+    system: hp
+    gdd: design/gdd/health-damage-core.md
+    requirement: "GAS AbilitySystemComponent + AttributeSet managing Health/MaxHealth; all damage/heal/true-damage through GameplayEffect via a single ApplyDamage entry point for every source"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hp-002
+    system: hp
+    gdd: design/gdd/health-damage-core.md
+    requirement: "Shield/armor intercept in the GameplayEffect ExecutionCalculation stage before damage reaches Health; boolean full-absorb, bypassable via bBypassDefense true-damage flag"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hp-003
+    system: hp
+    gdd: design/gdd/health-damage-core.md
+    requirement: "State.Invulnerable GameplayTag blocks incoming damage at ApplicationRequirement level; must NOT be bypassed by bBypassDefense (invulnerability and defense-bypass are separate contracts)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hp-004
+    system: hp
+    gdd: design/gdd/health-damage-core.md
+    requirement: "Overlay state tags (State.Invulnerable, State.Executable) use reference-counted application so concurrent grantors don't prematurely clear; all overlay tags auto-clear on Death"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hp-005
+    system: hp
+    gdd: design/gdd/health-damage-core.md
+    requirement: "Execution API: State.Executable tag + TryExecute(Target) applying bypass-defense instant Health=0, removes tag, fires OnExecuted exactly once; fails silently when tag absent"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hp-006
+    system: hp
+    gdd: design/gdd/health-damage-core.md
+    requirement: "Immediate presentation-decoupled death: transition to Death on the frame Health<=0, not delayed by death animation; OnDeath fires exactly once even under same-frame multi-hit"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hp-007
+    system: hp
+    gdd: design/gdd/health-damage-core.md
+    requirement: "Event exposure: OnDeath, OnExecuted, OnHealthPercentCrossed(threshold), Health/MaxHealth change delegates for HUD/Boss Phase/Combo Gauge/Luna Overdrive consumers"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hp-008
+    system: hp
+    gdd: design/gdd/health-damage-core.md
+    requirement: "Runtime MaxHealth changes re-clamp CurrentHealth using absolute-value preservation (no proportional scaling); downward clamp must not by itself trigger Death if result>0"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hp-009
+    system: hp
+    gdd: design/gdd/health-damage-core.md
+    requirement: "Death = instant checkpoint respawn (no full level reload, no disk I/O, no loading screen): restore player Transform + attribute values from last checkpoint snapshot"
+    created: 2026-07-18
+    revised: ""
+    status: active
+
+  # --- Camera System (base) (camera-system-base.md) ---
+  - id: TR-cam-001
+    system: cam
+    gdd: design/gdd/camera-system-base.md
+    requirement: "Third-person USpringArmComponent->UCameraComponent hierarchy on player character (pivot torso Z=60), controller-driven (bUsePawnControlRotation=true, inherit Pitch/Yaw, no Roll)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-cam-002
+    system: cam
+    gdd: design/gdd/camera-system-base.md
+    requirement: "Enhanced Input IA_Look (Axis2D) routed to controller Yaw/Pitch with Pitch hard-clamped (-60..+30) via an APlayerCameraManager subclass"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-cam-003
+    system: cam
+    gdd: design/gdd/camera-system-base.md
+    requirement: "Camera-relative movement basis: derive Yaw-only Forward/Right from controller rotation each tick; Movement and Camera both read PlayerController rotation independently (no execution-order dep, no circular reference)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-cam-004
+    system: cam
+    gdd: design/gdd/camera-system-base.md
+    requirement: "Spring-arm position/rotation lag with hard CameraLagMaxDistance=200uu cap forcing hard-follow beyond threshold (off-screen prevention up to 3000uu/s Z)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-cam-005
+    system: cam
+    gdd: design/gdd/camera-system-base.md
+    requirement: "Spring-arm collision test (ProbeSize=12, ECC_Camera) with destructible debris on a separate ECC_Destructible channel the camera ignores (prevents debris-induced snap/jitter)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-cam-006
+    system: cam
+    gdd: design/gdd/camera-system-base.md
+    requirement: "Interpolation-driven dynamic modes: Overdrive FOV blend (90->100), execution cutscene blend (arm->150, right-shoulder offset, 0.2s in/0.3s out) as render overlay not distorting actual movement trajectory"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-cam-007
+    system: cam
+    gdd: design/gdd/camera-system-base.md
+    requirement: "ResetCameraLag() path callable on teleport/checkpoint respawn to flush lag interpolation cache (prevents world-clipping sweep artifacts)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-cam-008
+    system: cam
+    gdd: design/gdd/camera-system-base.md
+    requirement: "Look-input suppression gated on execution sequence entry/exit; camera-shake (radial for Supernova) with concurrent-shake count limit + amplitude cap"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-cam-009
+    system: cam
+    gdd: design/gdd/camera-system-base.md
+    requirement: "All camera parameters data-asset driven (DA_CameraSettings), never hardcoded"
+    created: 2026-07-18
+    revised: ""
+    status: active
+
+  # --- Enemy AI (base) (enemy-ai-base.md) ---
+  - id: TR-ai-001
+    system: ai
+    gdd: design/gdd/enemy-ai-base.md
+    requirement: "AIController + Behavior Tree/State Tree perception-decision-movement stack driving a 6-state machine (Idle/Alert/Chase/Attack/Stagger/Dead) per enemy instance"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-ai-002
+    system: ai
+    gdd: design/gdd/enemy-ai-base.md
+    requirement: "AIPerception with Sight (cone/range) and Hearing; Hearing responds to any external MakeNoise call (open contract, no fixed source list)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-ai-003
+    system: ai
+    gdd: design/gdd/enemy-ai-base.md
+    requirement: "Publish OnAttackTelegraphed and OnAttackCommitted multicast delegates from AnimNotifies at windup-start vs strike frame; damage GameplayEffect applies ONLY at commit frame"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-ai-004
+    system: ai
+    gdd: design/gdd/enemy-ai-base.md
+    requirement: "Consume Health/Damage Core OnDeath as the sole Dead-transition entry point (no self health adjudication); own per-archetype MaxHealth attribute-slot values"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-ai-005
+    system: ai
+    gdd: design/gdd/enemy-ai-base.md
+    requirement: "Expose external TriggerStagger()/ClearStagger() hooks that interrupt in-progress Attack (cancel before OnAttackCommitted, no damage)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-ai-006
+    system: ai
+    gdd: design/gdd/enemy-ai-base.md
+    requirement: "Tag each instance with Enemy.Archetype.* GameplayTags; treat State.Executable/State.Invulnerable as read-only overlays that never block state transitions"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-ai-007
+    system: ai
+    gdd: design/gdd/enemy-ai-base.md
+    requirement: "NavMesh-based pursuit (MoveToActor) with Ranged distance-band maintenance and pathfind-fail timeout fallback (retreat abandonment after RetreatPathfindFailTimeout)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-ai-008
+    system: ai
+    gdd: design/gdd/enemy-ai-base.md
+    requirement: "Support dozens of simultaneous instances (swarm) within 60fps/16.6ms budget; AIPerception/BT tick cost must be measured before Production (perf-unverified)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+
+  # --- Spell Casting (base) (spell-casting-base.md) ---
+  - id: TR-spell-001
+    system: spell
+    gdd: design/gdd/spell-casting-base.md
+    requirement: "GAS pipeline: ASC + Mana AttributeSet, one GameplayAbility per element (InstancedPerActor), activation->commit->effect->EndAbility all complete in the SAME frame (zero recovery)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-spell-002
+    system: spell
+    gdd: design/gdd/spell-casting-base.md
+    requirement: "Casting never sets MovementLocked; AddMovementInput ticks 100% during casts; no CancelAbility/BlockAbilitiesWithTag; only presentation montage blends out"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-spell-003
+    system: spell
+    gdd: design/gdd/spell-casting-base.md
+    requirement: "Per-element independent cooldown timers (GAS Cooldown GE + tag), no global/shared cooldown; single shared Mana/MaxMana with per-element ManaCost gate"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-spell-004
+    system: spell
+    gdd: design/gdd/spell-casting-base.md
+    requirement: "Cost/cooldown bypass via CostBypass.Active tag checked in BOTH CanActivateAbility() and ActivateAbility(); when present skip CommitAbility entirely so no cooldown GE enters (single tag, no partial bypass)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-spell-005
+    system: spell
+    gdd: design/gdd/spell-casting-base.md
+    requirement: "Cast-rate limiter: hard cap 1 cast per element per frame plus global MaxCastsPerSecond (default 20), enforced regardless of bypass state"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-spell-006
+    system: spell
+    gdd: design/gdd/spell-casting-base.md
+    requirement: "Subscribe to Health/Damage Core OnExecuted to snap Mana to MaxMana via Instant Override GE; passive regen via Infinite/Periodic Add GE; PostGameplayEffectExecute clamps Mana 0-MaxMana (idempotent)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-spell-007
+    system: spell
+    gdd: design/gdd/spell-casting-base.md
+    requirement: "Every spell impact calls MakeNoise with per-element NoiseLoudness; route all damage through Health/Damage Core single ApplyDamage entry (bBypassDefense overridable by downstream)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-spell-008
+    system: spell
+    gdd: design/gdd/spell-casting-base.md
+    requirement: "Expose public events/data: OnSpellCast(Element)/OnSpellHit(Element,Target) delegates, Spell.Element.* tags, Mana/MaxMana + per-element cooldown state + CostBypass.Active for HUD binding"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-spell-009
+    system: spell
+    gdd: design/gdd/spell-casting-base.md
+    requirement: "Deterministic same-frame ordering: tag state change (bypass grant/release) applied BEFORE that frame's cast gate evaluation"
+    created: 2026-07-18
+    revised: ""
+    status: active
+
+  # --- Dash/Evasion (dash-evasion.md) ---
+  - id: TR-dash-001
+    system: dash
+    gdd: design/gdd/dash-evasion.md
+    requirement: "Charge system with tick-accumulated fractional charges (CurrentCharges += DeltaTime/RechargeRate, clamp 0-MaxCharges) consumed per dash"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-dash-002
+    system: dash
+    gdd: design/gdd/dash-evasion.md
+    requirement: "Apply dash as full velocity Override (horizontal+vertical overwritten, not additive) via Player Movement impulse/Velocity API; air-dash adjusts Z for hang-time respecting CMC gravity"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-dash-003
+    system: dash
+    gdd: design/gdd/dash-evasion.md
+    requirement: "On dash start grant Health/Damage Core State.Invulnerable tag (I-frames), remove at dash_invuln_duration expiry"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-dash-004
+    system: dash
+    gdd: design/gdd/dash-evasion.md
+    requirement: "Subscribe to Enemy AI OnAttackTelegraphed/OnAttackCommitted; Just-Dodge requires CurrentTime within [AttackCommittedTime - JustDodgeWindow, AttackCommittedTime] AND spatial IsInAttackRange test"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-dash-005
+    system: dash
+    gdd: design/gdd/dash-evasion.md
+    requirement: "On Just-Dodge success grant State.Executable to ALL qualifying enemies (reference-counted stacking) but refund at most 1 dash charge per dash event"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-dash-006
+    system: dash
+    gdd: design/gdd/dash-evasion.md
+    requirement: "Read camera-relative direction from Camera System for input axis; trigger camera shake via Camera System-owned API on Just-Dodge"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-dash-007
+    system: dash
+    gdd: design/gdd/dash-evasion.md
+    requirement: "Respect MovementLocked (dash blocked, no charge consumed); dash itself interrupts nothing and fires instantly even mid-cast"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-dash-008
+    system: dash
+    gdd: design/gdd/dash-evasion.md
+    requirement: "Expose dash charge stack count + cooldown gauge data to Combat HUD"
+    created: 2026-07-18
+    revised: ""
+    status: active
+
+  # --- Combo/Tension Gauge (combo-tension-gauge.md) ---
+  - id: TR-tension-001
+    system: tension
+    gdd: design/gdd/combo-tension-gauge.md
+    requirement: "Single GAS Attribute TensionGauge (0-TensionGaugeMax), event-driven only, never directly writable by player input"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-tension-002
+    system: tension
+    gdd: design/gdd/combo-tension-gauge.md
+    requirement: "Subscribe as read-only consumer to Spell OnSpellHit, HDC OnTagAdded(State.Executable), OnDamageApplied(player), and player Death, without modifying those systems"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-tension-003
+    system: tension
+    gdd: design/gdd/combo-tension-gauge.md
+    requirement: "Decay timer with grace-period gating that continues ticking even during State.Invulnerable, resets on any gain event, applies per-second decay only after grace window"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-tension-004
+    system: tension
+    gdd: design/gdd/combo-tension-gauge.md
+    requirement: "Deterministically order same-frame effects Gain -> Penalty -> Decay, clamp to [0, Max] with no carry-over"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-tension-005
+    system: tension
+    gdd: design/gdd/combo-tension-gauge.md
+    requirement: "Emit OnOverdriveTriggered exactly once on the frame the gauge reaches Max, reset to 0 same frame, permit immediate re-trigger (guard only duplicate same-frame emission)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-tension-006
+    system: tension
+    gdd: design/gdd/combo-tension-gauge.md
+    requirement: "Read CostBypass.Active gameplay tag at gain-evaluation time to gate the overdrive gain multiplier"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-tension-007
+    system: tension
+    gdd: design/gdd/combo-tension-gauge.md
+    requirement: "Expose read-only gauge value (0-Max) and Building/Decaying state to downstream (Combat HUD) without those consumers being required for correct logic"
+    created: 2026-07-18
+    revised: ""
+    status: active
+
+  # --- Luna Overdrive (luna-overdrive.md) ---
+  - id: TR-overdrive-001
+    system: overdrive
+    gdd: design/gdd/luna-overdrive.md
+    requirement: "Subscribe to upstream OnOverdriveTriggered (payload-less) and enter Active state on the receiving frame"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-overdrive-002
+    system: overdrive
+    gdd: design/gdd/luna-overdrive.md
+    requirement: "Grant/clear CostBypass.Active loose gameplay tag using non-counted set/clear semantics (SetLooseGameplayTagCount(1/0)) - explicitly NOT ref-counted Add/Remove - as the sole grantor"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-overdrive-003
+    system: overdrive
+    gdd: design/gdd/luna-overdrive.md
+    requirement: "Implement duration via a plain timer variable OverdriveEndTime (no Duration-type GameplayEffect owning the tag); compute OverdriveTimeRemaining as OverdriveEndTime - CurrentTime"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-overdrive-004
+    system: overdrive
+    gdd: design/gdd/luna-overdrive.md
+    requirement: "Every decision point (cast gate, expiry, trigger/death handlers) evaluates CurrentTime >= OverdriveEndTime lazily so contract holds regardless of subsystem execution order"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-overdrive-005
+    system: overdrive
+    gdd: design/gdd/luna-overdrive.md
+    requirement: "Same-frame race determinism: expiry finalized at frame-end, re-trigger refreshes OverdriveEndTime (no Started/Ended re-emission), player Death takes eager priority"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-overdrive-006
+    system: overdrive
+    gdd: design/gdd/luna-overdrive.md
+    requirement: "On player Death cancel timer and clear tag immediately; tolerate idempotent double-remove from HDC Death blanket tag-clear (Luna Overdrive is canonical owner)"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-overdrive-007
+    system: overdrive
+    gdd: design/gdd/luna-overdrive.md
+    requirement: "Expose OnOverdriveStarted, OnOverdriveEnded(EndReason in {Expired, PlayerDeath}) exactly once per transition, and OverdriveTimeRemaining to downstream"
+    created: 2026-07-18
+    revised: ""
+    status: active
+
+  # --- Combat HUD (combat-hud.md) ---
+  - id: TR-hud-001
+    system: hud
+    gdd: design/gdd/combat-hud.md
+    requirement: "UMG + CommonUI read-only presentation layer owning no gameplay state; all widgets non-focusable and excluded from pad focus-navigation graph"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hud-002
+    system: hud
+    gdd: design/gdd/combat-hud.md
+    requirement: "Bind 7 widgets exclusively to interfaces already exposed by upstream systems (attribute delegates, OnCooldown+remaining, CurrentCharges, gauge value/state, overdrive events, State.Executable tag) - no new upstream interfaces"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hud-003
+    system: hud
+    gdd: design/gdd/combat-hud.md
+    requirement: "Update event-driven by default (tick polling forbidden); permit ticking only for active visual interpolation and time sweeps, zero tick when idle, to meet 60fps/16.6ms budget"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hud-004
+    system: hud
+    gdd: design/gdd/combat-hud.md
+    requirement: "Coalesce per-frame updates so any single widget rebuild/layout-invalidation happens at most once per frame, last-value-wins, even under same-frame event floods"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hud-005
+    system: hud
+    gdd: design/gdd/combat-hud.md
+    requirement: "Trigger gameplay-meaningful signals (Charged highlight, overdrive flash) off real values/real events, never off interpolated display values"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hud-006
+    system: hud
+    gdd: design/gdd/combat-hud.md
+    requirement: "Mirror upstream reset/death and overdrive state transitions (immediate marker removal on Death, crimson palette + infinite mana + cooldown-clear on OnOverdriveStarted, full revert on OnOverdriveEnded) without HUD making gameplay judgments"
+    created: 2026-07-18
+    revised: ""
+    status: active
+  - id: TR-hud-007
+    system: hud
+    gdd: design/gdd/combat-hud.md
+    requirement: "Detect active input device and swap key glyphs (keyboard F <-> gamepad button) using the UE5.8 unified Input System, affecting glyph only"
+    created: 2026-07-18
+    revised: ""
+    status: active
