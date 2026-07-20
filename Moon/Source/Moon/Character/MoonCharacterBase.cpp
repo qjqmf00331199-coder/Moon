@@ -9,6 +9,8 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Animation/AnimSequence.h"
+#include "TimerManager.h"
 
 AMoonCharacterBase::AMoonCharacterBase()
 {
@@ -79,31 +81,135 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 		}
 	}
 
-	// Basic locomotion: swap the single-node playing animation between idle and jog by speed.
-	// No AnimBlueprint/blendspace yet, so this is a hard switch rather than a blend.
-	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	// Jump motion: detect the moment we start falling (jump or walking off a ledge) and play
+	// Jump_Start once. OnJumpStartAnimFinished() hands off to a looping Jump_Apex if still
+	// airborne once Jump_Start finishes; Landed() plays Jump_Land on touchdown.
+	const bool bIsFalling = GetCharacterMovement()->IsFalling();
+	if (bIsFalling && !bWasFalling && JumpStartAnim)
 	{
-		const float Speed = GetVelocity().Size();
-		const bool bShouldJog = Speed > JogSpeedThreshold;
-		static float DebugLogAccum = 0.0f;
-		DebugLogAccum += DeltaTime;
-		if (DebugLogAccum > 0.5f)
+		if (USkeletalMeshComponent* MeshComp = GetMesh())
 		{
-			DebugLogAccum = 0.0f;
-			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Tick locomotion: Speed=%.1f bShouldJog=%d bIsPlayingJogAnim=%d JogAnim=%s IdleAnim=%s"),
-				Speed, bShouldJog, bIsPlayingJogAnim, *GetNameSafe(JogAnim.Get()), *GetNameSafe(IdleAnim.Get()));
-		}
-		if (bShouldJog && !bIsPlayingJogAnim && JogAnim)
-		{
-			MeshComp->PlayAnimation(JogAnim, true);
-			bIsPlayingJogAnim = true;
-		}
-		else if (!bShouldJog && bIsPlayingJogAnim && IdleAnim)
-		{
-			MeshComp->PlayAnimation(IdleAnim, true);
-			bIsPlayingJogAnim = false;
+			bPlayingOneShotAnim = true;
+			MeshComp->PlayAnimation(JumpStartAnim, false);
+			GetWorld()->GetTimerManager().SetTimer(JumpAnimTimerHandle, this, &AMoonCharacterBase::OnJumpStartAnimFinished, JumpStartAnim->GetPlayLength(), false);
 		}
 	}
+	bWasFalling = bIsFalling;
+
+	// Basic locomotion: swap the single-node playing animation between idle and jog by speed.
+	// No AnimBlueprint/blendspace yet, so this is a hard switch rather than a blend.
+	// Suppressed while a one-shot anim (jump start/land, dash, spell cast) controls the mesh.
+	if (!bPlayingOneShotAnim)
+	{
+		if (USkeletalMeshComponent* MeshComp = GetMesh())
+		{
+			const float Speed = GetVelocity().Size();
+			const bool bShouldJog = Speed > JogSpeedThreshold;
+			static float DebugLogAccum = 0.0f;
+			DebugLogAccum += DeltaTime;
+			if (DebugLogAccum > 0.5f)
+			{
+				DebugLogAccum = 0.0f;
+				UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Tick locomotion: Speed=%.1f bShouldJog=%d bIsPlayingJogAnim=%d JogAnim=%s IdleAnim=%s"),
+					Speed, bShouldJog, bIsPlayingJogAnim, *GetNameSafe(JogAnim.Get()), *GetNameSafe(IdleAnim.Get()));
+			}
+			if (bShouldJog && !bIsPlayingJogAnim && JogAnim)
+			{
+				MeshComp->PlayAnimation(JogAnim, true);
+				bIsPlayingJogAnim = true;
+			}
+			else if (!bShouldJog && bIsPlayingJogAnim && IdleAnim)
+			{
+				MeshComp->PlayAnimation(IdleAnim, true);
+				bIsPlayingJogAnim = false;
+			}
+		}
+	}
+}
+
+void AMoonCharacterBase::Landed(const FHitResult& Hit)
+{
+	Super::Landed(Hit);
+
+	if (JumpLandAnim)
+	{
+		if (USkeletalMeshComponent* MeshComp = GetMesh())
+		{
+			bPlayingOneShotAnim = true;
+			MeshComp->PlayAnimation(JumpLandAnim, false);
+			GetWorld()->GetTimerManager().SetTimer(JumpAnimTimerHandle, this, &AMoonCharacterBase::OnLandAnimFinished, JumpLandAnim->GetPlayLength(), false);
+		}
+	}
+	else
+	{
+		bPlayingOneShotAnim = false;
+		RefreshLocomotionAnim();
+	}
+}
+
+void AMoonCharacterBase::RefreshLocomotionAnim()
+{
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp) return;
+
+	const float Speed = GetVelocity().Size();
+	const bool bShouldJog = Speed > JogSpeedThreshold;
+	if (bShouldJog && JogAnim)
+	{
+		MeshComp->PlayAnimation(JogAnim, true);
+		bIsPlayingJogAnim = true;
+	}
+	else if (IdleAnim)
+	{
+		MeshComp->PlayAnimation(IdleAnim, true);
+		bIsPlayingJogAnim = false;
+	}
+}
+
+void AMoonCharacterBase::OnJumpStartAnimFinished()
+{
+	if (GetCharacterMovement()->IsFalling() && JumpApexAnim)
+	{
+		if (USkeletalMeshComponent* MeshComp = GetMesh())
+		{
+			// Still airborne: loop Jump_Apex until Landed() takes over.
+			MeshComp->PlayAnimation(JumpApexAnim, true);
+		}
+	}
+	else
+	{
+		// Already landed while Jump_Start was still playing (short hop) — resume locomotion now.
+		bPlayingOneShotAnim = false;
+		RefreshLocomotionAnim();
+	}
+}
+
+void AMoonCharacterBase::OnLandAnimFinished()
+{
+	bPlayingOneShotAnim = false;
+	RefreshLocomotionAnim();
+}
+
+void AMoonCharacterBase::PlayOneShotAnim(UAnimSequence* Anim)
+{
+	if (!Anim) return;
+
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp) return;
+
+	bPlayingOneShotAnim = true;
+	MeshComp->PlayAnimation(Anim, false);
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(OneShotAnimTimerHandle, this, &AMoonCharacterBase::OnOneShotAnimFinished, Anim->GetPlayLength(), false);
+	}
+}
+
+void AMoonCharacterBase::OnOneShotAnimFinished()
+{
+	bPlayingOneShotAnim = false;
+	RefreshLocomotionAnim();
 }
 
 void AMoonCharacterBase::BeginPlay()
@@ -214,6 +320,12 @@ void AMoonCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		{
 			EnhancedInputComponent->BindAction(SpellLightningAction, ETriggerEvent::Triggered, this, &AMoonCharacterBase::Input_SpellLightning);
 		}
+
+		if (JumpAction)
+		{
+			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		}
 	}
 }
 
@@ -272,11 +384,12 @@ void AMoonCharacterBase::TryActivateAbilityByTag(FGameplayTag AbilityTag)
 {
 	if (AbilitySystemComponent)
 	{
-		// TryActivateAbilitiesByTag looks for an exact or matching tag. 
+		// TryActivateAbilitiesByTag looks for an exact or matching tag.
 		// The ability itself will be granted with this tag as an AbilityTag.
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(AbilityTag);
-		AbilitySystemComponent->TryActivateAbilitiesByTag(TagContainer);
+		const bool bActivated = AbilitySystemComponent->TryActivateAbilitiesByTag(TagContainer);
+		UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] TryActivateAbilityByTag %s -> %s"), *AbilityTag.ToString(), bActivated ? TEXT("true") : TEXT("false"));
 	}
 }
 

@@ -30,6 +30,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash")
 	float DashDuration = 0.2f;
 
+	// Dash motion, played on the character mesh via AMoonCharacterBase::PlayOneShotAnim.
+	// Defaults to the Aurora "Bound" animation (project has no dedicated Dash anim yet).
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash|Animation")
+	TObjectPtr<class UAnimSequence> DashAnim;
+
 	// Timer handle for ending the dash
 	FTimerHandle DashTimerHandle;
 

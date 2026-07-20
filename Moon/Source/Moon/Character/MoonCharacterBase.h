@@ -34,7 +34,8 @@ protected:
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	virtual void PossessedBy(AController* NewController) override;
-	
+	virtual void Landed(const FHitResult& Hit) override;
+
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
 
@@ -75,6 +76,12 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Moon|Tension")
 	void OnOverdriveTriggered();
+
+	// Plays a one-shot animation on the mesh (e.g. Dash/spell cast), suppressing the idle/jog
+	// locomotion swap in Tick until it finishes. Used by abilities that don't have their own
+	// montage/slot system yet (no AnimBlueprint exists for this character).
+	UFUNCTION(BlueprintCallable, Category = "Moon|Animation")
+	void PlayOneShotAnim(class UAnimSequence* Anim);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
@@ -152,6 +159,21 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> SpellLightningAction;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
+	TObjectPtr<UInputAction> JumpAction;
+
+	// Jump motion: Jump_Start plays once on takeoff, Jump_Apex loops while still airborne
+	// afterward, Jump_Land plays once on landing. No AnimBlueprint yet, same single-node
+	// playback approach as Idle/Jog above.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	TObjectPtr<class UAnimSequence> JumpStartAnim;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	TObjectPtr<class UAnimSequence> JumpApexAnim;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	TObjectPtr<class UAnimSequence> JumpLandAnim;
+
 private:
 	// Rate Limiting State
 	uint64 LastCastFrame = 0;
@@ -163,4 +185,15 @@ private:
 
 	// Locomotion State
 	bool bIsPlayingJogAnim = false;
+
+	// Jump/one-shot animation state
+	bool bWasFalling = false;
+	bool bPlayingOneShotAnim = false;
+	FTimerHandle JumpAnimTimerHandle;
+	FTimerHandle OneShotAnimTimerHandle;
+
+	void RefreshLocomotionAnim();
+	void OnJumpStartAnimFinished();
+	void OnLandAnimFinished();
+	void OnOneShotAnimFinished();
 };

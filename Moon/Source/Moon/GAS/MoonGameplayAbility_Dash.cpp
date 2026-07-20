@@ -5,6 +5,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "TimerManager.h"
 #include "Engine/World.h"
+#include "Animation/AnimSequence.h"
+#include "UObject/ConstructorHelpers.h"
 #include "../Character/MoonCharacterBase.h"
 
 UMoonGameplayAbility_Dash::UMoonGameplayAbility_Dash()
@@ -14,6 +16,15 @@ UMoonGameplayAbility_Dash::UMoonGameplayAbility_Dash()
 	// GDD Rule 5: 회피 프레임 (I-frames)
 	// Add State.Invulnerable automatically when active
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Invulnerable")));
+
+	// Default Dash motion — project has no dedicated Dash anim yet, so reuse Aurora's "Bound"
+	// (same skeleton the Moon character mesh already uses for Idle/Jog). EditDefaultsOnly so
+	// this can be overridden later once a purpose-built Dash animation exists.
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> DashAnimFinder(TEXT("/Game/ParagonAurora/Characters/Heroes/Aurora/Animations/Bound.Bound"));
+	if (DashAnimFinder.Succeeded())
+	{
+		DashAnim = DashAnimFinder.Object;
+	}
 }
 
 bool UMoonGameplayAbility_Dash::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
@@ -67,6 +78,12 @@ void UMoonGameplayAbility_Dash::ActivateAbility(const FGameplayAbilitySpecHandle
 
 		// Apply impulse
 		ApplyDashImpulse(Character);
+
+		// Dash motion (one-shot, no AnimBlueprint/montage system yet — see PlayOneShotAnim)
+		if (DashAnim)
+		{
+			Character->PlayOneShotAnim(DashAnim);
+		}
 
 		// Perform Just Dodge Check (Skeleton)
 		CheckJustDodge(Character);
