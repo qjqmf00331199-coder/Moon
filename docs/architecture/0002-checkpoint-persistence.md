@@ -1,7 +1,8 @@
 # ADR 0002: Runtime Checkpoint Persistence Strategy
 
-**Status:** Proposed
-**Date:** 2026-07-18
+**Status:** Accepted  
+**Date:** 2026-07-18  
+**Accepted:** 2026-07-20 (design verified consistent with ADR-0001 implementation; `UMoonCheckpointSubsystem` not yet implemented — accepted as the agreed design, implementation pending)  
 **Context:** Moon Fragment Hunt (UE 5.8)
 
 ## Scope Note
