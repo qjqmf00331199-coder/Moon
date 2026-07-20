@@ -190,6 +190,12 @@ void UMoonGameplayAbility_Dash::OnDashFinished()
 		ActiveDashTrailComponent.Reset();
 	}
 
+	if (AMoonCharacterBase* Character = Cast<AMoonCharacterBase>(GetAvatarActorFromActorInfo()))
+	{
+		// Dash impact: local-only hitstop so the rest of the combat simulation stays live.
+		Character->TriggerHitStop(0.055f);
+	}
+
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 

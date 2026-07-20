@@ -88,6 +88,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Moon|Animation")
 	void PlayOneShotAnim(class UAnimSequence* Anim, float PlayRate = 1.0f);
 
+	// Brief local "hitstop": slows just this character (CustomTimeDilation), not the whole
+	// world, for RealDuration seconds — the rest of the game (enemies, projectiles) keeps
+	// running normally. Used to sell impact on Dash-end and landing. RealDuration is real time;
+	// the restore timer is unaffected by the dilation it's undoing.
+	UFUNCTION(BlueprintCallable, Category = "Moon|Animation")
+	void TriggerHitStop(float RealDuration, float DilationScale = 0.05f);
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -208,10 +215,12 @@ private:
 	bool bPlayingOneShotAnim = false;
 	FTimerHandle JumpAnimTimerHandle;
 	FTimerHandle OneShotAnimTimerHandle;
+	FTimerHandle HitStopTimerHandle;
 
 	void RefreshLocomotionAnim();
 	void OnJumpStartAnimFinished();
 	void OnLandAnimFinished();
 	void OnJumpRecoveryAnimFinished();
 	void OnOneShotAnimFinished();
+	void EndHitStop();
 };

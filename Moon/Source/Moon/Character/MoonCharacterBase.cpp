@@ -140,6 +140,10 @@ void AMoonCharacterBase::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
 
+	// Landing impact: pause only this character very briefly. CustomTimeDilation leaves
+	// the world clock untouched, so enemies and projectiles continue to update normally.
+	TriggerHitStop(0.055f);
+
 	if (JumpLandAnim)
 	{
 		if (USkeletalMeshComponent* MeshComp = GetMesh())
@@ -249,6 +253,31 @@ void AMoonCharacterBase::OnOneShotAnimFinished()
 {
 	bPlayingOneShotAnim = false;
 	RefreshLocomotionAnim();
+}
+
+void AMoonCharacterBase::TriggerHitStop(float RealDuration, float DilationScale)
+{
+	if (RealDuration <= 0.0f)
+	{
+		EndHitStop();
+		return;
+	}
+
+	CustomTimeDilation = FMath::Clamp(DilationScale, 0.001f, 1.0f);
+
+	if (UWorld* World = GetWorld())
+	{
+		// Timers advance on the world's clock, rather than this actor's dilated tick.
+		// Reapplying hitstop refreshes the short window instead of allowing an older
+		// timer to restore time in the middle of a newer impact.
+		World->GetTimerManager().ClearTimer(HitStopTimerHandle);
+		World->GetTimerManager().SetTimer(HitStopTimerHandle, this, &AMoonCharacterBase::EndHitStop, RealDuration, false);
+	}
+}
+
+void AMoonCharacterBase::EndHitStop()
+{
+	CustomTimeDilation = 1.0f;
 }
 
 void AMoonCharacterBase::BeginPlay()
