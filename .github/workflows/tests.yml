@@ -1,0 +1,33 @@
+name: Automated Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Run UE Automation Tests
+    runs-on: self-hosted  # UE requires a local runner with Unreal Editor 5.8 installed
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Run Automation Tests
+        run: |
+          "$UE_EDITOR_PATH" "${{ github.workspace }}/Moon/Moon.uproject" \
+            -nullrhi -nosound \
+            -ExecCmds="Automation RunTests Moon.; Quit" \
+            -log -unattended
+        shell: bash
+
+      - name: Upload Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: Moon/Saved/Logs/
