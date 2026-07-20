@@ -36,6 +36,7 @@ See `breaking-changes.md` for full detail. Highlights:
 - **Iris Replication**: now production-ready (was experimental)
 - **Zen Server**: now default cooked output store; `AllowRemoteNetworkService` config key renamed to `RemoteNetworkService` with new enum values
 - **Build toolchain**: community reports indicate 5.8 prefers MSVC v145 (VS 2026) — **unverified against official docs, flag if compile errors mention "not a preferred version"**
+- **GAS tag granting**: `InheritableOwnedTagsContainer` direct property deprecated (`UE_DEPRECATED(5.3, ...)`) → use `UTargetTagsGameplayEffectComponent` (componentized GE authoring). See `breaking-changes.md` / `deprecated-apis.md`.
 
 Epic's official release notes report **no breaking changes for typical gameplay C++ projects** — most 5.7 Marketplace plugins work unmodified (may need `.uplugin` EngineVersion bump).
 

@@ -172,6 +172,10 @@ The items below are config/architecture changes worth knowing, plus one unverifi
   need updates.
 - **Windows audio backend**: Default switched XAudio2 → WASAPI (`AudioMixerWasapi`, auto-selected).
   No code changes required. Revert via `AudioMixerModuleName=AudioMixerXAudio2` in `WindowsEngine.ini`.
+- **GAS GrantedTags componentization**: `UGameplayEffect::InheritableOwnedTagsContainer` direct
+  property marked `UE_DEPRECATED(5.3, ...)` — new GEs should use `UTargetTagsGameplayEffectComponent`
+  for tag granting, read via `GetGrantedTags()`. See `deprecated-apis.md` GAS entry for the migration
+  pattern. Relevant to this project's combat GE subclasses.
 
 ### LOW RISK — Now Production-Ready (was experimental)
 

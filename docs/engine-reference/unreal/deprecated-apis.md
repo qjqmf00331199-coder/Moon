@@ -187,6 +187,24 @@ Will be removed in 5.9 — project compiles with deprecation warnings in 5.8, ad
 | MetaSound deprecated input/output node creation helpers (`IDataTypeRegistry`) | New node creation API | Audio/MetaSound |
 | Control Rig "Transform Constraint" node | Individual Point/Rotation/Parent Constraint nodes, or new "Parent Constraint" node | Animation/Control Rig |
 | `AllowRemoteNetworkService` config key | `RemoteNetworkService` (enum: `None`/`Unsecured`/`GeneratedStaticKey`) | Zen Server config, not gameplay code |
+| `UGameplayEffect::InheritableOwnedTagsContainer` (direct property) | `UTargetTagsGameplayEffectComponent` (add via `AddComponent<>()`, read via `GetGrantedTags()`) | GAS — `UE_DEPRECATED(5.3, ...)`. `Modifiers`/`DurationPolicy`/`DurationMagnitude` and `FSetByCallerFloat` are unaffected — still direct `UPROPERTY`s. |
+
+**GAS Tag Granting Example (verified against engine source 2026-07-20):**
+```cpp
+// ❌ Deprecated (UE_DEPRECATED 5.3): direct property access
+// GameplayEffect->InheritableOwnedTagsContainer.Added.AddTag(SomeTag);
+
+// ✅ UE 5.8: componentized via UTargetTagsGameplayEffectComponent
+UTargetTagsGameplayEffectComponent& TagsComp = AddComponent<UTargetTagsGameplayEffectComponent>();
+FInheritedTagContainer TagContainerMods;
+TagContainerMods.Added.AddTag(FGameplayTag::RequestGameplayTag(TEXT("State.Burning")));
+TagsComp.SetAndApplyTargetTagChanges(TagContainerMods);
+
+// Reading granted tags: GameplayEffect->GetGrantedTags() instead of InheritableOwnedTagsContainer directly
+```
+Source: `GameplayEffect.h` and `GameplayEffectComponents/TargetTagsGameplayEffectComponent.h`
+(`Engine/Plugins/Runtime/GameplayAbilities/Source/GameplayAbilities/Public/`), UE 5.8 install.
+Found by `ue-gas-specialist` subagent while implementing combat GEs, 2026-07-20.
 
 **Networking note:** Iris Replication is now production-ready in 5.8 (was experimental) — for a
 new project, prefer Iris over the legacy Replication Graph mentioned in the Networking section above.
