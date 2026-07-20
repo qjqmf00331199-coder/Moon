@@ -50,6 +50,10 @@ protected:
 	void Input_SpellFire(const FInputActionValue& Value);
 	void Input_SpellLightning(const FInputActionValue& Value);
 
+	/** Jump Input (thin logging wrapper around ACharacter::Jump/StopJumping) */
+	void Input_Jump();
+	void Input_StopJumping();
+
 	/** Helper to try activating abilities by a tag */
 	void TryActivateAbilityByTag(FGameplayTag AbilityTag);
 
@@ -79,9 +83,10 @@ public:
 
 	// Plays a one-shot animation on the mesh (e.g. Dash/spell cast), suppressing the idle/jog
 	// locomotion swap in Tick until it finishes. Used by abilities that don't have their own
-	// montage/slot system yet (no AnimBlueprint exists for this character).
+	// montage/slot system yet (no AnimBlueprint exists for this character). PlayRate scales
+	// playback speed (and the auto-resume timer) — e.g. a quick Dash thrust wants this > 1.
 	UFUNCTION(BlueprintCallable, Category = "Moon|Animation")
-	void PlayOneShotAnim(class UAnimSequence* Anim);
+	void PlayOneShotAnim(class UAnimSequence* Anim, float PlayRate = 1.0f);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
@@ -174,6 +179,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	TObjectPtr<class UAnimSequence> JumpLandAnim;
 
+	// Plays once after JumpLandAnim finishes, before resuming Idle/Jog — smooths the landing
+	// impact pose into locomotion instead of cutting straight from a stiff landing pose.
+	// Optional: if unset, locomotion resumes immediately after JumpLandAnim as before.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	TObjectPtr<class UAnimSequence> JumpRecoveryAnim;
+
 private:
 	// Rate Limiting State
 	uint64 LastCastFrame = 0;
@@ -195,5 +206,6 @@ private:
 	void RefreshLocomotionAnim();
 	void OnJumpStartAnimFinished();
 	void OnLandAnimFinished();
+	void OnJumpRecoveryAnimFinished();
 	void OnOneShotAnimFinished();
 };

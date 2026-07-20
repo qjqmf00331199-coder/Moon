@@ -31,9 +31,14 @@ protected:
 	float DashDuration = 0.2f;
 
 	// Dash motion, played on the character mesh via AMoonCharacterBase::PlayOneShotAnim.
-	// Defaults to the Aurora "Bound" animation (project has no dedicated Dash anim yet).
+	// Defaults to the Aurora "Ability_RMB_Fwd" animation (project has no dedicated Dash anim yet).
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash|Animation")
 	TObjectPtr<class UAnimSequence> DashAnim;
+
+	// Playback speed multiplier for DashAnim — sped up so a 1.9s animation reads as a quick
+	// forward thrust instead of a slow, obviously-borrowed full-length ability animation.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash|Animation")
+	float DashAnimPlayRate = 4.0f;
 
 	// Timer handle for ending the dash
 	FTimerHandle DashTimerHandle;

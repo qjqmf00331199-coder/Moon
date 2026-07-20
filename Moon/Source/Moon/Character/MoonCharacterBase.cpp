@@ -10,6 +10,7 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimSingleNodeInstance.h"
 #include "TimerManager.h"
 
 AMoonCharacterBase::AMoonCharacterBase()
@@ -186,11 +187,29 @@ void AMoonCharacterBase::OnJumpStartAnimFinished()
 
 void AMoonCharacterBase::OnLandAnimFinished()
 {
+	if (JumpRecoveryAnim)
+	{
+		if (USkeletalMeshComponent* MeshComp = GetMesh())
+		{
+			// Still suppressing idle/jog — Jump_Recovery bridges the landing pose into locomotion.
+			MeshComp->PlayAnimation(JumpRecoveryAnim, false);
+			GetWorld()->GetTimerManager().SetTimer(JumpAnimTimerHandle, this, &AMoonCharacterBase::OnJumpRecoveryAnimFinished, JumpRecoveryAnim->GetPlayLength(), false);
+		}
+	}
+	else
+	{
+		bPlayingOneShotAnim = false;
+		RefreshLocomotionAnim();
+	}
+}
+
+void AMoonCharacterBase::OnJumpRecoveryAnimFinished()
+{
 	bPlayingOneShotAnim = false;
 	RefreshLocomotionAnim();
 }
 
-void AMoonCharacterBase::PlayOneShotAnim(UAnimSequence* Anim)
+void AMoonCharacterBase::PlayOneShotAnim(UAnimSequence* Anim, float PlayRate)
 {
 	if (!Anim) return;
 
@@ -200,9 +219,18 @@ void AMoonCharacterBase::PlayOneShotAnim(UAnimSequence* Anim)
 	bPlayingOneShotAnim = true;
 	MeshComp->PlayAnimation(Anim, false);
 
+	if (!FMath::IsNearlyEqual(PlayRate, 1.0f))
+	{
+		if (UAnimSingleNodeInstance* SingleNode = MeshComp->GetSingleNodeInstance())
+		{
+			SingleNode->SetPlayRate(PlayRate);
+		}
+	}
+
+	const float Duration = Anim->GetPlayLength() / FMath::Max(PlayRate, KINDA_SMALL_NUMBER);
 	if (UWorld* World = GetWorld())
 	{
-		World->GetTimerManager().SetTimer(OneShotAnimTimerHandle, this, &AMoonCharacterBase::OnOneShotAnimFinished, Anim->GetPlayLength(), false);
+		World->GetTimerManager().SetTimer(OneShotAnimTimerHandle, this, &AMoonCharacterBase::OnOneShotAnimFinished, Duration, false);
 	}
 }
 
@@ -323,8 +351,13 @@ void AMoonCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 		if (JumpAction)
 		{
-			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AMoonCharacterBase::Input_Jump);
+			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AMoonCharacterBase::Input_StopJumping);
+			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Bound JumpAction %s"), *GetNameSafe(JumpAction.Get()));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] JumpAction is NULL — not bound!"));
 		}
 	}
 }
@@ -378,6 +411,19 @@ void AMoonCharacterBase::Input_SpellFire(const FInputActionValue& Value)
 void AMoonCharacterBase::Input_SpellLightning(const FInputActionValue& Value)
 {
 	TryActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("Spell.Element.Lightning")));
+}
+
+void AMoonCharacterBase::Input_Jump()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Input_Jump fired. CanJump=%d IsFalling=%d JumpCurrentCount=%d/%d MovementMode=%d"),
+		CanJump(), GetCharacterMovement()->IsFalling(), JumpCurrentCount, JumpMaxCount, (int32)GetCharacterMovement()->MovementMode.GetValue());
+	Jump();
+}
+
+void AMoonCharacterBase::Input_StopJumping()
+{
+	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Input_StopJumping fired"));
+	StopJumping();
 }
 
 void AMoonCharacterBase::TryActivateAbilityByTag(FGameplayTag AbilityTag)

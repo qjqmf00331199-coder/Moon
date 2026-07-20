@@ -17,10 +17,12 @@ UMoonGameplayAbility_Dash::UMoonGameplayAbility_Dash()
 	// Add State.Invulnerable automatically when active
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Invulnerable")));
 
-	// Default Dash motion — project has no dedicated Dash anim yet, so reuse Aurora's "Bound"
-	// (same skeleton the Moon character mesh already uses for Idle/Jog). EditDefaultsOnly so
-	// this can be overridden later once a purpose-built Dash animation exists.
-	static ConstructorHelpers::FObjectFinder<UAnimSequence> DashAnimFinder(TEXT("/Game/ParagonAurora/Characters/Heroes/Aurora/Animations/Bound.Bound"));
+	// Default Dash motion — project has no dedicated Dash anim yet, so reuse Aurora's
+	// "Ability_RMB_Fwd" (a forward mobility-ability animation, same skeleton the Moon character
+	// mesh already uses for Idle/Jog). Played at DashAnimPlayRate for a quick forward-thrust feel
+	// rather than the full 1.9s animation length. EditDefaultsOnly so both can be overridden
+	// later once a purpose-built Dash animation exists.
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> DashAnimFinder(TEXT("/Game/ParagonAurora/Characters/Heroes/Aurora/Animations/Ability_RMB_Fwd.Ability_RMB_Fwd"));
 	if (DashAnimFinder.Succeeded())
 	{
 		DashAnim = DashAnimFinder.Object;
@@ -82,7 +84,7 @@ void UMoonGameplayAbility_Dash::ActivateAbility(const FGameplayAbilitySpecHandle
 		// Dash motion (one-shot, no AnimBlueprint/montage system yet — see PlayOneShotAnim)
 		if (DashAnim)
 		{
-			Character->PlayOneShotAnim(DashAnim);
+			Character->PlayOneShotAnim(DashAnim, DashAnimPlayRate);
 		}
 
 		// Perform Just Dodge Check (Skeleton)
