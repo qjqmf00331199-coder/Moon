@@ -1,7 +1,7 @@
 <!-- STATUS -->
 Epic: Moon Fragment Hunt — DDD Expansion
-Feature: Systems Design > MVP 9/9 designed, 6/9 approved (gate-check + review-all-gdds both FAIL 2026-07-18). Track B (C++/UE implementation) now owned by Claude Code going forward (user moved off Antigravity/Gemini for this track).
-Task: Track B verified working end-to-end in PIE this session (see extract below). NEXT (Track A, unchanged): /design-review (re-review) luna-overdrive.md, then combo-tension-gauge.md + combat-hud.md reviews (address W9 refresh-chain default during combo-tension-gauge review), then re-run /gate-check pre-production.
+Feature: Systems Design > MVP 9/9 designed, **9/9 Approved** (as of 2026-07-20 Antigravity review session). luna-overdrive.md, combo-tension-gauge.md, combat-hud.md all moved to Approved. Track B (C++/UE implementation) owned by Claude Code. Track A next: re-run /gate-check pre-production (previous verdict was FAIL 2026-07-18 with 3/13 artifacts; GDD status gap is now resolved — recheck may still flag architecture/ADR gaps).
+Task: Blackhole-spell GAS slice — compiled, 2 real bugs found+fixed this session (UE5.8 AddComponent-in-constructor crash; TargetDummy untargetable collision profile — see "Blackhole GAS slice: compile + PIE verification" extract below for full detail), test rig placed in L_CombatTest, PIE freshly restarted with clean baseline. NEXT (resume point): ask user to press keyboard "1" once (mouse untouched) in the live PIE viewport, then check via unreal-mcp GASToolsets.AbilitySystemInspectorToolset: caster Mana 100→30, Cooldown.Spell.Blackhole tag present, target Health 100→75 (PlaceholderDamage=25, not a real balance value), caster Tension 0→70 (on-hit only). Nothing committed yet — see extract for exact file list + open commit-scope question.
 <!-- /STATUS -->
 
 ## Session Extract — Track B takeover + real verification (Claude Code, this session)
@@ -479,3 +479,183 @@ Full writeup: `prototypes/arena-morphing-spike-2026-07-16/SPIKE-NOTE.md`
 - Top ADR gaps: Camera System (Core), Enemy AI (Core), Dash/Evasion (Core)
 - Blocking: duplicate ADR-0002 number; all 3 ADRs still Proposed; checkpoint→ADR-0001 OnDeath forward-reference
 - Report: docs/architecture/architecture-review-2026-07-18.md
+
+## Session Extract — Blackhole GAS slice: compile + PIE verification (Claude Code, 2026-07-20, continued)
+
+**Status: IN PROGRESS, mid-verification, PIE currently running.** Picks up directly from the
+"GDD header sync + Blackhole GAS slice" extract below (same 10 files, now compiled).
+
+**Compile — done.** UBT full build succeeded (editor closed, `Build.bat MoonEditor Win64
+Development`). Editor relaunched clean.
+
+**Real bug #1 found + fixed (code, not yet committed)**: `GE_SpellCooldown_Blackhole.cpp`
+called `AddComponent<UTargetTagsGameplayEffectComponent>()` directly in its constructor — crashed
+the editor on both Live Coding reload AND a cold boot with:
+`Fatal error: NewObject with empty name can't be used to create default subobjects (inside of
+UObject derived class constructor)... Use ObjectInitializer.CreateDefaultSubobject<> instead.`
+Root cause: UE5.8 CoreUObject added a new guard (`FObjectInitializer::AssertIfInConstructor`,
+`UObjectGlobals.h` ~line 1935/1962/1978) that fires on exactly this call shape — breaks the
+standard 5.3-5.7 "AddComponent in the GE constructor" pattern that `UGameplayEffect::AddComponent<T>()`
+itself still uses internally (`NewObject(this, NAME_None, ...)`, `GameplayEffect.h:2501`). **Fix**:
+moved the `AddComponent` + tag-grant call out of the constructor into a `PostInitProperties()`
+override — by the time `PostInitProperties()` runs, `FObjectInitializer`'s destructor has already
+decremented `IsInConstructor`/reset `ConstructedObject` (`UObjectGlobals.cpp` ~line 4051), so the
+guard no longer fires. Verified fix compiles and boots clean (both Live Coding and cold UBT boot).
+This is a genuine UE5.8 engine-version gotcha worth writing into
+`docs/engine-reference/unreal/deprecated-apis.md` or `breaking-changes.md` — **not yet done**,
+flag as a follow-up task (separate from the other GAS deprecated-API doc task already queued to a
+background task this session).
+
+**Real bug #2 found + fixed (code, not yet committed)**: `TargetDummy.cpp`'s `CapsuleComponent`
+never had its collision profile set. A plain `AActor`-owned capsule defaults to
+`OverlapAllDynamic` (Pawn channel → Overlap), unlike `ACharacter`'s auto-configured `Pawn` profile
+(Pawn channel → Block). `MoonGameplayAbility_Spell_Blackhole`'s hit trace uses
+`SweepSingleByChannel(..., ECC_Pawn, ...)`, which **only reports blocking hits** — so the dummy
+was structurally untargetable regardless of aim. **Fix**: added
+`CapsuleComponent->SetCollisionProfileName(TEXT("Pawn"))` in `ATargetDummy`'s constructor.
+Verified on a fresh PIE spawn (post full-editor-restart, not just Live Coding — Live Coding patches
+function bodies but does not re-run constructors on already-spawned instances, so mid-PIE-session
+property pokes via `unreal-mcp` ObjectTools.set_properties on the raw `bodyInstance.collisionResponses`
+array do NOT reliably take effect either — same caveat, don't try that shortcut again, restart PIE
+after any constructor change instead).
+
+**Test rig set up in `L_CombatTest` (saved to the level asset)**:
+- `BP_MoonCharacter_C_0` (a placed instance, editor default `BP_MoonCharacter_Test` label) at
+  world origin (0,0,96), yaw 0, `AutoPossessPlayer=Player0` (no GameMode default-pawn-class
+  reliance — matches this project's known fragile-but-working pattern, see the "GameMode note"
+  in the Track B takeover extract above; a `GM_MoonCombat` GameMode blueprint does now exist and
+  auto-spawns though, discovered mid-session, didn't investigate further).
+- `TargetDummy_0` at (300,0,96), yaw 180, directly in front of the player along +X — within the
+  ability's 500uu trace range with roomto spare.
+- The old debug-only EventGraph node `Keyboard 1 → AddTension(self, 30)` on `BP_MoonCharacter`
+  (leftover from a much earlier session, see Track A/B history above) was **deleted** — it was
+  bound to the same key ("One") as the real `IA_Spell_Blackhole` input action and would have
+  contaminated the Tension reading (0+30+70 clamped to 100 instead of the real 0→70).
+
+**Verified so far via live PIE + `unreal-mcp`**: with `LogAbilitySystem` verbosity set to
+`Verbose`, confirmed the full activation path works — `TryActivateAbilityByTag` → engine's own
+`LogAbilitySystem` lines show `Activated [12] MoonGameplayAbility_Spell_Blackhole_0` on a clean
+first press, `Ended` immediately after (single-shot, no dangling active instance), and correctly
+`could not be activated due to Cooldown (Cooldown.Spell.Blackhole)` on every repeat while the key
+auto-repeats/cooldown is up. Mana cost math checked out once already mid-session (100→30, then
+partial regen visible at 8/s while investigating). **Not yet re-verified end-to-end with the
+collision fix in place** — PIE was just restarted fresh (constructor fix needs a real actor
+respawn, not a Live Coding patch) with clean baseline (Mana 100, Tension 0, Health 100/100 both
+sides, no active tags) right as this session paused. **This is the very next thing to do on
+resume**: ask user to press "1" once (mouse untouched — Enhanced Input mouse-look was observed to
+silently re-rotate the player's ControlRotation away from facing the dummy between an aim-fix and
+the next keypress in this same session, more than once; if that happens again, recompute the
+dummy's position along the player's *current* actual forward vector rather than trying to force
+the player's rotation, which doesn't stick), then check via
+`GASToolsets.AbilitySystemInspectorToolset`: caster Mana (expect 100→30, allow for regen creep if
+any delay before checking), `Cooldown.Spell.Blackhole` tag present, target Health (expect
+100→75, PlaceholderDamage=25 is not a real balance number), caster TensionGauge (expect 0→70,
+only fires on-hit per spell-casting-base.md semantics).
+
+**Not committed yet**: both bug fixes above (`GE_SpellCooldown_Blackhole.{h,cpp}`,
+`TargetDummy.cpp`) plus the two debug `UE_LOG` lines added to `MoonCharacterBase.cpp`
+(`TryActivateAbilityByTag`) and `MoonGameplayAbility_Spell.cpp` (`CanActivateAbility`,
+`CheckAndConsumeSpellCastLimit` rejection) for diagnosing the above — consider whether to keep
+those logs (they're low-noise and match the file's existing `[MoonDebug]` convention) or strip them
+before committing. The whole `Moon/Content/Moon/` and `Moon/Source/Moon/` tree is still fully
+untracked in git (first time either would ever be committed) — still needs the user's commit-scope
+confirmation flagged in the earlier Track B takeover extract before sweeping it in.
+
+**Real bug #3 found (not a code bug — scene/ability-geometry mismatch, root cause of every whiff
+this session)**: `MoonGameplayAbility_Spell_Blackhole`'s hit trace (`SweepSingleByChannel`,
+`TraceRadius=100`) starts from `AvatarActor->GetActorLocation()` — the capsule's **center**, not
+an eye-level offset. Both `Floor_0` and the arena platform `StaticMeshActor_2` (spans roughly
+x:-1380..620, y:-1200..800, z:-50..50 — this is the actual ground surface characters stand on in
+this map, `BlockAllDynamic`/`BlockAll` profiles, both block Pawn) sit close enough beneath any
+standing character that a **100uu-radius** sweep centered on the capsule's origin dips ~12uu below
+the character's own feet and self-hits the ground the caster is standing on, before the sweep ever
+reaches a target a few hundred uu away. This is **not** fixable by repositioning the target or
+fixing aim — every attempt this session whiffed for this reason (confirmed via `get_actor_bounds` +
+`bodyInstance.collisionProfileName` on both floor objects), not misaim (rotation/position were
+independently confirmed correct one of the times). Real fix belongs in the ability code (raise
+`TraceStart`'s Z by roughly the caster's capsule half-height, or shrink `TraceRadius` below capsule
+half-height) — **not done**, flag as a 4th follow-up alongside the engine-version doc task. Given
+this doc's Smoke-test-only header caveat, whether to fix trace geometry at all is a design call, not
+just a bug fix — ask the user before touching `MoonGameplayAbility_Spell_Blackhole.{h,cpp}` again.
+
+**Workaround applied for this test session only (PIE-live only, not saved to the level asset,
+will NOT survive a PIE restart)**: set `BP_MoonCharacter_C_0.CharMoveComp.GravityScale = 0` and
+teleported both `BP_MoonCharacter_C_0` and `TargetDummy_0` to (0,0,1000)/(300,0,1000) — well clear
+of all known level geometry (confirmed via `get_actor_bounds` on `Floor_0`/`StaticMeshActor_0`/
+`StaticMeshActor_2`) so the sweep has nothing beneath it to self-hit. Player facing yaw 0 (both
+actor rotation and `PlayerController_0`'s rotation set explicitly), dummy facing yaw 180, both at
+same Z, 300uu apart (within the 500uu trace range). Cooldown confirmed clear
+(`GetActiveTags` → `[]`) right before this save point.
+
+**This IS the exact resume point** — the very next action on resume, before anything else: ask
+user to press "1" once (mouse untouched — same caution as above, mouse-look was seen to silently
+re-rotate `ControlRotation` between an aim-fix and the next keypress more than once this session),
+then check via `GASToolsets.AbilitySystemInspectorToolset` on both actors (`BP_MoonCharacter_C_0`
+Mana/TensionGauge, `TargetDummy_0` Health) — if this finally lands a hit, the acceptance-criteria
+numbers to confirm are: Mana 100→30 (regen at 8/s eats into this fast, so check promptly — don't
+worry if it's only partially recovered by the time you check, 100-70+regen*elapsed_seconds is
+still a pass), `Cooldown.Spell.Blackhole` tag present via `GetActiveTags`, target Health 100→75
+(`PlaceholderDamage`=25 is a smoke-test magnitude, not a real balance number — health-damage-core.md
+doesn't own this number), caster TensionGauge 0→70 (`ManaCostForTension`, on-hit only per
+spell-casting-base.md semantics — ability code path confirms it only calls
+`AddTensionFromSpellHit` inside the `bHit` branch, never on whiff).
+
+**User flagged mid-session**: approaching an 80%-of-5-hour usage-window limit; when hit, save
+everything and end. This extract is that save point — if the session ends here, resume by reading
+from "**This IS the exact resume point**" above.
+
+## Session Extract — GDD header sync + Blackhole GAS slice (Claude Code, 2026-07-20)
+
+**GDD header/index sync (done, committed+pushed as `dfaa6e6`)**
+- Verified `systems-index.md` status column vs each GDD's own header — found 2 real mismatches
+  (`combo-tension-gauge.md` said "In Design", `combat-hud.md` said "Designed (pending review)" even
+  though the 2026-07-18 cross-review already found both NEEDS REVISION). Fixed both headers to state
+  the NEEDS REVISION verdict + point at `gdd-cross-review-2026-07-18.md`.
+- Removed stale `(미설계)` tags for Combo/Tension Gauge / Luna Overdrive left over in
+  `spell-casting-base.md`, `health-damage-core.md`, `dash-evasion.md`, `combo-tension-gauge.md` (both
+  systems have authored GDDs now — this was cross-review finding W1, previously unaddressed).
+- `Core Extraction Execution (미설계)` mentions were left alone — that system genuinely isn't started.
+
+**Minimal Blackhole spell GAS slice (code written, NOT yet compiled/wired/tested — uncommitted)**
+- Goal: user wants a cheap/fast PIE-driven check via `unreal-mcp` that the just-reviewed GDD math
+  (spell-casting-base.md, health-damage-core.md, combo-tension-gauge.md) actually holds up, before
+  sinking more design time into them. Scoped to Blackhole only (not Fire/Lightning) to keep it small.
+- `ue-gas-specialist` subagent wrote 10 new files + 1 config edit (git status confirms, not yet
+  committed):
+  - `Moon/Source/Moon/GAS/Effects/GE_SpellCost_Blackhole.{h,cpp}` — Instant, Mana -70
+  - `Moon/Source/Moon/GAS/Effects/GE_SpellCooldown_Blackhole.{h,cpp}` — Duration 6.0s, grants
+    `Cooldown.Spell.Blackhole`
+  - `Moon/Source/Moon/GAS/Effects/GE_Damage_Instant.{h,cpp}` — Instant, SetByCaller `Data.Damage`,
+    the shared single-entry-point damage GE per Health/Damage Core Rule 1 (reusable beyond Blackhole)
+  - `Moon/Source/Moon/GAS/MoonGameplayAbility_Spell_Blackhole.{h,cpp}` — commits cost+cooldown
+    (respecting the existing `CostBypass.Active`/Luna-Overdrive-bypass override in
+    `MoonGameplayAbility_Spell`), forward sphere trace (500uu/100uu, smoke-test only), applies the
+    damage GE + `AddTensionFromSpellHit(70)` on hit only (not on whiff/cast) per spell-casting-base.md
+    OnSpellHit semantics, always `EndAbility`s. `PlaceholderDamage=25` — GDDs never define an actual
+    spell damage number (that's unowned/Spell-Weaving territory), so this is a smoke-test magnitude only.
+  - `Moon/Source/Moon/Character/TargetDummy.{h,cpp}` — minimal ASC+AttributeSet-only actor to receive
+    the test hit, no mesh/AI.
+  - `Moon/Config/DefaultGameplayTags.ini` — added `Cooldown.Spell.Blackhole`, `Data.Damage`.
+- **UE5.8 API finding (verified against the actual installed engine, not training data)**: confirmed
+  at `C:\Program Files\Epic Games\UE_5.8\Engine\Plugins\Runtime\GameplayAbilities\...` —
+  `UGameplayEffect::InheritableOwnedTagsContainer` is deprecated since 5.3; granted tags now go through
+  `UTargetTagsGameplayEffectComponent::SetAndApplyTargetTagChanges()` (used in
+  `GE_SpellCooldown_Blackhole`'s constructor). Also `UGameplayAbility::AbilityTags` is deprecated
+  since 5.5 in favor of constructor-only `SetAssetTags()` (used in the Blackhole ability). A background
+  task (`task_a3fdf7fc`, running independently, started by user) is writing this up properly into
+  `docs/engine-reference/unreal/deprecated-apis.md` — don't duplicate that.
+- **NOT done yet (needs the Unreal Editor, which is why this can't be finished from a pure-code
+  session)**: compile, add `MoonGameplayAbility_Spell_Blackhole` to `BP_MoonCharacter`'s
+  `DefaultAbilities` array, place a `TargetDummy` (with `DefaultAttributesEffect` set to whatever GE
+  `BP_MoonCharacter` already uses for Health=100 init) into `L_CombatTest`, then PIE-test via
+  `unreal-mcp` — this project's prior sessions used
+  `GASToolsets.AbilitySystemInspectorToolset.GetAttributeValues` on the live pawn/target to read
+  attributes, and `StartPIE`/`BlueprintTools.write_graph_dsl`/`ObjectTools` for the editor-side setup
+  (see the Track B takeover extract above for exact prior usage of these unreal-mcp toolset calls).
+  Target numbers to confirm: Mana 100→30 on cast (spell-casting-base.md AC1), `Cooldown.Spell.Blackhole`
+  present for 6s, target Health 100→75 (health-damage-core.md AC1 shape, damage magnitude is the
+  placeholder not a real value), caster Tension 0→70 (combo-tension-gauge.md hit-accrual, only on hit).
+- `unreal-mcp` (`.mcp.json`, `http://127.0.0.1:8000/mcp`) was not connected in the Claude Code session
+  that did this implementation work — the editor wasn't running yet when that session started. User is
+  opening a new conversation now that the editor + MCP server are up, to continue with the in-editor
+  steps above.

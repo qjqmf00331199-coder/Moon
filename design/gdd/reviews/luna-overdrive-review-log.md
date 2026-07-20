@@ -33,3 +33,16 @@ edge cases, and dependency graph (Combo/Tension Gauge, Spell Casting base, Healt
 Combat HUD) all check out bidirectionally. Remaining Open Questions (refresh-chain tuning value,
 fragment-absorption trigger, UE5.8 GE API names) are correctly scoped as non-blocking.
 Prior verdict resolved: Yes
+
+## Sync Review — 2026-07-20 — Verdict: APPROVED (header sync only)
+Scope signal: S
+Specialists: Antigravity (full GDD re-read, cross-check with entities.yaml + systems-index.md)
+Blocking items: 0 | Recommended: 1
+Summary: GDD itself was already APPROVED per 2026-07-18 entry above — this pass confirms header and
+systems-index.md were not updated at that time. All blocking items verified resolved in-document.
+One registry inconsistency found and fixed: overdrive_tension_gain_multiplier was 1.0 in
+entities.yaml but 0.4 in both luna-overdrive.md and combo-tension-gauge.md — synced to 0.4.
+W5 (stale BLOCKING wording in Dependencies table) is addressed inline in the GDD via RESOLVED
+markers — acceptable per project convention. No GDD content changes required.
+Prior verdict resolved: N/A (sync pass only)
+

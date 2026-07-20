@@ -1,8 +1,8 @@
 # Luna Overdrive (Blood Moon)
 
-> **Status**: Designed (revised — 2026-07-18 full re-review: NEEDS REVISION, 1 blocking item + 2 recommends revised in-session; 2026-07-17 review's 5 original blockers previously confirmed fixed)
-> **Author**: user + game-designer (solo design mode) + 2026-07-17 full design-review (game-designer, systems-designer, qa-lead, ue-gas-specialist, creative-director) + 2026-07-18 full re-review (same 5 specialists)
-> **Last Updated**: 2026-07-18
+> **Status**: Approved (2026-07-20 Antigravity re-review: PASS — all prior blocking items confirmed resolved; GDD header/systems-index sync was the only outstanding gap)
+> **Author**: user + game-designer (solo design mode) + 2026-07-17 full design-review (game-designer, systems-designer, qa-lead, ue-gas-specialist, creative-director) + 2026-07-18 full re-review (APPROVED, lean solo pass) + 2026-07-20 Antigravity sync review
+> **Last Updated**: 2026-07-20
 > **Implements Pillar**: Dopamine Driven Design — 텐션 곡선의 최고점(각성 발동 → 무제한의 학살 → 급격한 하락)
 
 ## Overview

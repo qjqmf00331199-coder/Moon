@@ -1,8 +1,8 @@
 # Combat HUD
 
-> **Status**: Designed (2026-07-18 cross-GDD review: NEEDS REVISION — W3 finding, see gdd-cross-review-2026-07-18.md)
-> **Author**: user + game-designer (solo design mode)
-> **Last Updated**: 2026-07-17
+> **Status**: Approved (2026-07-20 Antigravity design-review: PASS — no blocking items; W3 reciprocity fix deferred to HDC/spell-casting-base GDDs)
+> **Author**: user + game-designer (solo design mode) + 2026-07-20 Antigravity full design-review
+> **Last Updated**: 2026-07-20
 > **Implements Pillar**: Dopamine Driven Design — "보상의 가시화"(Endless Catharsis 목표) — 게이지가 차오르는 긴장, 각성 잔여시간, 처형 기회를 플레이어가 한눈에 읽게 만드는 정보 표면
 
 ## Overview

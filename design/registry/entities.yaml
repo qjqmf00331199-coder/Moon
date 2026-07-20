@@ -37,7 +37,7 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
-last_updated: "2026-07-17"  # combat-hud.md 등록 반영 (직전: luna-overdrive.md)
+last_updated: "2026-07-20"  # overdrive_tension_gain_multiplier 0.4 동기화 (직전: combat-hud.md 등록 반영 2026-07-17)
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -638,13 +638,16 @@ constants:
     referenced_by:
       - design/gdd/combo-tension-gauge.md
       - design/gdd/luna-overdrive.md
-    value: 1.0
+    value: 0.4
     unit: multiplier
     added: 2026-07-17
-    revised: ""
+    revised: "2026-07-20"
     # Added during luna-overdrive.md's 2026-07-17 design-review as the official
     # refresh-chain damper (gauge-side lever, Core Rule 7 in combo-tension-gauge.md).
-    # Default 1.0 preserves pre-review behavior; Safe Range 0.0-1.0, playtest decides.
+    # Default changed 1.0 → 0.4 in luna-overdrive.md 2026-07-18 re-review (same session):
+    # 1.0 = no damping caused the "sharp drop" pillar to collapse in most dense-pack scenarios.
+    # 0.4 is the new starting point for playtest; Safe Range 0.0-1.0 (non-linear, see GDD).
+    # Registry was not updated at that time — synced 2026-07-20 Antigravity review.
 
   - name: overdrive_duration
     status: active

@@ -1,8 +1,8 @@
 # Combo/Tension Gauge
 
-> **Status**: Designed (2026-07-18 cross-GDD review: NEEDS REVISION — W6/W7 findings, see gdd-cross-review-2026-07-18.md)
-> **Author**: user + game-designer (solo design mode)
-> **Last Updated**: 2026-07-17
+> **Status**: Approved (2026-07-20 Antigravity design-review: PASS — no blocking items; 4 non-blocking warnings noted in review log)
+> **Author**: user + game-designer (solo design mode) + 2026-07-20 Antigravity full design-review
+> **Last Updated**: 2026-07-20
 > **Implements Pillar**: Dopamine Driven Design — 텐션 곡선의 상승 구간(콤보 누적 → 오버드라이브 폭발점 트리거)
 
 ## Overview
@@ -25,6 +25,7 @@ Combo/Tension Gauge는 전투 중 플레이어의 공격적 행동(스펠 명중
 2. **획득 소스 (2종)**:
    - Spell Casting의 `OnSpellHit(Element, Target)` 구독 — 속성별 획득량은 `TensionGainPerElement` (Formulas 소유).
    - Health/Damage Core의 `State.Executable` 태그가 적에게 부여되는 순간을 GAS `OnTagAdded(State.Executable)` 콜백으로 구독 — Dash/Evasion의 저스트회피 성공을 간접 감지 (dash-evasion.md는 수정하지 않음). 고정 보너스 `JustDodgeTensionBonus`.
+     > **ℹ️ Known multi-grantor (non-blocking, Alpha 미설계)**: `State.Executable`의 부여자는 Dash/Evasion(저스트회피)과 Enemy Elite Shield(방패 파괴) 두 곳이다(Health/Damage Core Rule 9). Elite Shield는 Alpha 우선순위 미설계이므로 현재 MVP에서는 실질적 영향 없음 — 단, 구현 시 "저스트회피만 감지" 가정으로 이 콜백을 구성하면 Elite Shield 추가 시 버그가 됨. 구현 노트: 엄밀히는 "State.Executable 부여 이벤트 = 텐션 획득"이며 소스를 구분하지 않는 것이 이 설계의 의도임(Elite Shield 파괴도 공격적 행동이므로 보상이 자연스러움). (gdd-cross-review-2026-07-18.md W6)
 3. **감쇠(Decay)** — 마지막 획득 이벤트로부터 `TensionDecayGracePeriod`초 경과 시, 이후 `TensionDecayRatePerSec`으로 지속 감소. 대쉬 무적(`State.Invulnerable`) 중에도 감쇠 타이머는 예외 없이 계속 돈다.
 4. **피격 페널티** — Health/Damage Core가 플레이어에게 데미지를 적용하는 이벤트(`OnDamageApplied`, 상류 문서가 "추후" 노출 예정으로 명시한 인터페이스)를 구독, 유효 데미지 1 이상 발생 시 게이지를 즉시 `DamagePenaltyPercent`만큼 비례 감소(가산 아님) — 감쇠와 별도로 즉시 적용.
 5. **오버드라이브 트리거** — 게이지가 `TensionGaugeMax`에 도달하는 프레임에 `OnOverdriveTriggered` 이벤트를 1회 발행(Luna Overdrive 소비)하고, 같은 프레임에 게이지를 0으로 즉시 리셋한다.
@@ -176,6 +177,7 @@ Combo/Tension Gauge는 전투 중 플레이어의 공격적 행동(스펠 명중
 7. **GIVEN** TensionGauge=0, **WHEN** 플레이어가 유효 데미지 수신, **THEN** TensionGauge는 0 유지(음수 없음).
 8. **GIVEN** 플레이어 Death 상태 진입, **WHEN** 재시작, **THEN** TensionGauge=0으로 강제 리셋, 이전 값 이월 없음.
 9. **GIVEN** 저스트회피 성공과 동일 프레임에 다른 적으로부터 피격, **WHEN** 두 이벤트 처리, **THEN** Gain(+20) 먼저 적용 후 Penalty(×0.8) 적용 순서 준수(Edge Cases 순서 계약과 일치).
+10. **GIVEN** 오버드라이브 활성 중(`CostBypass.Active` 태그 존재), TensionGauge=0, **WHEN** Blackhole 스펠이 적에게 명중, **THEN** TensionGain=70×0.4=28 (OverdriveTensionGainMultiplier=0.4 기본값 적용 — Core Rule 7, Formulas 공식 준수). 계수 미적용 시 70이 아님을 확인. *(Logic/unit — OverdriveTensionGainMultiplier 적용 회로 단독 검증)*
 
 ## Open Questions
 
