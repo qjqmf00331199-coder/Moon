@@ -17,12 +17,13 @@ UMoonGameplayAbility_Dash::UMoonGameplayAbility_Dash()
 	// Add State.Invulnerable automatically when active
 	ActivationOwnedTags.AddTag(FGameplayTag::RequestGameplayTag(FName("State.Invulnerable")));
 
-	// Default Dash motion — project has no dedicated Dash anim yet, so reuse Aurora's
-	// "Ability_RMB_Fwd" (a forward mobility-ability animation, same skeleton the Moon character
-	// mesh already uses for Idle/Jog). Played at DashAnimPlayRate for a quick forward-thrust feel
-	// rather than the full 1.9s animation length. EditDefaultsOnly so both can be overridden
-	// later once a purpose-built Dash animation exists.
-	static ConstructorHelpers::FObjectFinder<UAnimSequence> DashAnimFinder(TEXT("/Game/ParagonAurora/Characters/Heroes/Aurora/Animations/Ability_RMB_Fwd.Ability_RMB_Fwd"));
+	// Default Dash motion — project has no dedicated Dash anim yet. Aurora (an ice mage, no
+	// blink/dash in her actual kit) has nothing purpose-built for this, so reuse "Jog_Fwd_Start"
+	// (the forward-leaning run-start pose, same skeleton the Moon character mesh already uses
+	// for Idle/Jog) — closer to a forward-thrust feel than Aurora's ability animations, which
+	// are all melee/cast poses. EditDefaultsOnly so both can be overridden later once a
+	// purpose-built Dash animation exists.
+	static ConstructorHelpers::FObjectFinder<UAnimSequence> DashAnimFinder(TEXT("/Game/ParagonAurora/Characters/Heroes/Aurora/Animations/Jog_Fwd_Start.Jog_Fwd_Start"));
 	if (DashAnimFinder.Succeeded())
 	{
 		DashAnim = DashAnimFinder.Object;
