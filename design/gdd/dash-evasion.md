@@ -46,7 +46,7 @@ Dash/Evasion은 플레이어의 주요 생존기이자 공격적 리포지셔닝
 - **Health/Damage Core** (상류): `State.Invulnerable` 태그 획득/제거(플레이어). `State.Executable` 태그 부여(적).
 - **Enemy AI (base)** (상류): `OnAttackTelegraphed`, `OnAttackCommitted` 델리게이트를 수신하여 저스트회피 가능 상태를 판단.
 - **Camera System (base)** (상류): 카메라 기준 방향 입력 파악.
-- **Combo/Tension Gauge** (하류, 미설계): 저스트회피 성공 시 콤보 게이지 상승 이벤트 발송 예정.
+- **Combo/Tension Gauge** (하류): 저스트회피 성공 시 콤보 게이지 상승 이벤트 발송 예정.
 - **Core Extraction Execution** (하류, 미설계): 이 시스템이 적에게 붙인 `State.Executable` 태그를 소비.
 
 ## Formulas
