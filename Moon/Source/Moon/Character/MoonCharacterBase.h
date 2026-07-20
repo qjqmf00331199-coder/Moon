@@ -185,6 +185,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
 	TObjectPtr<class UAnimSequence> JumpRecoveryAnim;
 
+	// Jump feel: asymmetric gravity so the descent is snappier than the rise (standard
+	// platformer "juice" — e.g. Celeste/Mario) instead of UE's default floaty symmetric arc.
+	// Multiplies CharacterMovement's base GravityScale while falling; back to 1x otherwise.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Jump Feel")
+	float FallingGravityScaleMultiplier = 1.6f;
+
 private:
 	// Rate Limiting State
 	uint64 LastCastFrame = 0;

@@ -82,6 +82,14 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 		}
 	}
 
+	// Jump feel: fall faster than we rise (asymmetric gravity) for a snappier arc instead of
+	// UE's default floaty symmetric one. Only touches GravityScale while actually descending.
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		const bool bDescending = MoveComp->IsFalling() && GetVelocity().Z < 0.0f;
+		MoveComp->GravityScale = bDescending ? FallingGravityScaleMultiplier : 1.0f;
+	}
+
 	// Jump motion: detect the moment we start falling (jump or walking off a ledge) and play
 	// Jump_Start once. OnJumpStartAnimFinished() hands off to a looping Jump_Apex if still
 	// airborne once Jump_Start finishes; Landed() plays Jump_Land on touchdown.

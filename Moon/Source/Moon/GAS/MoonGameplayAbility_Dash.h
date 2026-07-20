@@ -40,6 +40,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash|Animation")
 	float DashAnimPlayRate = 1.5f;
 
+	// Dash VFX — Aurora's own (unused) dash particle set. A borrowed body-pose animation can't
+	// carry a dash's "impact" on its own; most action games (Genshin, Warframe, etc.) lean on
+	// burst/trail VFX for that read regardless of the underlying animation.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash|VFX")
+	TObjectPtr<class UParticleSystem> DashWarmUpFX;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash|VFX")
+	TObjectPtr<class UParticleSystem> DashTrailFX;
+
+	// The trail FX component, kept alive for DashDuration then deactivated in OnDashFinished.
+	TWeakObjectPtr<class UParticleSystemComponent> ActiveDashTrailComponent;
+
 	// Timer handle for ending the dash
 	FTimerHandle DashTimerHandle;
 

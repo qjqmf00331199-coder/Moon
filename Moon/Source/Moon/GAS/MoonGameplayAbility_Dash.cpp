@@ -7,6 +7,9 @@
 #include "Engine/World.h"
 #include "Animation/AnimSequence.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Particles/ParticleSystem.h"
+#include "Particles/ParticleSystemComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "../Character/MoonCharacterBase.h"
 
 UMoonGameplayAbility_Dash::UMoonGameplayAbility_Dash()
@@ -27,6 +30,21 @@ UMoonGameplayAbility_Dash::UMoonGameplayAbility_Dash()
 	if (DashAnimFinder.Succeeded())
 	{
 		DashAnim = DashAnimFinder.Object;
+	}
+
+	// Aurora's own Dash VFX — imported with the character pack but never wired up until now.
+	// Carries most of the "impact" read regardless of body-pose animation (same technique
+	// most action games use: Genshin, Warframe, etc. lean on burst/trail VFX for dash feel).
+	static ConstructorHelpers::FObjectFinder<UParticleSystem> WarmUpFXFinder(TEXT("/Game/ParagonAurora/FX/Particles/Abilities/Dash/FX/P_Aurora_Dash_WarmUp.P_Aurora_Dash_WarmUp"));
+	if (WarmUpFXFinder.Succeeded())
+	{
+		DashWarmUpFX = WarmUpFXFinder.Object;
+	}
+
+	static ConstructorHelpers::FObjectFinder<UParticleSystem> TrailFXFinder(TEXT("/Game/ParagonAurora/FX/Particles/Abilities/Dash/FX/P_Aurora_Dash_Flare.P_Aurora_Dash_Flare"));
+	if (TrailFXFinder.Succeeded())
+	{
+		DashTrailFX = TrailFXFinder.Object;
 	}
 }
 
@@ -88,6 +106,18 @@ void UMoonGameplayAbility_Dash::ActivateAbility(const FGameplayAbilitySpecHandle
 			Character->PlayOneShotAnim(DashAnim, DashAnimPlayRate);
 		}
 
+		// Dash VFX: a one-shot burst at the moment of the dash, plus a trail that rides along
+		// for the dash's duration (deactivated, not destroyed, in OnDashFinished so its existing
+		// particles fade out naturally instead of popping off).
+		if (DashWarmUpFX)
+		{
+			UGameplayStatics::SpawnEmitterAttached(DashWarmUpFX, Character->GetMesh(), NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::SnapToTarget, true);
+		}
+		if (DashTrailFX)
+		{
+			ActiveDashTrailComponent = UGameplayStatics::SpawnEmitterAttached(DashTrailFX, Character->GetMesh(), NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::SnapToTarget, false);
+		}
+
 		// Perform Just Dodge Check (Skeleton)
 		CheckJustDodge(Character);
 
@@ -147,6 +177,12 @@ void UMoonGameplayAbility_Dash::CheckJustDodge(ACharacter* PlayerCharacter)
 
 void UMoonGameplayAbility_Dash::OnDashFinished()
 {
+	if (ActiveDashTrailComponent.IsValid())
+	{
+		ActiveDashTrailComponent->Deactivate();
+		ActiveDashTrailComponent.Reset();
+	}
+
 	EndAbility(CurrentSpecHandle, CurrentActorInfo, CurrentActivationInfo, true, false);
 }
 
