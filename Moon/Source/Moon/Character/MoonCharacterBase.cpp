@@ -20,7 +20,17 @@ AMoonCharacterBase::AMoonCharacterBase()
 	// Third-person follow camera. Boom handles collision so the camera never clips into the level.
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f;
+	// Combat camera: a light right-shoulder composition keeps the player readable while
+	// opening enough space to see incoming threats. Position lag softens instant dash steps
+	// without adding rotation latency to aiming.
+	CameraBoom->TargetArmLength = 450.0f;
+	CameraBoom->SocketOffset = FVector(0.0f, 45.0f, 20.0f);
+	CameraBoom->TargetOffset = FVector(0.0f, 0.0f, 55.0f);
+	CameraBoom->bEnableCameraLag = true;
+	CameraBoom->CameraLagSpeed = 18.0f;
+	CameraBoom->CameraLagMaxDistance = 60.0f;
+	CameraBoom->bUseCameraLagSubstepping = true;
+	CameraBoom->CameraLagMaxTimeStep = 1.0f / 60.0f;
 	CameraBoom->SetRelativeRotation(FRotator(-15.0f, 0.0f, 0.0f));
 	CameraBoom->bUsePawnControlRotation = true;
 

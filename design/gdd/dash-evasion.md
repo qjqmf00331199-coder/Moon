@@ -107,11 +107,11 @@ CurrentCharges = clamp(CurrentCharges + (DeltaTime / RechargeRate), 0, MaxCharge
 |-----------|---------------|------------|--------------------|--------------------|
 | MaxCharges | 2 | 1–3 | 이동/생존 너무 관대해짐 | 스태미나 부족 느낌, 답답함 유발 |
 | RechargeRate | 2.0초 | 1.5–4.0초 | 쿨다운 길어져 빈틈 발생 | 무한 대쉬 스팸 가능 |
-| DashDuration | 0.2초 | 0.15–0.3초 | 구르기처럼 길어져 템포 하락 | 이동 거리 짧아져 리포지셔닝 실패 |
-| DashSpeedMultiplier | 2.5 | 2.0–4.0 | 너무 멀리 나가 조준 어려움 | 이동 효과 미미함 |
+| DashDuration | 0.08초 | 0.06–0.12초 | 스텝 후딜·무적 창이 길어져 순간이동 감각 약화 | 애니메이션/회피 판독이 지나치게 짧아짐 |
+| DashSpeedMultiplier | 6.25 | 5.0–7.0 | 같은 지속시간에서 이동 거리가 길어져 조준 어려움 | 이동 거리와 순간 이동 체감 감소 |
 | JustDodgeWindow | 0.2초 | 0.15–0.3초 | 판정이 관대해져 긴장감 저하 | 저스트회피 실패 확률 급증 (난이도 폭증) |
 | ExecutableDuration | 3.0초 | 2.0–5.0초 | 처형 기회가 너무 길게 유지됨 | 기회를 잡기 전에 태그 소멸 |
-| DashInvulnDuration | 0.2초 | 0.15–0.4초 | 생존 쉬워짐 (무적기 스팸) | 회피 판정 빡빡해짐 |
+| DashInvulnDuration | 0.08초 | 0.06–0.12초 | 생존 쉬워짐 (무적기 스팸) | 회피 판정 빡빡해짐 |
 
 > `DashInvulnDuration`은 `DashDuration`과 거의 동일하게 맞춰 대쉬 중에는 안전함을 보장.
 
@@ -147,5 +147,5 @@ CurrentCharges = clamp(CurrentCharges + (DeltaTime / RechargeRate), 0, MaxCharge
 
 ## Cross-Reference Resolutions (design-review 2026-07-17)
 
-- **enemy-ai-base.md:155 교차검증 완료**: 대쉬 거리 = `MaxWalkSpeed(600uu/s, player-movement.md) × DashSpeedMultiplier(2.5) × DashDuration(0.2s) = 300uu`. `MinEngageRange`(400uu, enemy-ai-base.md)보다 짧으므로 "필드 밖에서 한 방에 근접권 진입"은 불가하나, 전투는 통상 이미 Attack band(400–1200uu) 진입 후 벌어지므로 밴드 내에서는 대쉬 1회로 충분히 근접권 도달 가능. 수치 상충 아님 — 확인 완료로 open question 해소.
+- **enemy-ai-base.md:155 교차검증 완료**: 대쉬 거리 = `MaxWalkSpeed(600uu/s, player-movement.md) × DashSpeedMultiplier(6.25) × DashDuration(0.08s) = 300uu`. `MinEngageRange`(400uu, enemy-ai-base.md)보다 짧으므로 "필드 밖에서 한 방에 근접권 진입"은 불가하나, 전투는 통상 이미 Attack band(400–1200uu) 진입 후 벌어지므로 밴드 내에서는 대쉬 1회로 충분히 근접권 도달 가능. 수치 상충 아님 — 확인 완료로 open question 해소.
 - **enemy-ai-base.md:109 교차검증 완료**: `MinTelegraphWindow`(0.4s, enemy-ai-base.md 기본값) > `JustDodgeWindow`(0.2s, 본 문서) — 저스트회피 판정 구간이 텔레그래프 구간에 완전히 포함되므로 회피가 항상 성립 가능함을 확인.

@@ -25,20 +25,20 @@ protected:
 
 	// Tuning parameters from GDD
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash")
-	float DashSpeedMultiplier = 2.5f;
+	float DashSpeedMultiplier = 6.25f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash")
-	float DashDuration = 0.2f;
+	float DashDuration = 0.08f;
 
 	// Dash motion, played on the character mesh via AMoonCharacterBase::PlayOneShotAnim.
 	// Defaults to the Aurora "Jog_Fwd_Start" animation (project has no dedicated Dash anim yet).
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash|Animation")
 	TObjectPtr<class UAnimSequence> DashAnim;
 
-	// Playback speed multiplier for DashAnim. Jog_Fwd_Start is 0.3s at 1x; 1.5x brings it to
-	// 0.2s, matching DashDuration exactly.
+	// Playback speed multiplier for DashAnim. Jog_Fwd_Start is 0.3s at 1x; 3.75x brings it to
+	// 0.08s, matching DashDuration exactly.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash|Animation")
-	float DashAnimPlayRate = 1.5f;
+	float DashAnimPlayRate = 3.75f;
 
 	// Dash VFX — Aurora's own (unused) dash particle set. A borrowed body-pose animation can't
 	// carry a dash's "impact" on its own; most action games (Genshin, Warframe, etc.) lean on

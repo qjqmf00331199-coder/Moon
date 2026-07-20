@@ -14,6 +14,11 @@ Task: Track A — Pre-Production priorities: (1) Blackhole GAS slice PIE verify 
 - Character movement is stopped and temporarily disabled for the existing 0.2s dash/i-frame window; it is restored even if the ability is cancelled. This prevents held forward input from continuing the player past the destination.
 - Updated Dash/Evasion AC1 and Core Rule 2 to specify immediate, collision-checked movement. Full build remains pending due active Live Coding.
 
+## Session Extract — Camera framing + rapid dash tune (Codex, 2026-07-20)
+- `BP_MoonCharacter` camera is now a 450uu light right-shoulder view (`SocketOffset 0,45,20`, `TargetOffset 0,0,55`) with 18.0-speed positional lag, a 60uu cap, and 60Hz substepping. Rotation remains direct for aiming.
+- `GA_Dash` is now 0.08s at a 6.25 speed multiplier and 3.75 animation play rate. The product still yields the same 300uu collision-checked instant step, but the visual and i-frame window end in 0.08s for a sharp teleport-like feel.
+- Both assets compiled and saved through Unreal MCP; C++ defaults and Camera/Dash GDD tuning values were synchronized. A full C++ build remains pending because Live Coding is active.
+
 ## Session Extract — HUD art placement via UMGToolSet (Codex, 2026-07-20)
 - Direct Unreal MCP UMG editing is now available. `WBP_CombatHUD` compiled and saved after adding non-interactive (`HitTestInvisible`) visual overlays only; existing ProgressBar widgets, event bindings, and `Border_LowHealthVignette` were not edited.
 - Added `Image_HealthCrystalFrame` over `ProgressBar_Health` (same bottom-left relative anchor/280×28) and `Image_ManaFrame` over `ProgressBar_Mana` (same bottom-centre relative anchor/320×24), both at Z=2.
