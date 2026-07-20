@@ -181,8 +181,11 @@ void AMoonCharacterBase::OnJumpStartAnimFinished()
 	{
 		if (USkeletalMeshComponent* MeshComp = GetMesh())
 		{
-			// Still airborne: loop Jump_Apex until Landed() takes over.
-			MeshComp->PlayAnimation(JumpApexAnim, true);
+			// Still airborne: hold Jump_Apex until Landed() takes over. Not looped — Jump_Apex
+			// is a short clip (~0.2s) with no matching first/last frame, so looping it visibly
+			// popped/twitched at the seam on every repeat. Playing once and freezing on its
+			// last frame reads as a clean held pose instead.
+			MeshComp->PlayAnimation(JumpApexAnim, false);
 		}
 	}
 	else

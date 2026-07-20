@@ -98,7 +98,7 @@ void UMoonGameplayAbility_Dash::ActivateAbility(const FGameplayAbilitySpecHandle
 		}
 
 		// Apply impulse
-		ApplyDashImpulse(Character);
+		const FVector DashDirection = ApplyDashImpulse(Character);
 
 		// Dash motion (one-shot, no AnimBlueprint/montage system yet — see PlayOneShotAnim)
 		if (DashAnim)
@@ -108,14 +108,19 @@ void UMoonGameplayAbility_Dash::ActivateAbility(const FGameplayAbilitySpecHandle
 
 		// Dash VFX: a one-shot burst at the moment of the dash, plus a trail that rides along
 		// for the dash's duration (deactivated, not destroyed, in OnDashFinished so its existing
-		// particles fade out naturally instead of popping off).
+		// particles fade out naturally instead of popping off). Oriented to DashDirection rather
+		// than snapped to the mesh's facing — SnapToTarget ignores the Rotation param entirely
+		// and just matches the mesh, which is wrong for a back-dash/strafe-dash where the
+		// character doesn't face the direction it's actually dashing in. KeepWorldPosition
+		// respects the explicit world rotation we pass while still following the character.
+		const FRotator DashRotation = DashDirection.Rotation();
 		if (DashWarmUpFX)
 		{
-			UGameplayStatics::SpawnEmitterAttached(DashWarmUpFX, Character->GetMesh(), NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::SnapToTarget, true);
+			UGameplayStatics::SpawnEmitterAttached(DashWarmUpFX, Character->GetMesh(), NAME_None, Character->GetActorLocation(), DashRotation, FVector(1.0f), EAttachLocation::KeepWorldPosition, true);
 		}
 		if (DashTrailFX)
 		{
-			ActiveDashTrailComponent = UGameplayStatics::SpawnEmitterAttached(DashTrailFX, Character->GetMesh(), NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::SnapToTarget, false);
+			ActiveDashTrailComponent = UGameplayStatics::SpawnEmitterAttached(DashTrailFX, Character->GetMesh(), NAME_None, Character->GetActorLocation(), DashRotation, FVector(1.0f), EAttachLocation::KeepWorldPosition, false);
 		}
 
 		// Perform Just Dodge Check (Skeleton)
@@ -133,11 +138,11 @@ void UMoonGameplayAbility_Dash::ActivateAbility(const FGameplayAbilitySpecHandle
 	}
 }
 
-void UMoonGameplayAbility_Dash::ApplyDashImpulse(ACharacter* Character) const
+FVector UMoonGameplayAbility_Dash::ApplyDashImpulse(ACharacter* Character) const
 {
-	if (!Character) return;
+	if (!Character) return FVector::ForwardVector;
 
-	FVector DashDirection;
+	FVector DashDirection = Character->GetActorForwardVector();
 	// Calculate input direction. If no input, use actor forward vector.
 	// We can approximate this by checking the CharacterMovementComponent's LastInputVector
 	UCharacterMovementComponent* MoveComp = Character->GetCharacterMovement();
@@ -166,6 +171,8 @@ void UMoonGameplayAbility_Dash::ApplyDashImpulse(ACharacter* Character) const
 		// Override Velocity (Rule 4)
 		Character->LaunchCharacter(DashVelocity, true, true);
 	}
+
+	return DashDirection;
 }
 
 void UMoonGameplayAbility_Dash::CheckJustDodge(ACharacter* PlayerCharacter)

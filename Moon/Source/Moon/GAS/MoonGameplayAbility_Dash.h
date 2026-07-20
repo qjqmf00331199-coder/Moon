@@ -58,8 +58,10 @@ protected:
 	// Ends the dash after duration
 	void OnDashFinished();
 
-	// Applies the impulse to the character
-	void ApplyDashImpulse(class ACharacter* Character) const;
+	// Applies the impulse to the character. Returns the world-space dash direction used, so
+	// callers (VFX) can orient to the actual dash direction rather than the mesh's facing —
+	// those can differ (e.g. a back-dash or strafe-dash while still facing forward).
+	FVector ApplyDashImpulse(class ACharacter* Character) const;
 
 	// Core logic for checking Just-Dodge window
 	// Will be fully implemented when Enemy AI is ready
