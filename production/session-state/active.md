@@ -9,6 +9,11 @@ Task: Track A — Pre-Production priorities: (1) Blackhole GAS slice PIE verify 
 - Connected it to `Landed()` and `UMoonGameplayAbility_Dash::OnDashFinished()`. Enemies and projectiles remain on normal world time.
 - Static diff check passed. Full `MoonEditor` build is pending because the editor is open with Live Coding active; exit the editor or use Ctrl+Alt+F11, then rerun the MoonEditor build.
 
+## Session Extract — Instant dash step (Codex, 2026-07-20)
+- Replaced Dash's `LaunchCharacter` velocity with an instant, swept `SetActorLocation` step. It preserves the existing 300uu default formula (`MaxWalkSpeed 600 × DashSpeedMultiplier 2.5 × DashDuration 0.2`), so only the delivery changes from continuous motion to immediate repositioning.
+- Character movement is stopped and temporarily disabled for the existing 0.2s dash/i-frame window; it is restored even if the ability is cancelled. This prevents held forward input from continuing the player past the destination.
+- Updated Dash/Evasion AC1 and Core Rule 2 to specify immediate, collision-checked movement. Full build remains pending due active Live Coding.
+
 ## Session Extract — HUD art placement via UMGToolSet (Codex, 2026-07-20)
 - Direct Unreal MCP UMG editing is now available. `WBP_CombatHUD` compiled and saved after adding non-interactive (`HitTestInvisible`) visual overlays only; existing ProgressBar widgets, event bindings, and `Border_LowHealthVignette` were not edited.
 - Added `Image_HealthCrystalFrame` over `ProgressBar_Health` (same bottom-left relative anchor/280×28) and `Image_ManaFrame` over `ProgressBar_Mana` (same bottom-centre relative anchor/320×24), both at Z=2.

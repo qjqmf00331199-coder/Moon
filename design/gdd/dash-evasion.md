@@ -21,7 +21,7 @@ Dash/Evasion은 플레이어의 주요 생존기이자 공격적 리포지셔닝
 ### Core Rules
 
 1. **대쉬는 쿨다운 기반의 차지(Charge) 시스템을 갖는다** — 스태미나 없이 고정된 최대 스택(예: 2회)을 가지며, 사용 시 쿨다운(예: 2.0초) 후 1스택씩 충전된다. 
-2. **이동 방향 입력에 따른 즉각적인 가속** — 입력 방향(WASD, 카메라 기준)으로 순간적인 임펄스(속도 오버라이드)를 가하며, 입력이 없으면 캐릭터가 바라보는 방향(카메라 정면)으로 전진한다.
+2. **이동 방향 입력에 따른 즉시 위치 이동** — 입력 방향(WASD, 카메라 기준)으로 정해진 대쉬 거리만큼 한 번에 이동하며, 입력이 없으면 캐릭터가 바라보는 방향(카메라 정면)으로 전진한다. 이동 경로는 충돌 검사를 수행하고, 대쉬 지속시간에는 일반 이동 입력을 받지 않는다.
 3. **지상/공중 사용 가능** — Grounded 상태는 물론 Airborne 상태에서도 사용 가능(Air-Dash). 공중 대쉬는 Arena Morphing 체공전투의 핵심 기동 수단으로 활용되며, 수평 임펄스 외에 Z축 체공 시간을 연장하는 미세한 상승(또는 낙하 방지) 임펄스를 포함한다.
 4. **임펄스 합성 방식: Override(덮어쓰기)** — 대쉬 발동 시 기존 velocity(수평+수직 momentum 전부)를 대쉬 벡터로 완전히 덮어쓴다(additive 아님). 매 대쉬가 momentum 무관하게 항상 동일한 거리/속도로 발동되어 "즉각 방향전환" 판타지를 보장하고 예측 가능한 포지셔닝을 만든다. (player-movement.md Open Question 해결 — design-review 2026-07-17)
 5. **회피 프레임 (I-frames)** — 대쉬 시작 시 즉시 Health/Damage Core의 `State.Invulnerable` 태그를 플레이어에게 부여하며, 대쉬 모션(Tuning Knob: `dash_invuln_duration`)이 끝나는 시점에 태그를 제거한다.
@@ -131,7 +131,7 @@ CurrentCharges = clamp(CurrentCharges + (DeltaTime / RechargeRate), 0, MaxCharge
 
 ## Acceptance Criteria
 
-1. **GIVEN** 대쉬 차지가 1 이상이고 입력 방향이 주어짐, **WHEN** 대쉬 버튼 입력, **THEN** 차지가 1 소모되며 입력 방향으로 DashSpeedMultiplier 적용된 속도로 이동한다.
+1. **GIVEN** 대쉬 차지가 1 이상이고 입력 방향이 주어짐, **WHEN** 대쉬 버튼 입력, **THEN** 차지가 1 소모되며 입력 방향으로 `MaxWalkSpeed × DashSpeedMultiplier × DashDuration` 거리만큼 즉시 이동한다. 이동은 충돌 검사를 수행하며, 대쉬 지속시간 동안에는 일반 이동 입력으로 추가 전진하지 않는다.
 2. **GIVEN** 플레이어가 대쉬 중임, **WHEN** 데미지 이펙트가 들어옴, **THEN** `State.Invulnerable`로 인해 데미지가 무시된다.
 3. **GIVEN** 적 공격의 `OnAttackTelegraphed` 이후 `JustDodgeWindow` (0.2초) 내에 플레이어가 대쉬 발동, **WHEN** 플레이어가 공격 반경에 있음, **THEN** 해당 적에게 `State.Executable` 태그가 부여되고 처형 프롬프트가 활성화된다.
 4. **GIVEN** 저스트회피 조건이 달성됨, **WHEN** 판정 완료 시, **THEN** 플레이어의 대쉬 차지가 즉시 1 회복된다.

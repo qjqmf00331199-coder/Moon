@@ -138,41 +138,56 @@ void UMoonGameplayAbility_Dash::ActivateAbility(const FGameplayAbilitySpecHandle
 	}
 }
 
-FVector UMoonGameplayAbility_Dash::ApplyDashImpulse(ACharacter* Character) const
+FVector UMoonGameplayAbility_Dash::ApplyDashImpulse(ACharacter* Character)
 {
 	if (!Character) return FVector::ForwardVector;
 
 	FVector DashDirection = Character->GetActorForwardVector();
-	// Calculate input direction. If no input, use actor forward vector.
-	// We can approximate this by checking the CharacterMovementComponent's LastInputVector
+	// Calculate a horizontal input direction. If there is no input, use actor forward.
 	UCharacterMovementComponent* MoveComp = Character->GetCharacterMovement();
 	if (MoveComp)
 	{
 		FVector InputVector = MoveComp->GetLastInputVector();
-		if (InputVector.IsNearlyZero())
+		InputVector.Z = 0.0f;
+		if (!InputVector.Normalize())
 		{
-			DashDirection = Character->GetActorForwardVector();
+			DashDirection.Z = 0.0f;
+			DashDirection.Normalize();
 		}
 		else
 		{
-			DashDirection = InputVector.GetSafeNormal();
+			DashDirection = InputVector;
 		}
 
-		// Calculate Dash Velocity
-		float BaseSpeed = MoveComp->MaxWalkSpeed;
-		FVector DashVelocity = DashDirection * BaseSpeed * DashSpeedMultiplier;
+		// Preserve the existing tuning formula (600 * 2.5 * 0.2 = 300uu by default), but
+		// apply that distance immediately. Sweep=true prevents stepping through walls.
+		const float DashDistance = MoveComp->MaxWalkSpeed * DashSpeedMultiplier * DashDuration;
+		Character->SetActorLocation(Character->GetActorLocation() + (DashDirection * DashDistance), true);
 
-		// If falling/airborne, handle air-dash logic (Rule 3)
-		if (MoveComp->IsFalling())
-		{
-			DashVelocity.Z = FMath::Max(DashVelocity.Z, 0.0f); // Prevents falling faster, acts as slight hover
-		}
-
-		// Override Velocity (Rule 4)
-		Character->LaunchCharacter(DashVelocity, true, true);
+		// Do not let held movement input continue advancing the character during the short
+		// animation/i-frame window after the instant reposition.
+		bRestoreFallingMovement = MoveComp->IsFalling();
+		MoveComp->StopMovementImmediately();
+		MoveComp->DisableMovement();
+		bMovementLockedByDash = true;
 	}
 
 	return DashDirection;
+}
+
+void UMoonGameplayAbility_Dash::RestoreCharacterMovement(ACharacter* Character)
+{
+	if (!bMovementLockedByDash || !Character)
+	{
+		return;
+	}
+
+	if (UCharacterMovementComponent* MoveComp = Character->GetCharacterMovement())
+	{
+		MoveComp->SetMovementMode(bRestoreFallingMovement ? MOVE_Falling : MOVE_Walking);
+	}
+
+	bMovementLockedByDash = false;
 }
 
 void UMoonGameplayAbility_Dash::CheckJustDodge(ACharacter* PlayerCharacter)
@@ -205,6 +220,8 @@ void UMoonGameplayAbility_Dash::EndAbility(const FGameplayAbilitySpecHandle Hand
 	{
 		World->GetTimerManager().ClearTimer(DashTimerHandle);
 	}
+
+	RestoreCharacterMovement(Cast<ACharacter>(ActorInfo->AvatarActor.Get()));
 
 	Super::EndAbility(Handle, ActorInfo, ActivationInfo, bReplicateEndAbility, bWasCancelled);
 }

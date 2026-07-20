@@ -58,10 +58,16 @@ protected:
 	// Ends the dash after duration
 	void OnDashFinished();
 
-	// Applies the impulse to the character. Returns the world-space dash direction used, so
-	// callers (VFX) can orient to the actual dash direction rather than the mesh's facing —
-	// those can differ (e.g. a back-dash or strafe-dash while still facing forward).
-	FVector ApplyDashImpulse(class ACharacter* Character) const;
+	// Instantly repositions the character by the configured dash distance, using a swept
+	// collision move. Returns the world-space dash direction used, so callers (VFX) can
+	// orient to the actual dash direction rather than the mesh's facing.
+	FVector ApplyDashImpulse(class ACharacter* Character);
+
+	// Movement is disabled only while the dash animation/i-frame window completes, preventing
+	// held movement input from turning an instant step back into a forward slide.
+	bool bMovementLockedByDash = false;
+	bool bRestoreFallingMovement = false;
+	void RestoreCharacterMovement(class ACharacter* Character);
 
 	// Core logic for checking Just-Dodge window
 	// Will be fully implemented when Enemy AI is ready
