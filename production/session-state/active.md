@@ -1,7 +1,7 @@
 <!-- STATUS -->
 Epic: Moon Fragment Hunt — DDD Expansion
-Feature: Systems Design > MVP 9/9 designed, **9/9 Approved** (as of 2026-07-20 Antigravity review session). luna-overdrive.md, combo-tension-gauge.md, combat-hud.md all moved to Approved. Track B (C++/UE implementation) owned by Claude Code. Track A next: re-run /gate-check pre-production (previous verdict was FAIL 2026-07-18 with 3/13 artifacts; GDD status gap is now resolved — recheck may still flag architecture/ADR gaps).
-Task: Blackhole-spell GAS slice — compiled, 2 real bugs found+fixed this session (UE5.8 AddComponent-in-constructor crash; TargetDummy untargetable collision profile — see "Blackhole GAS slice: compile + PIE verification" extract below for full detail), test rig placed in L_CombatTest, PIE freshly restarted with clean baseline. NEXT (resume point): ask user to press keyboard "1" once (mouse untouched) in the live PIE viewport, then check via unreal-mcp GASToolsets.AbilitySystemInspectorToolset: caster Mana 100→30, Cooldown.Spell.Blackhole tag present, target Health 100→75 (PlaceholderDamage=25, not a real balance value), caster Tension 0→70 (on-hit only). Nothing committed yet — see extract for exact file list + open commit-scope question.
+Feature: Systems Design CLOSED (9/9 GDD Approved 2026-07-20). Technical Setup gate-check rerun 2026-07-20: FAIL — 7/13 artifacts (improved from 3/13), 3 blockers remain: (B1) ADR 3개 모두 Proposed + 0002번 충돌 → 정비 필요, (B2) art-bible 없음, (B3) accessibility-requirements 없음. Report: production/gate-checks/2026-07-20-preprod-recheck.md.
+Task: Track A — next: fix ADR suite (B1, quickest), then art-bible (/art-bible), then accessibility+UX (/ux-design), then gate-check re-rerun. Track B — Blackhole GAS PIE verification pending (see extract below).
 <!-- /STATUS -->
 
 ## Session Extract — Track B takeover + real verification (Claude Code, this session)
