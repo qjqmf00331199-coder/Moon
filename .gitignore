@@ -131,6 +131,16 @@ secrets.json
 # *.exr
 # *.hdr
 
+# === Large third-party marketplace asset packs (not tracked — too large for repo) ===
+Moon/Content/ParagonAurora/
+Moon/Content/ParagonKwang/
+Moon/Content/ParagonShinbi/
+Moon/Content/ParagonTwinblast/
+Moon/Content/ParagonYin/
+Moon/Content/Armored_Ghoul/
+Moon/Content/Ghoul/
+Moon/Content/GoodSky/
+
 # === OS Generated ===
 ehthumbs.db
 ehthumbs_vista.db

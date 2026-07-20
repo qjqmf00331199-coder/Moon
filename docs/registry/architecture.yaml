@@ -30,7 +30,7 @@
 #   Superseded entries:     Grep pattern="status: superseded"
 
 version: 1
-last_updated: ""
+last_updated: "2026-07-18"
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -43,7 +43,17 @@ last_updated: ""
 # interface: how other systems access this state (read-only property, method call,
 #   signal, shared resource, etc.) — this is the contract other ADRs depend on.
 
-state_ownership: []
+state_ownership:
+  - state: checkpoint_snapshot
+    status: active
+    owner_system: checkpoint-subsystem
+    adr: docs/architecture/0002-checkpoint-persistence.md
+    interface: "UMoonCheckpointSubsystem::CaptureCheckpoint(APawn*) / RestoreCheckpoint(APawn*) — memory-only, GameInstance-scoped, no disk I/O"
+    write_access: checkpoint-subsystem-only
+    referenced_by:
+      - docs/architecture/0002-checkpoint-persistence.md
+    added: 2026-07-18
+    revised: ""
 
 # Example:
 #
@@ -71,7 +81,21 @@ state_ownership: []
 #
 # pattern options: signal | direct_call | event_bus | shared_resource | rpc | none
 
-interfaces: []
+interfaces:
+  - contract: checkpoint_capture_restore
+    status: active
+    pattern: direct_call
+    producer: checkpoint-subsystem
+    consumers:
+      - health-damage-core (death handling calls RestoreCheckpoint instead of level reload)
+      - checkpoint-trigger-actors (call CaptureCheckpoint on overlap)
+      - boss-phase (calls CaptureCheckpoint at phase-start)
+    adr: docs/architecture/0002-checkpoint-persistence.md
+    signal_signature: "CaptureCheckpoint(APawn* Player): void / RestoreCheckpoint(APawn* Player): void / HasActiveCheckpoint(): bool"
+    referenced_by:
+      - docs/architecture/0002-checkpoint-persistence.md
+    added: 2026-07-18
+    revised: ""
 
 # Example:
 #
@@ -131,7 +155,17 @@ performance_budgets: []
 # Register an API decision when the choice is non-obvious and other ADRs might
 # make a different choice for the same purpose without knowing this was decided.
 
-api_decisions: []
+api_decisions:
+  - purpose: checkpoint_state_owner
+    status: active
+    api: UGameInstanceSubsystem (UMoonCheckpointSubsystem)
+    not: "PlayerState or GameMode/GameState — both rejected: GameMode/GameState is destroyed on level travel (fails Arena Morphing survive-travel requirement); PlayerState would conflict with ADR-0001's decision that the player character does not require PlayerState ownership"
+    adr: docs/architecture/0002-checkpoint-persistence.md
+    reason: "GameInstanceSubsystem persists across level travel within one session, matching the in-memory-only, no-disk-I/O, survive-boss-transitions requirement"
+    referenced_by:
+      - docs/architecture/0002-checkpoint-persistence.md
+    added: 2026-07-18
+    revised: ""
 
 # Example:
 #
@@ -157,7 +191,16 @@ api_decisions: []
 # Register a pattern when an ADR explicitly bans it AND other ADRs might
 # unknowingly use it (i.e., it's a tempting but wrong approach for this project).
 
-forbidden_patterns: []
+forbidden_patterns:
+  - pattern: direct_attributeset_write_on_restore
+    status: active
+    description: "Checkpoint restore must never write UMoonAttributeSet values directly.
+      Restore must go through GameplayEffect application."
+    why: "Direct attribute writes bypass GAS's effect-based mutation pipeline (aggregators,
+      GameplayCue hooks, prediction) and can desync from the damage pipeline's Execution
+      Calculation established in ADR-0001."
+    adr: docs/architecture/0002-checkpoint-persistence.md
+    added: 2026-07-18
 
 # Example:
 #

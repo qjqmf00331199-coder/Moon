@@ -13,6 +13,8 @@ class UGameplayAbility;
 class UGameplayEffect;
 class UInputMappingContext;
 class UInputAction;
+class USpringArmComponent;
+class UCameraComponent;
 
 UCLASS()
 class MOON_API AMoonCharacterBase : public ACharacter, public IAbilitySystemInterface
@@ -31,6 +33,7 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	virtual void PossessedBy(AController* NewController) override;
 	
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
@@ -74,6 +77,12 @@ public:
 	void OnOverdriveTriggered();
 
 protected:
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<USpringArmComponent> CameraBoom;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UCameraComponent> FollowCamera;
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMoonAbilitySystemComponent> AbilitySystemComponent;
 
@@ -127,6 +136,16 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> SpellBlackholeAction;
 
+	// Basic locomotion (idle/jog swap by speed). No AnimBlueprint yet — single-node playback switched in code.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	TObjectPtr<class UAnimSequence> IdleAnim;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	TObjectPtr<class UAnimSequence> JogAnim;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation")
+	float JogSpeedThreshold = 10.0f;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input")
 	TObjectPtr<UInputAction> SpellFireAction;
 
@@ -141,4 +160,7 @@ private:
 
 	// Tension State
 	float LastTensionGainTime = 0.0f;
+
+	// Locomotion State
+	bool bIsPlayingJogAnim = false;
 };

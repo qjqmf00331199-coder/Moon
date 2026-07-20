@@ -1,8 +1,74 @@
 <!-- STATUS -->
 Epic: Moon Fragment Hunt — DDD Expansion
-Feature: Systems Design > MVP complete (9/9 designed)
-Task: luna-overdrive.md design-review done (NEEDS REVISION → 5 blockers fixed → re-review pending). spell-casting-base.md revised (cast-rate floor Rule 11 added, BLOCKING cross-dep resolved). NEXT: fresh-session /design-review design/gdd/luna-overdrive.md (re-review), then combo-tension-gauge.md + combat-hud.md reviews, then /review-all-gdds + /gate-check pre-production.
+Feature: Systems Design > MVP 9/9 designed, 6/9 approved (gate-check + review-all-gdds both FAIL 2026-07-18). Track B (C++/UE implementation) now owned by Claude Code going forward (user moved off Antigravity/Gemini for this track).
+Task: Track B verified working end-to-end in PIE this session (see extract below). NEXT (Track A, unchanged): /design-review (re-review) luna-overdrive.md, then combo-tension-gauge.md + combat-hud.md reviews (address W9 refresh-chain default during combo-tension-gauge review), then re-run /gate-check pre-production.
 <!-- /STATUS -->
+
+## Session Extract — Track B takeover + real verification (Claude Code, this session)
+- User asked to take over Track B entirely from Antigravity/Gemini going forward.
+- **Root cause found before doing anything else**: the "did the tension bar show up?" question from
+  last session could never be answered — the test scene (`L_TestScene`) was an **unsaved** `/Temp/Untitled_1`
+  level. Editor had since restarted; that level was gone, no `.umap` for it ever existed on disk.
+  All prior interactive verification (pawn placement, Auto Possess, widget test hookup) was lost.
+  The "no Slate crash" result from earlier this session was against that same empty default level with
+  no pawn — proved nothing (widget was never constructed, so the `bWasFound` assert path was never hit).
+- **Fixed durably**: duplicated `/Game/_Spikes/L_Spike_ArenaMorph` → new real asset
+  `/Game/Moon/Maps/L_CombatTest.umap` (has PlayerStart + floor already). Placed `BP_MoonCharacter`
+  at PlayerStart, set `AutoPossessPlayer = Player0` via ObjectTools. Added a debug key binding
+  (Keyboard `1` → `AddTension(self, 30)`) to `BP_MoonCharacter`'s EventGraph via
+  `BlueprintTools.write_graph_dsl` — verified node-level via `get_node_infos` that Pressed→AddTension
+  is actually wired (the DSL round-trip printer drops standalone InputKey continuations on read-back,
+  cosmetic tool quirk, not a real gap). Compiled clean. Saved all assets.
+- **Verified for real via unreal-mcp** (not just "hit Play and eyeball it"):
+  - `StartPIE` with the pawn present and BeginPlay's `CreateWidget→BindToPlayer→AddToViewport` chain
+    actually executing — **no crash**, matching the prior known `bWasFound` Slate assert signature
+    (grepped full session log for it — never fires, including during this pawn-present run).
+  - `GASToolsets.AbilitySystemInspectorToolset.GetAttributeValues` on the live PIE pawn confirmed
+    GAS/attribute init is healthy: Health 100/100, Mana 100/100, TensionGauge 0/100, DashCharges 2/2.
+  - `WBP_CombatHUD` widget tree confirmed intact post-recreation: parent class correct
+    (`UMoonCombatHUDWidget`), 3 widgets (CanvasPanel root + `ProgressBar_0` + `TextBlock_0`),
+    `OnTensionStateChanged` wired to `ProgressBar_0.SetPercent`, `OnDashChargesChanged` wired to
+    `TextBlock_0.SetText` — Health/Mana/Overdrive/ExecutionPrompt events still unimplemented (expected,
+    WIP, not a regression).
+  - Could **not** get a pixel-level screenshot proof of the bar rendering — `CaptureViewport`
+    only captures the 3D scene render (editor gizmos toggle only), and the Slate accessibility
+    snapshot doesn't decompose the UMG game-layer overlay. Sending a real keypress into the PIE
+    viewport via `SlateInspectorToolset.PressKey` also didn't take (no Slate focus on the game
+    viewport from an out-of-process caller). Structural + runtime-state verification above is the
+    evidence in place of a screenshot; a human hitting `1` in a real PIE session and eyeballing the
+    bar move is still the one remaining manual check.
+- **GameMode note**: still no GameMode set anywhere (project or level) — this test level relies on
+  the manual `AutoPossessPlayer` flag on the placed pawn, same fragile-but-working pattern as before.
+  Consider a `GM_MoonTest` with `DefaultPawnClass = BP_MoonCharacter` if this keeps needing rebuilding.
+- **Not committed yet** — `Moon/Content/Moon/` and `Moon/Source/Moon/` are still fully untracked
+  (first time either would ever be committed); asked user for commit-scope confirmation before
+  sweeping them in alongside the untracked marketplace packs (ParagonAurora/Ghoul/GoodSky/etc.)
+  sitting in the same `git status` output.
+
+## Session Extract — /gate-check pre-production 2026-07-18
+- Verdict: FAIL
+- 3/13 required artifacts present. Missing: architecture.md, requirements-traceability.md, art-bible.md, accessibility-requirements.md, interaction-patterns.md, tests/ dir, CI workflow, architecture-review report. Only 1 ADR (0001, still Proposed, missing required sections).
+- Report: production/gate-checks/2026-07-18-technical-setup-to-preprod.md
+
+## Session Extract — /review-all-gdds 2026-07-18
+- Verdict: FAIL
+- GDDs reviewed: 9 (+ game-concept.md, systems-index.md)
+- Flagged for revision: combo-tension-gauge.md, luna-overdrive.md, combat-hud.md (status corrected in systems-index.md: Approved → Needs Revision), plus minor edits needed in spell-casting-base.md, health-damage-core.md, dash-evasion.md, player-movement.md, camera-system-base.md
+- Blocking issues: systems-index.md falsely claimed 9/9 GDDs Approved (Progress Tracker + 3 table rows) when only 6/9 actually say Approved in their own headers — corrected this session (approved count 9→6, 3 rows → Needs Revision)
+- Design-theory warnings (non-blocking): W9 Overdrive refresh-chain damping lever (OverdriveTensionGainMultiplier) defaults to 1.0 = no protection, risks the tension curve's "sharp drop" never landing — recommend addressing during combo-tension-gauge.md's actual review; W10 player attention budget slightly over threshold (mitigated by HUD design + Overdrive-state collapse); W11 base spell RawDamage (assumed 25) has no owning GDD
+- Recommended next: run the 3 pending /design-review passes (luna-overdrive re-review, combo-tension-gauge, combat-hud), folding in W9 as a review-time question
+- Report: design/gdd/gdd-cross-review-2026-07-18.md
+
+## What changed this session (Track B: C++ GAS Foundation implementation)
+- **Implemented Foundation Classes**: Implemented `AMoonCharacterBase`, `UMoonAbilitySystemComponent`, and `UMoonAttributeSet` in C++ based on `ADR 0001`.
+- **Attribute Set Setup**: Added Health, Mana, and TensionGauge attributes to `UMoonAttributeSet` with basic clamping in `PreAttributeChange` and `PostGameplayEffectExecute`.
+- **Character Setup**: Hooked up `AbilitySystemComponent` and `AttributeSet` instantiation in `AMoonCharacterBase`, and prepared initialization hooks (`InitializeAttributes`, `InitializeAbilities`) for GE and default abilities.
+- **Enhanced Input MCP Asset Generation**: Used `unreal-mcp` (DataAssetTools) to create `IA_Move` (Axis2D), `IA_Look` (Axis2D), `IA_Dash`, `IA_Spell_Blackhole`, `IA_Spell_Fire`, `IA_Spell_Lightning`, `IA_Execute`, and `IMC_MoonCombat` in `/Game/Moon/Input/`.
+- **Enhanced Input C++ Integration**: Updated `MoonCharacterBase.h` and `.cpp` to expose these Input Actions and the Mapping Context, bound them in `SetupPlayerInputComponent()`, and implemented the `Move` and `Look` functions. `IMC_MoonCombat` is dynamically added during `BeginPlay`. Editor assignment completed successfully after full UBT DLL compile.
+- **Spell Casting C++ Skeleton**: Drafted ADR 0002, created `UMoonGameplayAbility_Spell` with `CostBypass.Active` bypass logic. Implemented input routing in `AMoonCharacterBase` and the cast rate limiter (Rule 11: per-frame per-element cap + global MaxCastsPerSecond cap).
+- **Next Steps for Track B**: 
+  - Editor re-compile is required to pick up the new `UMoonGameplayAbility_Spell` class and new input bindings.
+  - Proceed to Dash/Evasion C++ skeleton (Charge management, Just-dodge timer, Invulnerable/Executable tag grants).
 
 ## What changed this session (spell-casting-base.md cast-rate floor revision — BLOCKING cross-dep from luna-overdrive.md review)
 - **Cast-rate floor added** to `spell-casting-base.md` as Core Rule 11 — per-element per-frame cap
@@ -254,15 +320,28 @@ directly — see below). Whichever tool picks up next:
   "To resume in a new session" list below** before ending, so the other tool doesn't stall
   waiting for missing context.
 
-## Current task — READY FOR HANDOFF TO A NEW SESSION
+## Current task — PARALLEL TRACKS (Sonnet + Antigravity)
 
-- **Dash/Evasion GDD**: Approved. Design review complete.
-- **Next System to Design**: Combo/Tension Gauge GDD.
+**Track A (Sonnet): Design Review & Tutorial Planning**
+- **Next System to Design**: `design/gdd/tutorial-flow.md` (Tutorial and onboarding sequence).
+- **Reviews Pending**: `luna-overdrive.md` (re-review), `combo-tension-gauge.md`, `combat-hud.md`.
+- **Handoff Prompt**: See `sonnet-prompt.md` in artifacts.
 
-**➤ NEXT COMMAND TO RUN (fresh session, either tool):**
-Draft Combo/Tension Gauge GDD (following the 8-section standard).
-
-Then continue design order: Luna Overdrive → Combat HUD.
+**Track B (Antigravity CLI): Implementation Foundation**
+- **ADR Drafting**: Drafted ADR 0002 for Spell Casting (base).
+- **UE C++ Setup**: Initialize the `Moon` project as a C++ project (currently Blueprint-only). Create `Source/` directory, `.Build.cs`, Target files, and initial GameMode/GAS base classes. (Completed)
+- **Enhanced Input Setup**: Created base `InputMappingContext` and `InputAction` assets via MCP. Integrated into `MoonCharacterBase` C++. (Completed)
+- **Spell Casting**: Implement `UMoonGameplayAbility_Spell` and bind input actions to ability activation. (Completed)
+- **Dash/Evasion**: Implement Dash ability (`UMoonGameplayAbility_Dash`) and charge management system (in `UMoonAttributeSet` and `AMoonCharacterBase::Tick`). Added skeleton for Just-Dodge window. (Completed)
+- **Combat HUD**: Implemented `UMoonCombatHUDWidget` (UMG base class) connecting GAS Attributes to Blueprint Implementable Events with visual lerping and low health warnings. (Completed)
+- **Combo/Tension Gauge**: Implemented `AddTensionFromSpellHit`, `AddTensionFromJustDodge`, and `ApplyTensionDamagePenalty` in `MoonCharacterBase`. Added Tension Decay logic in `Tick` and `OnOverdriveTriggered` event emission. (Completed)
+- **BP Integration & Testing (Current Session)**: 
+  - Ran `FixAssets.py` to correctly assign `MoonCombatHUDWidget` parent class to `WBP_CombatHUD` and generated `GA_Dash` post-Live-Coding-restart.
+  - Guided user through connecting UMG UI nodes (`Set Percent`, `Set Text`) and GAS Tag assignment (`Ability.Dash`).
+  - Added UI creation sequence (`Create Widget` -> `Bind To Player` -> `Add To Viewport`) to `BP_MoonCharacter` `BeginPlay` along with test input (`Keyboard 1` -> `Add Tension(30)`).
+  - Resolved pawn possession issue in `L_TestScene` by setting `Auto Possess Player = Player 0`.
+  - **Identified Slate Crash Issue**: Hitting Play caused `bWasFound` assert in `SlateApplication.cpp` due to UMG Slate hierarchy corruption caused by Python `reparent_blueprint`. Guided user to manually recreate `WBP_CombatHUD` cleanly from scratch.
+- **Next Steps**: Await user confirmation that manually recreating `WBP_CombatHUD` resolved the Slate crash and that the UI successfully responds to the test input. Track B is effectively complete once UI testing passes.
 
 **Key decisions baked into Enemy AI (base) (carry forward when designing dependents):**
 - MVP scope is 2 archetypes only: Grunt (melee, MaxHealth 30) and Ranged (MaxHealth 20, keeps a
@@ -278,7 +357,7 @@ Then continue design order: Luna Overdrive → Combat HUD.
 - This doc does NOT grant `State.Invulnerable`/`State.Executable` (Dash/Evasion and Enemy Elite
   Shield own that) — it only reads them, and confirmed those tags never block its own state
   transitions (they're overlays).
-- Stagger is a slot only — Super Armor / CC Interrupt (undesigned) owns exactly when it triggers;
+- Stagger is a slot only — Super Armor / CC Interrupt (undesigned) owns exactly 기when it triggers;
   this doc just exposes `TriggerStagger()`/`ClearStagger()`.
 - Archetype identity exposed via GameplayTag (`Enemy.Archetype.Grunt`/`Enemy.Archetype.Ranged`)
   for Enemy Elite Shield (undesigned) to key off of.
@@ -314,8 +393,8 @@ Then continue design order: Luna Overdrive → Combat HUD.
   none of these blocked Health/Damage Core, still open for whoever designs those systems.
 
 **To resume in a new session:**
-1. Draft Combo/Tension Gauge GDD next.
-2. Continue design order: Combo/Tension Gauge → Luna Overdrive → Combat HUD.
+1. **Sonnet**: Read `sonnet-prompt.md` and begin GDD review and tutorial design.
+2. **Antigravity**: Initialize Unreal C++ project structure and write `0001-player-movement-and-gas-core.md` ADR.
 
 ## What changed this session (enemy-ai-base.md review pass)
 - Reviewed and **APPROVED** `design/gdd/enemy-ai-base.md` end-to-end (independent review session).
@@ -391,3 +470,12 @@ Full writeup: `prototypes/arena-morphing-spike-2026-07-16/SPIKE-NOTE.md`
 - Perf budget test (see above) — the only remaining unknown for Arena Morphing feasibility.
 
 <!-- CONSISTENCY-CHECK: 2026-07-17 | GDDs checked: 7 | Conflicts found: 0 | Scope: combo-tension-gauge.md 추가 반영 -->
+
+## Session Extract — /architecture-review 2026-07-18
+- Verdict: FAIL
+- Requirements: 74 total — 9 covered, 6 partial, 59 gaps
+- New TR-IDs registered: 74 (tr-registry.yaml populated, version 2)
+- GDD revision flags: None
+- Top ADR gaps: Camera System (Core), Enemy AI (Core), Dash/Evasion (Core)
+- Blocking: duplicate ADR-0002 number; all 3 ADRs still Proposed; checkpoint→ADR-0001 OnDeath forward-reference
+- Report: docs/architecture/architecture-review-2026-07-18.md

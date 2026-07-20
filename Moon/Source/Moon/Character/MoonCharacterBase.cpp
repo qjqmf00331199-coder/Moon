@@ -4,11 +4,29 @@
 #include "GameplayAbilitySpec.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
+#include "InputMappingContext.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 AMoonCharacterBase::AMoonCharacterBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	// Third-person follow camera. Boom handles collision so the camera never clips into the level.
+	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+	CameraBoom->SetupAttachment(RootComponent);
+	CameraBoom->TargetArmLength = 400.0f;
+	CameraBoom->SetRelativeRotation(FRotator(-15.0f, 0.0f, 0.0f));
+	CameraBoom->bUsePawnControlRotation = true;
+
+	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	FollowCamera->bUsePawnControlRotation = false;
+
+	bUseControllerRotationYaw = false;
+	GetCharacterMovement()->bOrientRotationToMovement = true;
 
 	// Create ASC and AttributeSet. Since this is a solo PC game, Avatar = Owner.
 	AbilitySystemComponent = CreateDefaultSubobject<UMoonAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
@@ -60,14 +78,56 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 			}
 		}
 	}
+
+	// Basic locomotion: swap the single-node playing animation between idle and jog by speed.
+	// No AnimBlueprint/blendspace yet, so this is a hard switch rather than a blend.
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		const float Speed = GetVelocity().Size();
+		const bool bShouldJog = Speed > JogSpeedThreshold;
+		static float DebugLogAccum = 0.0f;
+		DebugLogAccum += DeltaTime;
+		if (DebugLogAccum > 0.5f)
+		{
+			DebugLogAccum = 0.0f;
+			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Tick locomotion: Speed=%.1f bShouldJog=%d bIsPlayingJogAnim=%d JogAnim=%s IdleAnim=%s"),
+				Speed, bShouldJog, bIsPlayingJogAnim, *GetNameSafe(JogAnim.Get()), *GetNameSafe(IdleAnim.Get()));
+		}
+		if (bShouldJog && !bIsPlayingJogAnim && JogAnim)
+		{
+			MeshComp->PlayAnimation(JogAnim, true);
+			bIsPlayingJogAnim = true;
+		}
+		else if (!bShouldJog && bIsPlayingJogAnim && IdleAnim)
+		{
+			MeshComp->PlayAnimation(IdleAnim, true);
+			bIsPlayingJogAnim = false;
+		}
+	}
 }
 
 void AMoonCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Add Input Mapping Context
-	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+	// Initialize the Ability System Component
+	if (AbilitySystemComponent)
+	{
+		// Both Owner and Avatar are this character (solo play)
+		AbilitySystemComponent->InitAbilityActorInfo(this, this);
+
+		InitializeAttributes();
+		InitializeAbilities();
+	}
+}
+
+void AMoonCharacterBase::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	// Add Input Mapping Context. Done here rather than BeginPlay: for GameMode-spawned
+	// pawns, BeginPlay fires before Possess(), so Controller is still null at that point.
+	if (APlayerController* PlayerController = Cast<APlayerController>(NewController))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 		{
@@ -77,27 +137,56 @@ void AMoonCharacterBase::BeginPlay()
 			}
 		}
 	}
-
-	// Initialize the Ability System Component
-	if (AbilitySystemComponent)
-	{
-		// Both Owner and Avatar are this character (solo play)
-		AbilitySystemComponent->InitAbilityActorInfo(this, this);
-		
-		InitializeAttributes();
-		InitializeAbilities();
-	}
 }
 
 void AMoonCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
-	
+
+	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] SetupPlayerInputComponent called. Controller=%s DefaultMappingContext=%s"),
+		*GetNameSafe(Controller), *GetNameSafe(DefaultMappingContext.Get()));
+
+	// Add Input Mapping Context here rather than BeginPlay/PossessedBy: this is called from
+	// PawnClientRestart, client-side, guaranteed after possession, with GetLocalPlayer() valid.
+	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+	{
+		ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer();
+		UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Controller cast OK. LocalPlayer=%s"), *GetNameSafe(LocalPlayer));
+
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Subsystem OK."));
+			if (DefaultMappingContext)
+			{
+				Subsystem->AddMappingContext(DefaultMappingContext, 0);
+				UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] AddMappingContext called for %s. HasMappingContext=%s"),
+					*GetNameSafe(DefaultMappingContext.Get()), Subsystem->HasMappingContext(DefaultMappingContext) ? TEXT("true") : TEXT("false"));
+			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] DefaultMappingContext is NULL on this instance!"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Subsystem is NULL!"));
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Controller cast FAILED. Controller class=%s"), Controller ? *Controller->GetClass()->GetName() : TEXT("None"));
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] PlayerInputComponent class=%s, EnhancedInputComponent cast=%s"),
+		PlayerInputComponent ? *PlayerInputComponent->GetClass()->GetName() : TEXT("None"),
+		Cast<UEnhancedInputComponent>(PlayerInputComponent) ? TEXT("OK") : TEXT("FAILED"));
+
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		if (MoveAction)
 		{
 			EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AMoonCharacterBase::Move);
+			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Bound MoveAction %s"), *GetNameSafe(MoveAction.Get()));
 		}
 
 		if (LookAction)
@@ -108,6 +197,7 @@ void AMoonCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		if (DashAction)
 		{
 			EnhancedInputComponent->BindAction(DashAction, ETriggerEvent::Triggered, this, &AMoonCharacterBase::Input_Dash);
+			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Bound DashAction %s"), *GetNameSafe(DashAction.Get()));
 		}
 
 		if (SpellBlackholeAction)
@@ -130,6 +220,8 @@ void AMoonCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 void AMoonCharacterBase::Move(const FInputActionValue& Value)
 {
 	FVector2D MovementVector = Value.Get<FVector2D>();
+
+	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Move fired: %s"), *MovementVector.ToString());
 
 	if (Controller != nullptr)
 	{
@@ -157,6 +249,7 @@ void AMoonCharacterBase::Look(const FInputActionValue& Value)
 
 void AMoonCharacterBase::Input_Dash(const FInputActionValue& Value)
 {
+	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Input_Dash fired"));
 	TryActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("Ability.Dash")));
 }
 
