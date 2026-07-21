@@ -4,6 +4,24 @@ Feature: **Technical Setup gate PASSED** (2026-07-20, 3rd run: 11/13 artifacts, 
 Task: Track A — Pre-Production priorities: (1) Blackhole GAS slice PIE verify + first C++ test file [W1], (2) ADR expansion (Camera/EnemyAI/Dash) [W3 architecture-review gap], (3) /create-epics when ADR suite is stable. Track B — MCP recheck 2026-07-20: `MoonEditor` build and `BP_MoonCharacter` compile succeeded. Its CDO `DefaultAbilities` contains `GA_Dash` and `/Script/Moon.MoonGameplayAbility_Spell_Blackhole`; corrected PIE-world path (`/Game/Moon/Maps/UEDPIE_0_L_CombatTest.L_CombatTest:...`) confirmed both abilities are granted at runtime. Added and saved `TargetDummy_BlackholeTest` (`ATargetDummy`) at 400uu directly ahead of the player in `L_CombatTest`. Remaining: inject/trigger the Blackhole input in PIE, then read caster/target attributes and cooldown tag to verify mana 100→30, target Health 100→75, tension 0→70, and 6s cooldown. UX — Combat HUD design complete; all sections are approved and written in `design/ux/combat-hud.md`. **HUD MVP implementation done this session** (see extract below) — Health/Mana/LowHealth wired into `WBP_CombatHUD`; still open: numeric text readouts unbound (tool bug), Overdrive/Execution/3-cooldown-slots deferred, PIE visual verification not yet done. Visual HUD direction — normal-combat mockup generated in this Codex session (crystalline HP, central mana/spells, dash + segmented tension arc); pending user approval before importing/implementing project assets. **Jump + Dash/Blackhole motion implemented and user-approved this session** (see extract below) — spacebar jump (Jump_Start→Apex hold→Land, asymmetric fall gravity 1.6x, JumpZVelocity 550), Dash (Jog_Fwd_Start pose + Aurora's own unused Dash VFX oriented to actual dash direction), Blackhole plays "Cast". User confirmed feel is good ("좋았어~!") after 2 rounds of iteration (wrong anim picks, loop-seam twitch, VFX direction bug — all fixed, see extract).
 <!-- /STATUS -->
 
+## Completed Spike — Signature Combat Chain + Overdrive Crash (Codex, 2026-07-21)
+- **Question**: 한 전투방에서 `Blackhole 집결 → Fire 연쇄폭발 → 환경 파괴 → Executable → 코어 적출 → Overdrive` 인과 사슬과, 10초 종료 뒤 명확한 자원 하강을 실제 플레이로 증명할 수 있는가?
+- **Hypothesis**: 플레이어가 60–90초 안에 위 연쇄를 안내 없이 1회 완주하고, Overdrive 종료 후 즉시 정상 자원 제약으로 복귀함을 인지하면 핵심 전투 문법은 버티컬 슬라이스 설계로 승격할 가치가 있다.
+- **Path**: UE5.8 Engine spike (정식 Vertical Slice 아님 — Vertical Slice 시스템 GDD 0/7 상태의 선행 검증)
+- **Scope**: (1) Overdrive 고정 10초, 활성 중 텐션 획득/재발동 차단, 마나 회복 정지, 종료 후 1.5초 텐션 잠금 (2) 대표 연쇄 1개만 구현 (3) Lunar Fracture HUD 장식/상시 발광 65% 감량, 1920×1080 16:9 및 2560×1080 21:9 검증
+- **Explicit cuts**: 보스, 다중 시너지, 완성형 적 AI, 세이브/메뉴, 최종 VFX·사운드, Production phase-gate 판정
+- **Result**: PASS for engine feasibility. PIE에서 `Blackhole setup → Environment fractured → Fire execution armed → Core extracted`가 같은 타깃에서 순서대로 기록되었고, 최종 런타임 값은 `SignatureChainState=Extracted`, `Health=50`, `bFractured=true`였다. 입력은 `1 → 2 → F`.
+- **Overdrive verification**: `Moon.Combat.Overdrive.FixedWindow`와 `Moon.Combat.Overdrive.RecoveryBoundary` 자동화 테스트 2/2 PASS. 규칙은 고정 10초, 활성 중 텐션/재발동 차단, 종료 후 1.5초 회복 경계로 확정했다.
+- **HUD result**: `WBP_CombatHUD`를 Lunar Fracture v2 자산과 상대 앵커로 갱신했다. 요청 PIE 크기 1920×1080(16:9), 2560×1080(21:9)에서 좌/중앙/우 클러스터가 분리 유지되었다. Windows 제목 표시줄 때문에 캡처 실높이는 요청 1080보다 작지만 에디터 요청값과 앵커 동작은 검증했다. 근거: `production/qa/hud-1920x1080.png`, `production/qa/hud-2560x1080.png`.
+- **Decision**: 핵심 인과 사슬은 버티컬 슬라이스 후보로 유지한다. 현재 코드는 Engine Spike이며 최종 VFX/AI/밸런스 구현으로 승격하지 않는다. 다음 단계는 플레이테스트로 60–90초 무안내 완주율과 Overdrive 종료 인지를 검증하는 것이다.
+- **Full note**: `prototypes/signature-combat-chain-spike-2026-07-21/SPIKE-NOTE.md`
+
+## Session Extract — 일일 요약 검증 (Claude Code, 2026-07-21)
+- 22커밋(2026-07-20) 확인, 게이트 PASS(`production/gate-checks/2026-07-20-preprod-final-pass.md`) 확인, MVP GDD 9/9 승인 확인, main이 origin보다 5커밋 앞섬 확인.
+- 위험요인 확인: 미추적 파일 640개(범위 미정리), 아키텍처 리뷰 FAIL(59/74 gap, `architecture-review-2026-07-18.md`), `tests/unit`·`tests/integration` `.gitkeep`뿐(실제 테스트 파일 없음), `production/qa/` 디렉토리 자체 없음, Blackhole 구형 스윕이 `ActorLocation`에서 시작해 바닥 우선 히트 가능성 있음(`MoonGameplayAbility_Spell_Blackhole.cpp`).
+- Enemy BP 트리 1/5 (BP_Enemy_Base만 완료, `plan.md` 마지막 커밋 2026-07-16 이후 진전 없음).
+- **정정**: 이전 요약의 "Git LFS 권한 오류로 바이너리 diff 통계 미산출" 항목은 재현 불가 — `git lfs status`/`git lfs env` 정상 동작, 근거 없어 제외.
+
 ## Session Extract — Local hitstop (Codex, 2026-07-20)
 - Implemented `AMoonCharacterBase::TriggerHitStop`: `CustomTimeDilation` is set to 0.05 for 0.055 seconds, then restored by a world-clock timer; re-triggers refresh the timer so a prior impact cannot end a newer hitstop.
 - Connected it to `Landed()` and `UMoonGameplayAbility_Dash::OnDashFinished()`. Enemies and projectiles remain on normal world time.

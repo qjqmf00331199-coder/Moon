@@ -5,6 +5,22 @@
 > **Art package**: `Moon/Content/Moon/UI/Art/`
 > **Scope**: Compact PC normal-combat HUD; the existing gameplay-event bindings remain unchanged.
 
+## Implemented result — Lunar Fracture v2 (2026-07-21)
+
+- `WBP_CombatHUD` now uses the v2 Health, Mana, Spell Slot, Blackhole, and combined Tension/Dash crescent assets from `/Game/Moon/UI/Art`.
+- The previous absolute 1920px Tension/Dash placement was replaced with a relative bottom-right anchor. Health remains bottom-left; Mana and spell slots remain bottom-centre.
+- Permanent ornament and idle glow were reduced. The frames use a common dark lunar-glass body, thin moonlight edge, and one asymmetric fracture notch.
+- The Tension and Dash cluster is one crescent instrument. Runtime Tension is still represented by the existing horizontal fill inside it; a radial material is intentionally deferred.
+
+### Aspect-ratio evidence
+
+| Requested PIE client | Purpose | Result | Evidence |
+|---|---|---|---|
+| 1920×1080, 16:9 | Baseline composition | PASS — left/centre/right clusters remain separated | `production/qa/hud-1920x1080.png` |
+| 2560×1080, 21:9 | Ultrawide anchoring | PASS — side clusters move outward while centre stays fixed | `production/qa/hud-2560x1080.png` |
+
+The OS title bar reduced the captured client area's physical height below 1080 in the screenshots. The PIE request sizes and relative-anchor behavior were still verified; a later fullscreen capture should be used for final pixel-perfect certification.
+
 ## Required UMG hierarchy
 
 ```text

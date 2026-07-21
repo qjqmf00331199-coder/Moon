@@ -1,4 +1,5 @@
 #include "MoonCharacterBase.h"
+#include "TargetDummy.h"
 #include "../GAS/MoonAbilitySystemComponent.h"
 #include "../GAS/MoonAttributeSet.h"
 #include "GameplayAbilitySpec.h"
@@ -12,6 +13,7 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "TimerManager.h"
+#include "EngineUtils.h"
 
 AMoonCharacterBase::AMoonCharacterBase()
 {
@@ -57,13 +59,17 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	const double CurrentWorldTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	UpdateOverdriveState(CurrentWorldTime);
+
 	if (AttributeSet)
 	{
-		// Mana Regen
+		// Mana Regen pauses during the free-cast Overdrive window. Recovery restores normal
+		// regeneration immediately while keeping tension locked for its short downbeat.
 		float CurrentMana = AttributeSet->GetMana();
 		float MaxMana = AttributeSet->GetMaxMana();
 		float ManaRegen = AttributeSet->GetManaRegenRate();
-		if (CurrentMana < MaxMana && ManaRegen > 0.0f)
+		if (!OverdriveState.IsActive(CurrentWorldTime) && CurrentMana < MaxMana && ManaRegen > 0.0f)
 		{
 			float NewMana = FMath::Clamp(CurrentMana + (ManaRegen * DeltaTime), 0.0f, MaxMana);
 			AttributeSet->SetMana(NewMana);
@@ -399,6 +405,11 @@ void AMoonCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 			EnhancedInputComponent->BindAction(SpellLightningAction, ETriggerEvent::Triggered, this, &AMoonCharacterBase::Input_SpellLightning);
 		}
 
+		if (ExecuteAction)
+		{
+			EnhancedInputComponent->BindAction(ExecuteAction, ETriggerEvent::Triggered, this, &AMoonCharacterBase::Input_Execute);
+		}
+
 		if (JumpAction)
 		{
 			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AMoonCharacterBase::Input_Jump);
@@ -461,6 +472,36 @@ void AMoonCharacterBase::Input_SpellFire(const FInputActionValue& Value)
 void AMoonCharacterBase::Input_SpellLightning(const FInputActionValue& Value)
 {
 	TryActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("Spell.Element.Lightning")));
+}
+
+void AMoonCharacterBase::Input_Execute(const FInputActionValue& Value)
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	ATargetDummy* NearestExecutable = nullptr;
+	float NearestDistanceSquared = FMath::Square(ExecutionRange);
+	for (TActorIterator<ATargetDummy> It(GetWorld()); It; ++It)
+	{
+		if (!It->IsExecutable())
+		{
+			continue;
+		}
+
+		const float DistanceSquared = FVector::DistSquared(GetActorLocation(), It->GetActorLocation());
+		if (DistanceSquared <= NearestDistanceSquared)
+		{
+			NearestDistanceSquared = DistanceSquared;
+			NearestExecutable = *It;
+		}
+	}
+
+	if (NearestExecutable)
+	{
+		NearestExecutable->TryExtractCore(this);
+	}
 }
 
 void AMoonCharacterBase::Input_Jump()
@@ -553,29 +594,90 @@ void AMoonCharacterBase::AddTension(float Amount)
 {
 	if (!AttributeSet || !AbilitySystemComponent) return;
 
-	// Check if overdrive is active (Rule 7)
-	bool bOverdriveActive = AbilitySystemComponent->HasMatchingGameplayTag(FGameplayTag::RequestGameplayTag(FName("CostBypass.Active")));
-	
-	float ActualGain = Amount;
-	if (bOverdriveActive)
+	const double CurrentTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	UpdateOverdriveState(CurrentTime);
+	if (OverdriveState.IsTensionGainLocked(CurrentTime))
 	{
-		ActualGain *= OverdriveTensionGainMultiplier;
+		return;
 	}
 
 	float CurrentTension = AttributeSet->GetTensionGauge();
 	float MaxTension = AttributeSet->GetTensionGaugeMax();
 	
-	float NewTension = FMath::Clamp(CurrentTension + ActualGain, 0.0f, MaxTension);
+	float NewTension = FMath::Clamp(CurrentTension + Amount, 0.0f, MaxTension);
 	AttributeSet->SetTensionGauge(NewTension);
 
-	LastTensionGainTime = GetWorld()->GetTimeSeconds();
+	LastTensionGainTime = static_cast<float>(CurrentTime);
 
 	// Overdrive Trigger (Rule 5)
 	if (NewTension >= MaxTension)
 	{
 		AttributeSet->SetTensionGauge(0.0f);
-		OnOverdriveTriggered();
+		TriggerOverdrive();
 	}
+}
+
+bool AMoonCharacterBase::TriggerOverdrive()
+{
+	if (!AbilitySystemComponent || !AttributeSet || !GetWorld() || AttributeSet->GetHealth() <= 0.0f)
+	{
+		return false;
+	}
+
+	const double CurrentTime = GetWorld()->GetTimeSeconds();
+	UpdateOverdriveState(CurrentTime);
+	if (!OverdriveState.TryStart(CurrentTime, OverdriveDuration))
+	{
+		return false;
+	}
+
+	const FGameplayTag CostBypassTag = FGameplayTag::RequestGameplayTag(FName("CostBypass.Active"));
+	AbilitySystemComponent->SetLooseGameplayTagCount(CostBypassTag, 1);
+	OnOverdriveStarted.Broadcast();
+	return true;
+}
+
+void AMoonCharacterBase::ForceEndOverdrive(EMoonOverdriveEndReason Reason)
+{
+	if (!AbilitySystemComponent || OverdriveState.GetPhase() == EMoonOverdrivePhase::Inactive)
+	{
+		return;
+	}
+
+	const FGameplayTag CostBypassTag = FGameplayTag::RequestGameplayTag(FName("CostBypass.Active"));
+	AbilitySystemComponent->SetLooseGameplayTagCount(CostBypassTag, 0);
+	OverdriveState.Reset();
+	OnOverdriveEnded.Broadcast(Reason);
+}
+
+bool AMoonCharacterBase::IsOverdriveActive() const
+{
+	return GetWorld() && OverdriveState.IsActive(GetWorld()->GetTimeSeconds());
+}
+
+bool AMoonCharacterBase::IsTensionGainLocked() const
+{
+	return GetWorld() && OverdriveState.IsTensionGainLocked(GetWorld()->GetTimeSeconds());
+}
+
+float AMoonCharacterBase::GetOverdriveTimeRemaining() const
+{
+	return GetWorld() ? OverdriveState.GetActiveTimeRemaining(GetWorld()->GetTimeSeconds()) : 0.0f;
+}
+
+void AMoonCharacterBase::UpdateOverdriveState(double CurrentTime)
+{
+	if (OverdriveState.TryExpire(CurrentTime, OverdriveRecoveryDuration))
+	{
+		if (AbilitySystemComponent)
+		{
+			const FGameplayTag CostBypassTag = FGameplayTag::RequestGameplayTag(FName("CostBypass.Active"));
+			AbilitySystemComponent->SetLooseGameplayTagCount(CostBypassTag, 0);
+		}
+		OnOverdriveEnded.Broadcast(EMoonOverdriveEndReason::Expired);
+	}
+
+	OverdriveState.TryFinishRecovery(CurrentTime);
 }
 
 void AMoonCharacterBase::AddTensionFromSpellHit(float ManaCost)

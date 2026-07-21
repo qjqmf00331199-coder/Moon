@@ -11,11 +11,12 @@ UMoonGameplayAbility_Spell::UMoonGameplayAbility_Spell()
 bool UMoonGameplayAbility_Spell::CanActivateAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayTagContainer* SourceTags, const FGameplayTagContainer* TargetTags, FGameplayTagContainer* OptionalRelevantTags) const
 {
 	bool bCanActivate = Super::CanActivateAbility(Handle, ActorInfo, SourceTags, TargetTags, OptionalRelevantTags);
+	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Super::CanActivateAbility -> %s"), bCanActivate ? TEXT("true") : TEXT("false"));
 
 	// If the normal checks fail (e.g. because of Cost/Cooldown), but we have the bypass tag, we can activate anyway.
 	if (!bCanActivate && ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 	{
-		if (CostBypassTag.IsValid() && ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(CostBypassTag))
+		if (IsCostBypassActive(ActorInfo))
 		{
 			// We have the bypass tag, so we ignore Cost and Cooldown failures.
 			// Note: We still need to respect tags that block the ability entirely.
@@ -46,6 +47,7 @@ bool UMoonGameplayAbility_Spell::CanActivateAbility(const FGameplayAbilitySpecHa
 			// Perform Rate Limit check (this consumes the limit if successful)
 			if (!MoonCharacter->CheckAndConsumeSpellCastLimit(ElementTag))
 			{
+				UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] CheckAndConsumeSpellCastLimit rejected cast for %s"), *ElementTag.ToString());
 				bCanActivate = false;
 			}
 		}
@@ -57,11 +59,7 @@ bool UMoonGameplayAbility_Spell::CanActivateAbility(const FGameplayAbilitySpecHa
 bool UMoonGameplayAbility_Spell::CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, OUT FGameplayTagContainer* OptionalRelevantTags)
 {
 	// Check for Bypass
-	bool bBypassCostAndCooldown = false;
-	if (CostBypassTag.IsValid() && ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
-	{
-		bBypassCostAndCooldown = ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(CostBypassTag);
-	}
+	const bool bBypassCostAndCooldown = IsCostBypassActive(ActorInfo);
 
 	if (bBypassCostAndCooldown)
 	{
@@ -70,4 +68,17 @@ bool UMoonGameplayAbility_Spell::CommitAbility(const FGameplayAbilitySpecHandle 
 	}
 
 	return Super::CommitAbility(Handle, ActorInfo, ActivationInfo, OptionalRelevantTags);
+}
+
+bool UMoonGameplayAbility_Spell::IsCostBypassActive(const FGameplayAbilityActorInfo* ActorInfo) const
+{
+	if (!CostBypassTag.IsValid() || !ActorInfo || !ActorInfo->AbilitySystemComponent.IsValid())
+	{
+		return false;
+	}
+
+	const AMoonCharacterBase* MoonCharacter = Cast<AMoonCharacterBase>(ActorInfo->AvatarActor.Get());
+	return MoonCharacter
+		&& MoonCharacter->IsOverdriveActive()
+		&& ActorInfo->AbilitySystemComponent->HasMatchingGameplayTag(CostBypassTag);
 }

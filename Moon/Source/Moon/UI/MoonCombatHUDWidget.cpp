@@ -10,6 +10,7 @@ void UMoonCombatHUDWidget::BindToPlayer(APawn* PlayerPawn)
 	AMoonCharacterBase* Character = Cast<AMoonCharacterBase>(PlayerPawn);
 	if (!Character) return;
 
+	BoundCharacter = Character;
 	BoundASC = Cast<UMoonAbilitySystemComponent>(Character->GetAbilitySystemComponent());
 	BoundAttributeSet = Character->GetAttributeSet();
 
@@ -30,6 +31,15 @@ void UMoonCombatHUDWidget::BindToPlayer(APawn* PlayerPawn)
 
 		TargetTension = BoundAttributeSet->GetTensionGauge();
 		DisplayedTension = TargetTension;
+
+		Character->OnOverdriveStarted.RemoveDynamic(this, &UMoonCombatHUDWidget::HandleOverdriveStarted);
+		Character->OnOverdriveEnded.RemoveDynamic(this, &UMoonCombatHUDWidget::HandleOverdriveEnded);
+		Character->OnOverdriveStarted.AddDynamic(this, &UMoonCombatHUDWidget::HandleOverdriveStarted);
+		Character->OnOverdriveEnded.AddDynamic(this, &UMoonCombatHUDWidget::HandleOverdriveEnded);
+
+		bOverdriveActive = Character->IsOverdriveActive();
+		OnOverdriveStateChanged(bOverdriveActive);
+		OnOverdriveTimeChanged(Character->GetOverdriveTimeRemaining());
 	}
 }
 
@@ -57,6 +67,11 @@ void UMoonCombatHUDWidget::NativeTick(const FGeometry& MyGeometry, float InDelta
 
 			OnTensionStateChanged(bIsBuilding, bIsDecaying, bIsCharged, DisplayedTension);
 		}
+	}
+
+	if (bOverdriveActive && BoundCharacter.IsValid())
+	{
+		OnOverdriveTimeChanged(BoundCharacter->GetOverdriveTimeRemaining());
 	}
 }
 
@@ -90,4 +105,18 @@ void UMoonCombatHUDWidget::HandleDashChargesChanged(const FOnAttributeChangeData
 void UMoonCombatHUDWidget::HandleTensionChanged(const FOnAttributeChangeData& Data)
 {
 	TargetTension = Data.NewValue;
+}
+
+void UMoonCombatHUDWidget::HandleOverdriveStarted()
+{
+	bOverdriveActive = true;
+	OnOverdriveStateChanged(true);
+	OnOverdriveTimeChanged(BoundCharacter.IsValid() ? BoundCharacter->GetOverdriveTimeRemaining() : 0.0f);
+}
+
+void UMoonCombatHUDWidget::HandleOverdriveEnded(EMoonOverdriveEndReason Reason)
+{
+	bOverdriveActive = false;
+	OnOverdriveTimeChanged(0.0f);
+	OnOverdriveStateChanged(false);
 }

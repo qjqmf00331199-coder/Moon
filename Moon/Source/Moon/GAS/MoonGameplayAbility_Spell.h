@@ -23,6 +23,8 @@ public:
 	virtual bool CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, OUT FGameplayTagContainer* OptionalRelevantTags = nullptr) override;
 
 protected:
+	bool IsCostBypassActive(const FGameplayAbilityActorInfo* ActorInfo) const;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Moon|Spell")
 	FGameplayTag CostBypassTag;
 };

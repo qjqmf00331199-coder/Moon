@@ -5,6 +5,7 @@
 #include "AbilitySystemInterface.h"
 #include "InputActionValue.h"
 #include "GameplayTagContainer.h"
+#include "../GAS/MoonOverdriveState.h"
 #include "MoonCharacterBase.generated.h"
 
 class UMoonAbilitySystemComponent;
@@ -15,6 +16,9 @@ class UInputMappingContext;
 class UInputAction;
 class USpringArmComponent;
 class UCameraComponent;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMoonOverdriveStartedSignature);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMoonOverdriveEndedSignature, EMoonOverdriveEndReason, Reason);
 
 UCLASS()
 class MOON_API AMoonCharacterBase : public ACharacter, public IAbilitySystemInterface
@@ -49,6 +53,7 @@ protected:
 	void Input_SpellBlackhole(const FInputActionValue& Value);
 	void Input_SpellFire(const FInputActionValue& Value);
 	void Input_SpellLightning(const FInputActionValue& Value);
+	void Input_Execute(const FInputActionValue& Value);
 
 	/** Jump Input (thin logging wrapper around ACharacter::Jump/StopJumping) */
 	void Input_Jump();
@@ -78,8 +83,30 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Moon|Tension")
 	void ApplyTensionDamagePenalty();
 
-	UFUNCTION(BlueprintImplementableEvent, Category = "Moon|Tension")
+	UFUNCTION(BlueprintImplementableEvent, Category = "Moon|Tension", meta = (DeprecatedFunction, DeprecationMessage = "Use TriggerOverdrive and OnOverdriveStarted instead."))
 	void OnOverdriveTriggered();
+
+	// Luna Overdrive fixed-window state. Trigger calls received during Active or Recovery are ignored.
+	UFUNCTION(BlueprintCallable, Category = "Moon|Overdrive")
+	bool TriggerOverdrive();
+
+	UFUNCTION(BlueprintCallable, Category = "Moon|Overdrive")
+	void ForceEndOverdrive(EMoonOverdriveEndReason Reason);
+
+	UFUNCTION(BlueprintPure, Category = "Moon|Overdrive")
+	bool IsOverdriveActive() const;
+
+	UFUNCTION(BlueprintPure, Category = "Moon|Overdrive")
+	bool IsTensionGainLocked() const;
+
+	UFUNCTION(BlueprintPure, Category = "Moon|Overdrive")
+	float GetOverdriveTimeRemaining() const;
+
+	UPROPERTY(BlueprintAssignable, Category = "Moon|Overdrive")
+	FMoonOverdriveStartedSignature OnOverdriveStarted;
+
+	UPROPERTY(BlueprintAssignable, Category = "Moon|Overdrive")
+	FMoonOverdriveEndedSignature OnOverdriveEnded;
 
 	// Plays a one-shot animation on the mesh (e.g. Dash/spell cast), suppressing the idle/jog
 	// locomotion swap in Tick until it finishes. Used by abilities that don't have their own
@@ -132,8 +159,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Moon|Tension|Tuning")
 	float DamagePenaltyPercent = 0.20f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Moon|Tension|Tuning")
-	float OverdriveTensionGainMultiplier = 0.4f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Moon|Signature Chain|Spike", meta = (ClampMin = "100.0"))
+	float ExecutionRange = 350.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Moon|Overdrive|Tuning", meta = (ClampMin = "6.0", ClampMax = "15.0"))
+	float OverdriveDuration = 10.0f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Moon|Overdrive|Tuning", meta = (ClampMin = "1.0", ClampMax = "2.0"))
+	float OverdriveRecoveryDuration = 1.5f;
 
 public:
 	// Enhanced Input
@@ -206,6 +239,7 @@ private:
 
 	// Tension State
 	float LastTensionGainTime = 0.0f;
+	FMoonOverdriveState OverdriveState;
 
 	// Locomotion State
 	bool bIsPlayingJogAnim = false;
@@ -223,4 +257,5 @@ private:
 	void OnJumpRecoveryAnimFinished();
 	void OnOneShotAnimFinished();
 	void EndHitStop();
+	void UpdateOverdriveState(double CurrentTime);
 };

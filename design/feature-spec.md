@@ -159,7 +159,7 @@
 | 감쇠(Decay) | 획득 없음 3초 경과 | 감쇠 시작 | TensionDecayGracePeriod 3.0s, Rate 10/s |
 | 피격 페널티 | `OnDamageApplied` | 유효데미지 시 텐션 비례감소 | `Tension×(1-0.20)` |
 | 오버드라이브 트리거 | Max 도달 | `OnOverdriveTriggered` 1회 발행 + 즉시 0 리셋 | — |
-| 오버드라이브 중 획득 감쇠 (Rule 7) | Overdrive Active 중 스펠명중 | 리프레시 체인 억제 | `OverdriveTensionGainMultiplier` 0.4 (2026-07-18 재리뷰로 1.0→0.4 변경) |
+| 오버드라이브/Recovery 중 획득 잠금 (Rule 7) | Overdrive Active 또는 종료 후 1.5초 | 모든 텐션 획득 0, 재발동 차단 | `OverdriveRecoveryDuration` 1.5초 |
 
 **공식 예시**: Blackhole명중(70×1.0=70)→+Fire(25)=95.
 
@@ -177,11 +177,12 @@
 | 발동 효과 | Active 진입 | `CostBypass.Active` 태그 부여(마나무한+쿨타임제로) | 별도 데미지/이속 배율 없음 |
 | 지속시간 타이머 | Active 진입 | `OverdriveEndTime=CurrentTime+Duration` | OverdriveDuration 기본 10.0s |
 | 종료(태그해제) | 시간경과 | lazy 시간비교로 판정 순서 무관 동일결과 | — |
-| Active 중 재트리거=리프레시 | Active 중 재도달 | 타이머만 Duration 풀로 리셋, 상한 없음(체인 허용) | — |
+| Active/Recovery 중 재트리거 무시 | Active 또는 종료 후 1.5초 | EndTime/태그 불변, 고정 10초 창 보장 | — |
+| Active 중 Mana Regen 정지 | 각성 지속 중 | 진입 Mana 보존, 무료 캐스트 후 자동 만충 방지 | — |
 | 플레이어 사망 시 강제종료 | 플레이어 Death | 타이머취소+태그즉시해제 | `OnOverdriveEnded(PlayerDeath)` |
 | 상태 이벤트 노출 | — | HUD/연출 소비용 | `OnOverdriveStarted/Ended`, `OverdriveTimeRemaining` |
 
-**⚠ 알려진 설계 리스크**: TensionGainCoefficient가 안전상한(1.5)이면 Blackhole 1발(105)로 매캐스트 리프레시 가능 — Duration 자체가 무의미해질 위험. 억제 레버(`OverdriveTensionGainMultiplier`)는 Combo/Tension Gauge 문서가 소유, 이 문서는 상한을 규정하지 않음 — **연동 확인 필요**.
+**2026-07-21 안전 MVP 결정**: Overdrive는 고정 10초이며 Active/Recovery 중 텐션 획득과 재트리거를 차단한다. Mana Regen은 Active 동안 정지하고 Recovery부터 재개한다. 숙련 보상형 연장은 시그니처 연쇄 스파이크 이후 별도 리비전으로만 검토한다.
 
 **Edge Cases 요지**: 마나고갈로 인한 조기종료 경로 없음, 트리거+사망 동프레임 시 Death 우선.
 
@@ -256,7 +257,7 @@
 **핵심만 요약**:
 - Foundation(무의존): Player Movement, Health/Damage Core, Destructible Geometry(미설계)
 - 순환 의존 없음(검증됨, systems-index.md 참조)
-- 알려진 설계 충돌 리스크 2건: (1) Core Extraction Execution ↔ Enemy Elite Shield의 처형 트리거 조건 중복 — Core Extraction Execution GDD가 단일 소유 예정. (2) Luna Overdrive의 리프레시 체인 상한을 Combo/Tension Gauge가 소유하나 두 문서 간 연동이 아직 교차검증되지 않음(본 문서 §3.8 참조).
+- 알려진 설계 충돌 리스크 1건: Core Extraction Execution ↔ Enemy Elite Shield의 처형 트리거 조건 중복 — Core Extraction Execution GDD가 단일 소유 예정. Luna Overdrive 리프레시 체인은 2026-07-21 고정 창 규칙으로 해소됨.
 
 ---
 

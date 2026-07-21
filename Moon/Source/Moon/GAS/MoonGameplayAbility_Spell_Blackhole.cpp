@@ -5,6 +5,7 @@
 #include "Effects/GE_SpellCooldown_Blackhole.h"
 #include "Effects/GE_Damage_Instant.h"
 #include "../Character/MoonCharacterBase.h"
+#include "../Character/TargetDummy.h"
 #include "Engine/World.h"
 #include "CollisionQueryParams.h"
 #include "CollisionShape.h"
@@ -64,20 +65,31 @@ void UMoonGameplayAbility_Spell_Blackhole::ActivateAbility(const FGameplayAbilit
 
 	FCollisionQueryParams QueryParams(FName(TEXT("BlackholeSpellTrace")), false, AvatarActor);
 
-	FHitResult HitResult;
-	const bool bHit = AvatarActor->GetWorld()->SweepSingleByChannel(
-		HitResult,
+	TArray<FHitResult> HitResults;
+	AvatarActor->GetWorld()->SweepMultiByObjectType(
+		HitResults,
 		TraceStart,
 		TraceEnd,
 		FQuat::Identity,
-		ECC_Pawn,
+		FCollisionObjectQueryParams(ECC_Pawn),
 		FCollisionShape::MakeSphere(TraceRadius),
 		QueryParams
 	);
 
-	if (bHit && HitResult.GetActor())
+	AActor* HitActor = nullptr;
+	for (const FHitResult& HitResult : HitResults)
 	{
-		if (IAbilitySystemInterface* TargetASI = Cast<IAbilitySystemInterface>(HitResult.GetActor()))
+		AActor* Candidate = HitResult.GetActor();
+		if (Candidate && Cast<IAbilitySystemInterface>(Candidate))
+		{
+			HitActor = Candidate;
+			break;
+		}
+	}
+
+	if (HitActor)
+	{
+		if (IAbilitySystemInterface* TargetASI = Cast<IAbilitySystemInterface>(HitActor))
 		{
 			if (UAbilitySystemComponent* TargetASC = TargetASI->GetAbilitySystemComponent())
 			{
@@ -96,8 +108,17 @@ void UMoonGameplayAbility_Spell_Blackhole::ActivateAbility(const FGameplayAbilit
 				{
 					MoonCharacter->AddTensionFromSpellHit(ManaCostForTension);
 				}
+
+				if (ATargetDummy* Dummy = Cast<ATargetDummy>(HitActor))
+				{
+					Dummy->ApplyBlackholeSetup();
+				}
 			}
 		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Display, TEXT("[MoonSignatureChain] Blackhole found no GAS target"));
 	}
 
 	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);

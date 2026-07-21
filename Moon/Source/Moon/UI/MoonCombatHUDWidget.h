@@ -2,10 +2,12 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "../GAS/MoonOverdriveState.h"
 #include "MoonCombatHUDWidget.generated.h"
 
 class UMoonAbilitySystemComponent;
 class UMoonAttributeSet;
+class AMoonCharacterBase;
 
 /**
  * Combat HUD base class. 
@@ -51,6 +53,9 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "Moon|HUD|Overdrive")
 	void OnOverdriveStateChanged(bool bIsActive);
 
+	UFUNCTION(BlueprintImplementableEvent, Category = "Moon|HUD|Overdrive")
+	void OnOverdriveTimeChanged(float TimeRemaining);
+
 	// W7: Execution Prompt
 	UFUNCTION(BlueprintImplementableEvent, Category = "Moon|HUD|Execution")
 	void OnExecutionPromptChanged(bool bIsVisible);
@@ -58,6 +63,7 @@ protected:
 	// The player's attribute set
 	TWeakObjectPtr<UMoonAttributeSet> BoundAttributeSet;
 	TWeakObjectPtr<UMoonAbilitySystemComponent> BoundASC;
+	TWeakObjectPtr<AMoonCharacterBase> BoundCharacter;
 
 	// Tuning Knobs
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Moon|HUD|Tuning")
@@ -81,4 +87,10 @@ private:
 	void HandleManaChanged(const struct FOnAttributeChangeData& Data);
 	void HandleDashChargesChanged(const struct FOnAttributeChangeData& Data);
 	void HandleTensionChanged(const struct FOnAttributeChangeData& Data);
+
+	UFUNCTION()
+	void HandleOverdriveStarted();
+
+	UFUNCTION()
+	void HandleOverdriveEnded(EMoonOverdriveEndReason Reason);
 };

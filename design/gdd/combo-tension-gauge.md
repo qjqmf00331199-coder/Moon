@@ -1,8 +1,8 @@
 # Combo/Tension Gauge
 
-> **Status**: Approved (2026-07-20 Antigravity design-review: PASS — no blocking items; 4 non-blocking warnings noted in review log)
+> **Status**: Needs Revision Review (2026-07-21 fixed-window Overdrive sync)
 > **Author**: user + game-designer (solo design mode) + 2026-07-20 Antigravity full design-review
-> **Last Updated**: 2026-07-20
+> **Last Updated**: 2026-07-21
 > **Implements Pillar**: Dopamine Driven Design — 텐션 곡선의 상승 구간(콤보 누적 → 오버드라이브 폭발점 트리거)
 
 ## Overview
@@ -29,8 +29,8 @@ Combo/Tension Gauge는 전투 중 플레이어의 공격적 행동(스펠 명중
 3. **감쇠(Decay)** — 마지막 획득 이벤트로부터 `TensionDecayGracePeriod`초 경과 시, 이후 `TensionDecayRatePerSec`으로 지속 감소. 대쉬 무적(`State.Invulnerable`) 중에도 감쇠 타이머는 예외 없이 계속 돈다.
 4. **피격 페널티** — Health/Damage Core가 플레이어에게 데미지를 적용하는 이벤트(`OnDamageApplied`, 상류 문서가 "추후" 노출 예정으로 명시한 인터페이스)를 구독, 유효 데미지 1 이상 발생 시 게이지를 즉시 `DamagePenaltyPercent`만큼 비례 감소(가산 아님) — 감쇠와 별도로 즉시 적용.
 5. **오버드라이브 트리거** — 게이지가 `TensionGaugeMax`에 도달하는 프레임에 `OnOverdriveTriggered` 이벤트를 1회 발행(Luna Overdrive 소비)하고, 같은 프레임에 게이지를 0으로 즉시 리셋한다.
-6. **재진입 방지** — 게이지 0인 상태에서 리셋 직후 프레임에 대량 동시 획득 이벤트(예: 다수의 State.Executable 동시 부여)가 들어와도, 리셋 프레임 내 재차 Max 도달·재발동은 허용(연속 오버드라이브 자체는 막지 않음 — 다만 동일 프레임 중복 발행은 방지, Health/Damage Core의 `OnDeath` 1회 발행 패턴과 동일 원칙 적용).
-7. **오버드라이브 중 획득 감쇠 레버** (2026-07-17 luna-overdrive.md design-review에서 추가 — blocking 안전장치) — 오버드라이브 활성 중(Luna Overdrive Active, `CostBypass.Active` 태그로 판별)에는 **모든** 텐션 획득(스펠 명중 + 저스트회피 보너스)에 `OverdriveTensionGainMultiplier`(Tuning Knob, 기본 1.0)를 곱한다. 기본값 1.0은 기존 동작 그대로(계약 변경 없음)이며, 이 노브는 리프레시 체인(무료 난사로 각성 중 게이지 재충전 → 사실상 상시 각성 — 특히 `TensionGainCoefficient`가 Safe Range 상한 1.5면 Blackhole 1발=105로 매 캐스트 리프레시)이 플레이테스트에서 필라("급격한 하락")를 붕괴시키는 것으로 확인될 때 낮추는 감쇠 레버다. 억제 책임이 게이지(획득) 소유자인 이 문서에 있다는 luna-overdrive.md 리뷰 판정에 따른 것.
+6. **동일 프레임 중복 발행 방지** — Max 도달 프레임에는 `OnOverdriveTriggered`를 정확히 1회만 발행한다. 리셋 이후 추가 이벤트가 같은 프레임에 들어와도 두 번째 발동은 금지한다.
+7. **Active/Recovery 중 획득 잠금** — Luna Overdrive가 Active이거나 만료 후 Recovery(`OverdriveRecoveryDuration`, 기본 1.5초)인 동안 모든 텐션 획득원(스펠 명중, Executable 부여)을 0으로 처리한다. 부분 배율은 사용하지 않는다. `CostBypass.Active` 태그만 읽지 않고 Luna Overdrive의 시간 상태를 조회해 만료 프레임의 지연된 태그 제거에도 결정론적으로 대응한다.
 
 ### States and Transitions
 
@@ -52,15 +52,14 @@ Combo/Tension Gauge는 전투 중 플레이어의 공격적 행동(스펠 명중
 
 ### Tension Gain (Spell Hit)
 
-`TensionGain = ManaCost[Element] × TensionGainCoefficient × (OverdriveActive ? OverdriveTensionGainMultiplier : 1)`
+`TensionGain = TensionGainLocked ? 0 : ManaCost[Element] × TensionGainCoefficient`
 
 **Variables:**
 | Variable | Symbol | Type | Range | Description |
 |----------|--------|------|-------|-------------|
 | ManaCost[Element] | — | float | Blackhole=70, Fire=25, Lightning=25 (spell-casting-base.md 소유값 그대로 재사용) | 명중한 스펠의 속성별 마나비용 |
 | TensionGainCoefficient | — | float | 0.5–1.5 (기본 1.0) | 마나비용 대비 텐션 환산 계수 |
-| OverdriveActive | — | bool | `CostBypass.Active` 태그 존재 여부 | Core Rule 7 — 오버드라이브 중 획득 감쇠 게이트 |
-| OverdriveTensionGainMultiplier | — | float | 0.0–1.0 (기본 0.4) | 오버드라이브 중 전 획득원 감쇠 계수 (Core Rule 7, 저스트회피 보너스에도 동일 적용) |
+| TensionGainLocked | — | bool | Luna Overdrive Active 또는 Recovery | Core Rule 7 — 획득 완전 차단 게이트 |
 
 **Output Range**: Blackhole 명중 시 70, Fire/Lightning 명중 시 25 (계수 1.0 기준). Max 게이지(100) 대비 Blackhole 1회로 70% 충전.
 **Example**: Blackhole 명중 → TensionGain=70×1.0=70. 이어서 Fire 위빙 명중 → +25 → 95, 오버드라이브 근접.
@@ -79,7 +78,7 @@ Combo/Tension Gauge는 전투 중 플레이어의 공격적 행동(스펠 명중
 
 ### Just-Dodge Bonus
 
-`TensionGain(JustDodge) = JustDodgeTensionBonus × (OverdriveActive ? OverdriveTensionGainMultiplier : 1)`
+`TensionGain(JustDodge) = TensionGainLocked ? 0 : JustDodgeTensionBonus`
 
 **Variables:**
 | Variable | Symbol | Type | Range | Description |
@@ -117,7 +116,7 @@ Combo/Tension Gauge는 전투 중 플레이어의 공격적 행동(스펠 명중
 ## Edge Cases
 
 - **If Blackhole 명중 + 같은 프레임 Fire 위빙 명중이 겹쳐 Tension이 정확히 Max를 초과**: clamp로 100에서 상한, 초과분은 버림(이월 없음) — New Tension 공식의 clamp가 그대로 처리.
-- **If 오버드라이브 지속 중(마나 무한/쿨다운 제로) 추가 스펠 명중 발생**: Tension은 이미 0(리셋됨)이므로 재누적 시작하되 `OverdriveTensionGainMultiplier` 감쇠 적용(Core Rule 7, 기본 0.4) — 오버드라이브 중 재차 Max 도달 시 재발동(리프레시) 허용(Core Rule 6, luna-overdrive.md Core Rule 5가 리프레시 의미 소유). **주의(2026-07-18 luna-overdrive.md 재리뷰 반영)**: 이 계수는 선형 다이얼이 아니라 사실상 급경사 스위치에 가깝다 — MaxCastsPerSecond=20(spell-casting-base.md Rule 11) 상한 하에서 밀집 전투 시 0보다 큰 어떤 값도 ~1초 내 재차 Max 도달을 허용한다(0.4 기준: Blackhole 1회=70×0.4=28, 약 4회 명중으로 100 도달). 완전 차단은 0.0뿐 — 중간값 튜닝으로 "가끔 재충전"을 노리는 플레이테스트는 이 비선형성을 감안할 것.
+- **If Overdrive Active/Recovery 중 추가 스펠 명중 또는 Executable 부여 발생**: 이벤트는 수신하되 획득량을 0으로 처리하고 `LastTensionGainTime`도 갱신하지 않는다. 멀티타깃 이벤트 수와 무관하게 게이지는 0을 유지한다.
 - **If 저스트회피 성공과 동시에 플레이어가 피격 판정(다른 적에게)**: Just-Dodge 보너스(+20)와 피격 페널티(×0.8)가 같은 프레임에 겹치면, 획득(가산) 먼저 적용 후 피격(비례감소) 나중 적용 — 순서: Gain → Penalty → Decay 평가. (가산 후 비례감소가 플레이어에게 항상 불리하지 않도록 페널티를 마지막에 적용해 "회피 성공의 보상이 무의미해지지 않게" 보장.)
 - **If TensionDecayGracePeriod 도중 새 획득 이벤트 발생**: 감쇠 타이머 완전 리셋(잔여 유예시간 소멸, 처음부터 재시작) — 잦은 소량 획득만으로도 감쇠를 영구 회피 가능(의도된 이지어세스 방지책은 Tuning Knobs에서 다룸).
 - **If 플레이어 사망(Health/Damage Core Death 상태)**: Tension은 즉시 0으로 강제 리셋 — 재시작 후 이전 게이지 이월 없음(Health/Damage Core Rule 6, "즉시 재시작"과 일관).
@@ -127,7 +126,7 @@ Combo/Tension Gauge는 전투 중 플레이어의 공격적 행동(스펠 명중
 
 | System | Direction | Interface |
 |---|---|---|
-| Spell Casting (base) | 상류 (하드) | `OnSpellHit(Element, Target)` 구독 — ManaCost[Element] 값 재사용. `CostBypass.Active` 태그 읽기(Core Rule 7 오버드라이브 감쇠 게이트 — 2026-07-17 추가) |
+| Spell Casting (base) | 상류 (하드) | `OnSpellHit(Element, Target)` 구독 — ManaCost[Element] 값 재사용 |
 | Health/Damage Core | 상류 (하드) | `OnTagAdded(State.Executable)` 구독(Just-Dodge 간접 감지), `OnDamageApplied`(플레이어向) 구독(피격 페널티), 플레이어 Death 상태 구독(즉시 리셋) |
 | Dash/Evasion | 상류 (소프트, 간접) | 직접 이벤트 없음 — Health/Damage Core의 `State.Executable` 태그 경유로만 연결 |
 | Luna Overdrive | 하류 (하드) | `OnOverdriveTriggered` 이벤트 발행 — 소비측이 각성 로직 소유 |
@@ -143,7 +142,6 @@ Combo/Tension Gauge는 전투 중 플레이어의 공격적 행동(스펠 명중
 | TensionDecayGracePeriod | 3.0초 | 2.0–4.0초 | 사실상 감쇠 없음(항상 유예 중) → 방치 플레이 허용 | 공격 텀만 살짝 벌어져도 즉시 감쇠 시작 → 답답함 |
 | TensionDecayRatePerSec | 10 | 5–15 | 잠깐 쉬면 게이지 증발 → 좌절감 | 감쇠 사실상 무의미 → 방치해도 유지됨 |
 | DamagePenaltyPercent | 0.20 | 0.10–0.30 | 피격 한 번에 게이지 거의 증발 → 과응징 | 피격해도 손해 없음 → 리스크-리턴 설계 의미 상실 |
-| OverdriveTensionGainMultiplier | 0.4 (2026-07-18 luna-overdrive.md 재리뷰 반영 — 기본 1.0은 리프레시 체인이 사실상 항상 성립해 "급격한 하락" 필라 절반을 붕괴시킴, 감쇠 있는 기본값으로 변경) | 0.0–1.0, **단 선형 다이얼 아님(비선형/급경사)** — 0보다 큰 값은 전부 밀집 전투에서 수 초 내 재충전을 허용, 0.0만이 체인을 확실히 차단 | (상한 1.0 고정 — 1 초과 금지: 각성 중 가속 획득은 체인 폭주) | 0.0이면 오버드라이브 중 게이지 완전 동결 → 리프레시 체인 원천 차단, 대신 "각성 중에도 쌓는 재미" 소멸 — 정확한 값은 플레이테스트로 결정 (2026-07-17/07-18 luna-overdrive.md 리뷰 반영) |
 
 **교차 제약**: `TensionGaugeMax`를 올리면 `TensionGainCoefficient`도 같이 올리지 않는 한 오버드라이브 도달 시간이 늘어짐 — 이 둘은 항상 같이 재조정할 것 (High-Risk 표의 "Combo/Tension Gauge → Luna Overdrive" 리스크와 동일 계열, 플레이테스트로 검증 필요).
 
@@ -177,7 +175,7 @@ Combo/Tension Gauge는 전투 중 플레이어의 공격적 행동(스펠 명중
 7. **GIVEN** TensionGauge=0, **WHEN** 플레이어가 유효 데미지 수신, **THEN** TensionGauge는 0 유지(음수 없음).
 8. **GIVEN** 플레이어 Death 상태 진입, **WHEN** 재시작, **THEN** TensionGauge=0으로 강제 리셋, 이전 값 이월 없음.
 9. **GIVEN** 저스트회피 성공과 동일 프레임에 다른 적으로부터 피격, **WHEN** 두 이벤트 처리, **THEN** Gain(+20) 먼저 적용 후 Penalty(×0.8) 적용 순서 준수(Edge Cases 순서 계약과 일치).
-10. **GIVEN** 오버드라이브 활성 중(`CostBypass.Active` 태그 존재), TensionGauge=0, **WHEN** Blackhole 스펠이 적에게 명중, **THEN** TensionGain=70×0.4=28 (OverdriveTensionGainMultiplier=0.4 기본값 적용 — Core Rule 7, Formulas 공식 준수). 계수 미적용 시 70이 아님을 확인. *(Logic/unit — OverdriveTensionGainMultiplier 적용 회로 단독 검증)*
+10. **GIVEN** Overdrive Active 또는 Recovery, TensionGauge=0, **WHEN** Blackhole이 4개 대상에 명중해 획득 이벤트 4회가 발생, **THEN** 모든 획득량=0, TensionGauge=0, `LastTensionGainTime` 불변. *(Logic/unit)*
 
 ## Open Questions
 
