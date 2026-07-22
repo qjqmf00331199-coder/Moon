@@ -633,20 +633,20 @@ constants:
     revised: ""
 
   - name: overdrive_tension_gain_multiplier
-    status: active
+    status: deprecated
     source: design/gdd/combo-tension-gauge.md
-    referenced_by:
-      - design/gdd/combo-tension-gauge.md
-      - design/gdd/luna-overdrive.md
+    referenced_by: []
     value: 0.4
     unit: multiplier
     added: 2026-07-17
-    revised: "2026-07-20"
+    revised: "2026-07-21"
     # Added during luna-overdrive.md's 2026-07-17 design-review as the official
     # refresh-chain damper (gauge-side lever, Core Rule 7 in combo-tension-gauge.md).
     # Default changed 1.0 → 0.4 in luna-overdrive.md 2026-07-18 re-review (same session):
     # 1.0 = no damping caused the "sharp drop" pillar to collapse in most dense-pack scenarios.
-    # 0.4 is the new starting point for playtest; Safe Range 0.0-1.0 (non-linear, see GDD).
+    # Deprecated 2026-07-21: 2026-07-21 fixed-window Overdrive sync replaced the partial
+    # damper with a full lock (TensionGainLocked bool, combo-tension-gauge.md Core Rule 7) —
+    # neither GDD references this multiplier anymore. Kept for history per registry convention.
     # Registry was not updated at that time — synced 2026-07-20 Antigravity review.
 
   - name: overdrive_duration
@@ -661,6 +661,21 @@ constants:
     revised: ""
     # game-concept.md states 10s explicitly; exposed as a Tuning Knob with the
     # concept value as default (luna-overdrive.md Tuning Knobs, Safe Range 6.0-15.0).
+
+  - name: overdrive_recovery_duration
+    status: active
+    source: design/gdd/luna-overdrive.md
+    referenced_by:
+      - design/gdd/luna-overdrive.md
+      - design/gdd/combo-tension-gauge.md
+    value: 1.5
+    unit: seconds
+    added: 2026-07-23
+    revised: ""
+    # Post-expiry window (Recovery state) where tension gain stays locked but
+    # mana regen/cost/cooldown/movement/dash all normalize immediately. Introduced
+    # in the 2026-07-21 fixed-window Overdrive sync; never registered until this
+    # re-review caught the gap. Safe Range 1.0-2.0s (luna-overdrive.md Tuning Knobs).
 
   - name: tension_charged_highlight_threshold
     status: active

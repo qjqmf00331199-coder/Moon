@@ -46,3 +46,22 @@ W5 (stale BLOCKING wording in Dependencies table) is addressed inline in the GDD
 markers — acceptable per project convention. No GDD content changes required.
 Prior verdict resolved: N/A (sync pass only)
 
+## Review — 2026-07-23 — Verdict: NEEDS REVISION → APPROVED (same session)
+Scope signal: L
+Specialists: (lean review — solo pass, project default)
+Blocking items: 1 (resolved this session) | Recommended: 1 (deferred, non-blocking)
+Summary: 2026-07-21 fixed-window Overdrive sync (full lock replacing the multiplier damper, Rule 9
+mana-regen pause during Active) cross-checked against spell-casting-base.md's independent Rule
+7/10 sync and ADR-0004 (Proposed) — all three agree on the same behavior, no contradiction found.
+Rule 4's lazy CurrentTime-vs-OverdriveEndTime comparison, delivered into Spell Casting's two gate
+points, matches spell-casting-base.md Core Rule 10's description of the same joint predicate.
+
+Blocking item found and fixed:
+1. `OverdriveRecoveryDuration` (1.5s, Safe Range 1.0-2.0s) — the Tuning Knob central to this exact
+   rewrite (the Recovery state / tension-lock window, consumed by AC11) — had no entry anywhere in
+   entities.yaml. Registered as `overdrive_recovery_duration`.
+
+Deferred (non-blocking): Dependencies table + Interactions section still label Combat HUD
+"(미설계)" — combat-hud.md has been Approved since 2026-07-20. Cosmetic only.
+Prior verdict resolved: Yes — status updated from "Needs Revision Review" to "Approved"
+

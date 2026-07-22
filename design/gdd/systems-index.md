@@ -26,12 +26,12 @@
 | 3 | Health/Damage Core (inferred) | Core | MVP | Approved | design/gdd/health-damage-core.md | — |
 | 4 | Enemy AI (base) (inferred) | Gameplay | MVP | Approved | design/gdd/enemy-ai-base.md | Health/Damage Core |
 | 5 | Destructible Geometry (inferred) | Core | Vertical Slice | Not Started | — | — |
-| 6 | Spell Casting (base) (inferred) | Gameplay | MVP | Needs Revision Review | design/gdd/spell-casting-base.md | Player Movement, Health/Damage Core |
+| 6 | Spell Casting (base) (inferred) | Gameplay | MVP | Approved | design/gdd/spell-casting-base.md | Player Movement, Health/Damage Core |
 | 7 | Dash/Evasion | Gameplay | MVP | Approved | design/gdd/dash-evasion.md | Player Movement, Camera System (base), Health/Damage Core, Enemy AI (base) |
 | 8 | Status Effect (inferred) | Gameplay | Vertical Slice | Not Started | — | Health/Damage Core |
-| 9 | Combo/Tension Gauge | Gameplay | MVP | Needs Revision Review | design/gdd/combo-tension-gauge.md | Spell Casting (base), Health/Damage Core, Dash/Evasion |
+| 9 | Combo/Tension Gauge | Gameplay | MVP | Approved | design/gdd/combo-tension-gauge.md | Spell Casting (base), Health/Damage Core, Dash/Evasion |
 | 10 | Spell Weaving / Synergy | Gameplay | Vertical Slice | Not Started | — | Spell Casting (base), Status Effect |
-| 11 | Luna Overdrive (Blood Moon) | Gameplay | MVP | Needs Revision Review | design/gdd/luna-overdrive.md | Combo/Tension Gauge, Spell Casting (base), Health/Damage Core (soft — added 2026-07-17 during luna-overdrive.md authoring: player Death subscription for forced overdrive end) |
+| 11 | Luna Overdrive (Blood Moon) | Gameplay | MVP | Approved | design/gdd/luna-overdrive.md | Combo/Tension Gauge, Spell Casting (base), Health/Damage Core (soft — added 2026-07-17 during luna-overdrive.md authoring: player Death subscription for forced overdrive end) |
 | 12 | Core Extraction Execution | Gameplay | Vertical Slice | Not Started | — | Dash/Evasion, Enemy AI (base), Health/Damage Core |
 | 13 | Enemy Elite Shield (inferred) | Gameplay | Alpha | Not Started | — | Enemy AI (base), Health/Damage Core |
 | 14 | Super Armor / CC Interrupt (inferred) | Gameplay | Alpha | Not Started | — | Status Effect, Enemy AI (base), Health/Damage Core |

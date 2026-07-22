@@ -25,3 +25,19 @@ Prior verdict resolved: First review
 - InsufficientMana 실패 피드백 톤 (거부 UX 우려)
 - 캐스트 조준 방식 / 게임패드 매핑 (기존 Open Questions 유지)
 - UE5.8 GAS 초기화 헤더 대조 (구현 착수 전 필수)
+
+## Review — 2026-07-23 — Verdict: APPROVED
+Scope signal: M
+Specialists: (lean review — solo pass, project default)
+Blocking items: 0 | Recommended: 1 (fixed this session)
+Summary: 2026-07-21 sync (Rule 7 mana-regen pause during Overdrive Active, Rule 10 lazy
+CurrentTime-vs-OverdriveEndTime check) cross-checked against luna-overdrive.md's independent Rule
+9/4 — both sides agree on the same behavior and hand-off contract (Luna Overdrive delivers the
+time predicate into this doc's two gate points). Full registry sweep of every Tuning Knob
+(max_mana, mana_cost_fire/lightning, cooldown_blackhole/fire/lightning, mana_regen_rate,
+max_casts_per_second, spell_noise_loudness) found zero drift — all match entities.yaml exactly.
+
+Recommended item fixed in-session: Combat HUD was consuming 3 declared UI interfaces (Mana/MaxMana,
+per-element cooldown state, CostBypass.Active) but was never listed in the Dependencies table —
+added as a formal row + one Interactions-section line.
+Prior verdict resolved: Yes — status updated from "Needs Revision Review" to "Approved"

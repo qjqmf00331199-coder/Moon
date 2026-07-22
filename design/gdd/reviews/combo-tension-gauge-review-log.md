@@ -37,3 +37,22 @@ Registry sync: overdrive_tension_gain_multiplier corrected 1.0→0.4 in entities
 (GDD had 0.4 since 2026-07-18 re-review; registry was simply not updated then).
 Prior verdict resolved: Yes — status updated from "Needs Revision" to "Approved"
 
+## Review — 2026-07-23 — Verdict: NEEDS REVISION → APPROVED (same session)
+Scope signal: S
+Specialists: (lean review — solo pass, project default)
+Blocking items: 1 (resolved this session) | Recommended: 1 (deferred, non-blocking)
+Summary: 2026-07-21 fixed-window Overdrive sync replaced the partial refresh-chain damper
+(OverdriveTensionGainMultiplier ×0.4) with a full lock (TensionGainLocked bool, Core Rule 7) —
+this rewrite is internally consistent and matches luna-overdrive.md's own sync (which explicitly
+states the multiplier lever no longer reopens gain). AC10 already validates full-zero, not 0.4x.
+
+Blocking item found and fixed:
+1. entities.yaml still carried overdrive_tension_gain_multiplier as status:active, referenced_by
+   both this GDD and luna-overdrive.md — neither doc references it anymore post-rewrite. Marked
+   status:deprecated, referenced_by cleared, per registry convention (never delete).
+
+Deferred (non-blocking): Dependencies table + Visual/Audio Requirements still label Combat HUD
+"(미설계)" — combat-hud.md has existed since 2026-07-17 and was Approved 2026-07-20. Cosmetic only,
+interface direction already correct.
+Prior verdict resolved: Yes — status updated from "Needs Revision Review" to "Approved"
+

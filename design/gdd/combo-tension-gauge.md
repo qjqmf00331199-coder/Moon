@@ -1,8 +1,8 @@
 # Combo/Tension Gauge
 
-> **Status**: Needs Revision Review (2026-07-21 fixed-window Overdrive sync)
-> **Author**: user + game-designer (solo design mode) + 2026-07-20 Antigravity full design-review
-> **Last Updated**: 2026-07-21
+> **Status**: Approved (2026-07-23 re-review: full-lock rewrite confirmed internally consistent; registry drift fixed — `overdrive_tension_gain_multiplier` deprecated)
+> **Author**: user + game-designer (solo design mode) + 2026-07-20 Antigravity full design-review + 2026-07-23 Claude Code re-review
+> **Last Updated**: 2026-07-23
 > **Implements Pillar**: Dopamine Driven Design — 텐션 곡선의 상승 구간(콤보 누적 → 오버드라이브 폭발점 트리거)
 
 ## Overview
@@ -46,7 +46,7 @@ Combo/Tension Gauge는 전투 중 플레이어의 공격적 행동(스펠 명중
 - **Health/Damage Core** (상류) — `OnTagAdded(State.Executable)` 콜백 구독(Just-Dodge 감지 우회 경로), `OnDamageApplied`(플레이어 대상) 구독(피격 페널티).
 - **Dash/Evasion** (간접 상류) — 직접 이벤트 구독 없음. `State.Executable` 태그 부여가 유일한 접점이며 Health/Damage Core의 태그 시스템을 경유해서만 감지.
 - **Luna Overdrive** (하류) — `OnOverdriveTriggered` 이벤트 구독 예상. "무엇을 각성으로 할지"는 그쪽 GDD 소유, 이 문서는 트리거 발행까지만.
-- **Combat HUD** (하류, 미설계) — 게이지 실시간 값(0~Max) 및 Building/Decaying 상태 구독 예상 (시각 피드백).
+- **Combat HUD** (하류, Approved) — 게이지 실시간 값(0~Max) 및 Building/Decaying 상태 구독 (시각 피드백).
 
 ## Formulas
 
@@ -130,7 +130,7 @@ Combo/Tension Gauge는 전투 중 플레이어의 공격적 행동(스펠 명중
 | Health/Damage Core | 상류 (하드) | `OnTagAdded(State.Executable)` 구독(Just-Dodge 간접 감지), `OnDamageApplied`(플레이어向) 구독(피격 페널티), 플레이어 Death 상태 구독(즉시 리셋) |
 | Dash/Evasion | 상류 (소프트, 간접) | 직접 이벤트 없음 — Health/Damage Core의 `State.Executable` 태그 경유로만 연결 |
 | Luna Overdrive | 하류 (하드) | `OnOverdriveTriggered` 이벤트 발행 — 소비측이 각성 로직 소유 |
-| Combat HUD (미설계) | 하류 (소프트) | 게이지 값(0~Max) + Building/Decaying 상태 read-only 구독 — 없어도 게이지 로직 자체는 정상 동작 |
+| Combat HUD | 하류 (소프트) | 게이지 값(0~Max) + Building/Decaying 상태 read-only 구독 — 없어도 게이지 로직 자체는 정상 동작 |
 
 ## Tuning Knobs
 

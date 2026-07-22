@@ -1,8 +1,8 @@
 # Luna Overdrive (Blood Moon)
 
-> **Status**: Needs Revision Review (2026-07-21 fixed-window spike rules implemented; independent design review pending)
-> **Author**: user + game-designer (solo design mode) + 2026-07-17 full design-review (game-designer, systems-designer, qa-lead, ue-gas-specialist, creative-director) + 2026-07-18 full re-review (APPROVED, lean solo pass) + 2026-07-20 Antigravity sync review
-> **Last Updated**: 2026-07-21
+> **Status**: Approved (2026-07-23 re-review: fixed-window rewrite confirmed internally consistent with spell-casting-base.md and ADR-0004; registry gap fixed — `overdrive_recovery_duration` registered)
+> **Author**: user + game-designer (solo design mode) + 2026-07-17 full design-review (game-designer, systems-designer, qa-lead, ue-gas-specialist, creative-director) + 2026-07-18 full re-review (APPROVED, lean solo pass) + 2026-07-20 Antigravity sync review + 2026-07-23 Claude Code re-review
+> **Last Updated**: 2026-07-23
 > **Implements Pillar**: Dopamine Driven Design — 텐션 곡선의 최고점(각성 발동 → 무제한의 학살 → 급격한 하락)
 
 ## Overview
@@ -112,7 +112,7 @@ Luna Overdrive는 Combo/Tension Gauge가 Max 도달 시 발행하는 `OnOverdriv
 | Combo/Tension Gauge | 상류 (이 시스템이 의존, 하드) | `OnOverdriveTriggered` 이벤트 구독(무페이로드 — 페이로드 결정은 이 문서 Rule 1이 확정) |
 | Spell Casting (base) | 상류 (이 시스템이 의존, 하드) | `CostBypass.Active` 태그 부여/해제 — Core Rule 10 훅의 유일한 정규 구동자. **교차 의존 RESOLVED (2026-07-17 BLOCKING → spell-casting-base.md Core Rule 11로 해소, 2026-07-18 재리뷰에서 문구 정리)**: 오버드라이브 중 캐스트 레이트 제약(터보/매크로 악용 방지)은 **Spell Casting (base) 소유** — 스펠당 프레임당 1캐스트 cap + 전역 `MaxCastsPerSecond=20`(Core Rule 11)로 이미 구현 전제조건 해소됨. 이 문서는 여전히 캡을 발명하지 않음(소유권 규율 유지) |
 | Health/Damage Core | 상류 (이 시스템이 의존, 소프트) | 플레이어 Death 상태(`OnDeath`) 구독 — 강제 종료 트리거 |
-| Combat HUD (미설계) | 하류 (이 시스템에 의존, 소프트) | `OnOverdriveStarted`/`OnOverdriveEnded` + `OverdriveTimeRemaining` read-only 소비 |
+| Combat HUD | 하류 (이 시스템에 의존, 소프트) | `OnOverdriveStarted`/`OnOverdriveEnded` + `OverdriveTimeRemaining` read-only 소비 |
 | Overdrive Visual State (미설계) | 하류 (이 시스템에 의존, 하드) | 시작/종료 이벤트를 크림슨 레드 연출 트리거로 소비 — 연출 내용은 그쪽 소유 |
 
 ## Tuning Knobs
