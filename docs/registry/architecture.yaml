@@ -30,7 +30,7 @@
 #   Superseded entries:     Grep pattern="status: superseded"
 
 version: 1
-last_updated: "2026-07-18"
+last_updated: "2026-07-23"
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -54,6 +54,20 @@ state_ownership:
       - docs/architecture/0002-checkpoint-persistence.md
     added: 2026-07-18
     revised: ""
+
+  - state: enemy_archetype_tuning
+    status: active
+    owner_system: enemy-ai (AMoonEnemyAIController / AMoonEnemyCharacterBase)
+    adr: docs/architecture/0006-enemy-ai-behavior-tree.md
+    interface: "UMoonEnemyArchetypeData (UDataAsset) — one instance per archetype, holds SightRange/SightAngle/BaseHearingRadius/MinEngageRange/MaxEngageRange/MinTelegraphWindow/AlertToIdleTimeout/RetreatPathfindFailTimeout/CorpseHoldDuration/MaxHealth/MeleeAttackRange"
+    write_access: enemy-ai-only
+    referenced_by:
+      - docs/architecture/0006-enemy-ai-behavior-tree.md
+      - docs/architecture/0007-dash-evasion-just-dodge.md
+    added: 2026-07-23
+    revised: "2026-07-23"
+    # MeleeAttackRange field added by ADR-0007 (Dash/Evasion Just-Dodge IsInAttackRange check) —
+    # ADR-0006 remains the owning ADR, ADR-0007 is an additive consumer/extender.
 
 # Example:
 #
@@ -95,6 +109,60 @@ interfaces:
     referenced_by:
       - docs/architecture/0002-checkpoint-persistence.md
     added: 2026-07-18
+    revised: ""
+
+  - contract: camera_tuning_data
+    status: active
+    pattern: shared_resource
+    producer: camera-system (UMoonCameraSettings DataAsset)
+    consumers:
+      - camera-system (AMoonCharacterBase reads at BeginPlay)
+      - camera-system (AMoonPlayerCameraManager reads pitch clamp + shake config)
+    adr: docs/architecture/0005-camera-system-springarm.md
+    signal_signature: "UMoonCameraSettings (UDataAsset) — single source of truth for all 12 camera Tuning Knobs values"
+    referenced_by:
+      - docs/architecture/0005-camera-system-springarm.md
+    added: 2026-07-23
+    revised: ""
+
+  - contract: camera_pitch_ownership
+    status: active
+    pattern: direct_call
+    producer: camera-system (AMoonPlayerCameraManager)
+    consumers:
+      - camera-system only — no other system reads or writes view pitch clamp
+    adr: docs/architecture/0005-camera-system-springarm.md
+    signal_signature: "Pitch clamp lives on AMoonPlayerCameraManager, NOT CharacterMovementComponent — camera-system-base.md Rule 2 explicitly assigns this ownership"
+    referenced_by:
+      - docs/architecture/0005-camera-system-springarm.md
+    added: 2026-07-23
+    revised: ""
+
+  - contract: attack_telegraph_contract
+    status: active
+    pattern: signal
+    producer: enemy-ai (AMoonEnemyCharacterBase, broadcast from AnimNotify pair)
+    consumers:
+      - dash-evasion (not yet designed — subscribes for just-dodge timing)
+    adr: docs/architecture/0006-enemy-ai-behavior-tree.md
+    signal_signature: "OnAttackTelegraphed() / OnAttackCommitted() — multicast delegates on the enemy Character instance, broadcast by UAnimNotify_AttackTelegraphed/UAnimNotify_AttackCommitted"
+    referenced_by:
+      - docs/architecture/0006-enemy-ai-behavior-tree.md
+    added: 2026-07-23
+    revised: ""
+
+  - contract: enemy_telegraph_query
+    status: active
+    pattern: direct_call
+    producer: enemy-ai (AMoonEnemyCharacterBase)
+    consumers:
+      - dash-evasion (UMoonGameplayAbility_Dash::CheckJustDodge — queries at dash-activation time, does not pre-subscribe)
+    adr: docs/architecture/0007-dash-evasion-just-dodge.md
+    signal_signature: "IsTelegraphingAttack(): bool / GetAttackCommittedTime(): float — additive query accessors on AMoonEnemyCharacterBase, set/cleared by the same AnimNotify pair as the attack_telegraph_contract delegates. Owning ADR is 0006; added by ADR-0007."
+    referenced_by:
+      - docs/architecture/0006-enemy-ai-behavior-tree.md
+      - docs/architecture/0007-dash-evasion-just-dodge.md
+    added: 2026-07-23
     revised: ""
 
 # Example:
@@ -167,6 +235,28 @@ api_decisions:
     added: 2026-07-18
     revised: ""
 
+  - purpose: enemy_ai_state_machine
+    status: active
+    api: "AIController + UBehaviorTree + UAIPerceptionComponent (classic, per-actor)"
+    not: "Mass Framework (solves a swarm-scale problem MVP doesn't have — 2 archetypes, no confirmed large-swarm requirement) or StateTree (zero prior project experience/tooling, no requirement BT can't satisfy)"
+    adr: docs/architecture/0006-enemy-ai-behavior-tree.md
+    reason: "Single shared BT_Enemy_Base + Blackboard archetype branching keeps the state machine as one source of truth (enemy-ai-base.md Rule 1's shared-logic mandate). Boss Phase and future archetypes are expected to reuse this same pattern (enemy-ai-base.md Dependencies) — future ADRs for those systems must check this decision before introducing a different AI framework."
+    referenced_by:
+      - docs/architecture/0006-enemy-ai-behavior-tree.md
+    added: 2026-07-23
+    revised: ""
+
+  - purpose: dash_motion_model
+    status: active
+    api: "Instant swept SetActorLocation position step (movement disabled for DashDuration, restored on end)"
+    not: "LaunchCharacter / CharacterMovementComponent velocity override — superseded by commit 7f7e2e3 (\"make dash an instant step\"); reintroducing velocity-based dash would regress a deliberate, already-tuned decision"
+    adr: docs/architecture/0007-dash-evasion-just-dodge.md
+    reason: "Already shipped and tuned (TargetArmLength/camera pass in 2e6ba9f assumes this exact motion model); GDD Rule 2 was updated in the same commit pass to say \"즉시 위치 이동\" (instant position move), not velocity/impulse"
+    referenced_by:
+      - docs/architecture/0007-dash-evasion-just-dodge.md
+    added: 2026-07-23
+    revised: ""
+
 # Example:
 #
 # api_decisions:
@@ -201,6 +291,17 @@ forbidden_patterns:
       Calculation established in ADR-0001."
     adr: docs/architecture/0002-checkpoint-persistence.md
     added: 2026-07-18
+
+  - pattern: hardcoded_camera_tuning_in_constructor
+    status: active
+    description: "Camera tuning values (arm length, socket offset, lag speed/distance,
+      pitch clamp, FOV, probe size, etc.) must not be C++ constructor literals.
+      Must be read from UMoonCameraSettings (UDataAsset) at BeginPlay."
+    why: "camera-system-base.md's Tuning Knobs section explicitly mandates designer-tunable
+      values without a recompile. The pre-ADR-0005 implementation violated this by
+      hardcoding all values directly in MoonCharacterBase.cpp's constructor."
+    adr: docs/architecture/0005-camera-system-springarm.md
+    added: 2026-07-23
 
 # Example:
 #
