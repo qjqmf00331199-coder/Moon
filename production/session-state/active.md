@@ -65,6 +65,13 @@ required for MVP architecture coverage", and carries forward the remaining non-b
 verification items: GDD C-2/C-3 + tuning knobs, UE5.8 GAS/CommonUI/TickGroup verification before
 stories are marked Ready, and `AMoonCharacterBase` responsibility accretion watch. Overnight output
 checked first: no drafts to promote, only `production/overnight-output/README.md`.
+**UPDATE 2026-07-27 (5)**: GDD cleanup pass completed for the non-blocking review leftovers:
+`design/gdd/dash-evasion.md` now resolves the Rule 2 vs Rule 4 contradiction in favor of immediate
+collision-checked displacement rather than velocity/Launch override, adds `JustDodgeQueryRadius`
+and `AirDashZImpulse` tuning knobs, and refreshes stale Dash review/status wording; `camera-system-base.md`
+now consistently uses `CameraLagMaxDistance = 60.0uu` including Formula 3 and the Arena Morphing
+dependency row; `enemy-ai-base.md` now defines `MeleeAttackRange` as both formula input and tuning
+knob, and removes stale "Dash/Evasion 미설계" references for the now-approved dependency.
 <!-- /STATUS -->
 
 ## Completed Spike — Signature Combat Chain + Overdrive Crash (Codex, 2026-07-21)

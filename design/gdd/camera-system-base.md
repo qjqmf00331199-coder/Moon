@@ -2,7 +2,7 @@
 
 > **Status**: Approved
 > **Author**: user + game-designer
-> **Last Updated**: 2026-07-16
+> **Last Updated**: 2026-07-27
 > **Implements Pillar**: Dopamine Driven Design — physical foundation for responsive aiming, dynamic battlefield awareness, and cinematic executions
 > **Creative Director Review (CD-GDD-ALIGN)**: APPROVED 2026-07-16 — Verdict: APPROVED (Gemini Antigravity design-review)
 
@@ -135,7 +135,7 @@ $$\text{FOV}_{new} = \text{FMath::FInterpTo}(\text{FOV}_{current}, \text{FOV}_{t
 1. 프레임당 기본 보간 연산 (언리얼 스프링 암 내부 동작):
    $$\mathbf{L}_{current}(t) = \mathbf{L}_{current}(t - \Delta t) + (\mathbf{L}_{target}(t) - \mathbf{L}_{current}(t - \Delta t)) \times (1 - e^{-\text{LagSpeed} \times \Delta t})$$
 
-2. 최대 래그 거리($\text{MaxDistance} = 200.0 \text{ uu}$) 클램프 연산:
+2. 최대 래그 거리($\text{MaxDistance} = 60.0 \text{ uu}$) 클램프 연산:
    $$\text{Distance} = \|\mathbf{L}_{current}(t) - \mathbf{L}_{target}(t)\|$$
    $$\mathbf{L}_{final}(t) = \begin{cases}
    \mathbf{L}_{target}(t) + \frac{\mathbf{L}_{current}(t) - \mathbf{L}_{target}(t)}{\text{Distance}} \times \text{MaxDistance} & \text{if } \text{Distance} > \text{MaxDistance} \\
@@ -199,9 +199,9 @@ $$\mathbf{S}_{new} = \text{FMath::VInterpTo}(\mathbf{S}_{current}, \mathbf{S}_{t
 | 연관 시스템 | 의존 방향 | 의존성 성격 | 상호 언급 여부 및 링크 |
 |---|---|---|---|
 | **Player Movement** | 상호 의존 (양방향, 순환 참조 없음) | * **Movement**는 이동 벡터 및 Facing 계산을 위해 카메라의 컨트롤러 Yaw를 참조함.<br>* **Camera**는 추적을 위해 캐릭터의 액터 위치를 참조함.<br>* 두 시스템은 PlayerController의 ControlRotation을 독립적으로 조회하므로 컴파일/런타임 실행 순서의 교착 상태가 없음. | [Player Movement GDD Dependencies](file:///D:/moon-fragment-hunt/design/gdd/player-movement.md#L142-L152)에서 본 문서를 상호참조함. |
-| **Dash/Evasion** (미설계) | Dash/Evasion이 본 시스템에 의존 | * 대쉬 기동 시 카메라-상대(Camera-relative) 벡터를 기반으로 대쉬 임펄스를 가함.<br>* 대쉬 성공(저스트 회피) 시 화면에 횡방향 카메라 쉐이크를 재생함. | 향후 Dash/Evasion GDD 설계 시 본 문서의 조작 기준 명세를 참조하도록 기술 예정. |
+| **Dash/Evasion** | Dash/Evasion이 본 시스템에 의존 | * 대쉬 기동 시 카메라-상대(Camera-relative) 벡터를 기반으로 즉시 위치 이동 방향을 계산함.<br>* 대쉬 성공(저스트 회피) 시 화면에 횡방향 카메라 쉐이크를 재생함. | [Dash/Evasion GDD](file:///D:/moon-fragment-hunt/design/gdd/dash-evasion.md)가 본 문서의 조작 기준 명세를 참조함. |
 | **Core Extraction Execution** (미설계) | Execution이 본 시스템에 의존 | * 처형 프롬프트(F키)가 활성화되었을 때, 적의 위치를 스크린 좌표로 투영(Project)하여 UI에 프롬프트를 정확히 오버레이함.<br>* 처형 실행 시 연출 시점 블렌딩(TargetArmLength 150uu 축소, SocketOffset 우숄더 이동) 기능을 호출함. | 향후 Core Extraction Execution GDD 설계 시 본 문서의 컷신 카메라 블렌딩 API를 참조하도록 기술 예정. |
-| **Arena Morphing** (미설계) | Arena Morphing이 본 시스템에 의존 | * 지반이 무너지고 솟아오르는 Z축 체공 전투 상황에서 급격히 캐릭터가 날아갈 때 오프스크린이 발생하지 않도록 `CameraLagMaxDistance = 200uu`에 의존함. | 향후 Arena Morphing GDD 설계 시 본 문서의 최대 래그 거리 제약 조건을 참조하도록 기술 예정. |
+| **Arena Morphing** (미설계) | Arena Morphing이 본 시스템에 의존 | * 지반이 무너지고 솟아오르는 Z축 체공 전투 상황에서 급격히 캐릭터가 날아갈 때 오프스크린이 발생하지 않도록 `CameraLagMaxDistance = 60uu`에 의존함. | 향후 Arena Morphing GDD 설계 시 본 문서의 최대 래그 거리 제약 조건을 참조하도록 기술 예정. |
 | **Destructible Geometry** (미설계) | 본 시스템이 Destructible Geometry에 의존 | * 파괴물 조각들이 카메라 시야 및 충돌 시스템을 차단해 떨림이 발생하는 것을 방지하기 위해, 파괴 채널(`ECC_Destructible`)의 Ignore 필터 설정에 의존함. | 향후 Destructible Geometry GDD 설계 시 카메라 채널 충답 설정 규칙을 포함시킬 예정. |
 
 ---

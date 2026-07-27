@@ -2,7 +2,7 @@
 
 > **Status**: Approved
 > **Author**: user + game-designer (solo design mode)
-> **Last Updated**: 2026-07-17
+> **Last Updated**: 2026-07-27
 > **Implements Pillar**: Dopamine Driven Design — 핵심 카타르시스 루프(저스트회피 → 처형)의 시작점
 
 ## Overview
@@ -22,8 +22,8 @@ Dash/Evasion은 플레이어의 주요 생존기이자 공격적 리포지셔닝
 
 1. **대쉬는 쿨다운 기반의 차지(Charge) 시스템을 갖는다** — 스태미나 없이 고정된 최대 스택(예: 2회)을 가지며, 사용 시 쿨다운(예: 2.0초) 후 1스택씩 충전된다. 
 2. **이동 방향 입력에 따른 즉시 위치 이동** — 입력 방향(WASD, 카메라 기준)으로 정해진 대쉬 거리만큼 한 번에 이동하며, 입력이 없으면 캐릭터가 바라보는 방향(카메라 정면)으로 전진한다. 이동 경로는 충돌 검사를 수행하고, 대쉬 지속시간에는 일반 이동 입력을 받지 않는다.
-3. **지상/공중 사용 가능** — Grounded 상태는 물론 Airborne 상태에서도 사용 가능(Air-Dash). 공중 대쉬는 Arena Morphing 체공전투의 핵심 기동 수단으로 활용되며, 수평 임펄스 외에 Z축 체공 시간을 연장하는 미세한 상승(또는 낙하 방지) 임펄스를 포함한다.
-4. **임펄스 합성 방식: Override(덮어쓰기)** — 대쉬 발동 시 기존 velocity(수평+수직 momentum 전부)를 대쉬 벡터로 완전히 덮어쓴다(additive 아님). 매 대쉬가 momentum 무관하게 항상 동일한 거리/속도로 발동되어 "즉각 방향전환" 판타지를 보장하고 예측 가능한 포지셔닝을 만든다. (player-movement.md Open Question 해결 — design-review 2026-07-17)
+3. **지상/공중 사용 가능** — Grounded 상태는 물론 Airborne 상태에서도 사용 가능(Air-Dash). 공중 대쉬는 Arena Morphing 체공전투의 핵심 기동 수단으로 활용되며, 수평 위치 스텝 외에 Z축 체공 시간을 연장하는 미세한 상승(또는 낙하 방지) 보정값(`AirDashZImpulse`)을 포함한다.
+4. **대쉬 이동 방식: 즉시 위치 스텝(Displacement Override)** — 대쉬 발동 시 기존 수평 momentum을 누적하지 않고, 입력 방향 기준의 고정 거리(`MaxWalkSpeed × DashSpeedMultiplier × DashDuration`)만큼 한 번에 충돌 검사된 위치 이동을 수행한다. 이 이동은 velocity를 덮어쓰거나 `LaunchCharacter`로 속도를 주입하는 방식이 아니며, 매 대쉬가 momentum 무관하게 항상 동일한 거리로 발동되어 "즉각 방향전환" 판타지와 예측 가능한 포지셔닝을 보장한다. 공중 대쉬의 Z축 보정은 `AirDashZImpulse`로 별도 적용한다. (2026-07-27 GDD cleanup — Rule 2와 Rule 4 충돌 정리)
 5. **회피 프레임 (I-frames)** — 대쉬 시작 시 즉시 Health/Damage Core의 `State.Invulnerable` 태그를 플레이어에게 부여하며, 대쉬 모션(Tuning Knob: `dash_invuln_duration`)이 끝나는 시점에 태그를 제거한다.
 6. **저스트회피 (Just-Dodge) 타이밍** — Enemy AI (base)가 발행하는 `OnAttackTelegraphed`와 `OnAttackCommitted` 이벤트를 구독한다. 적의 공격 텔레그래프 윈도우 내의 특정 타이밍(커밋 직전, `JustDodgeWindow`)에 플레이어가 대쉬를 발동하고, 그 적의 공격 범위(히트박스/사거리) 내에 있었다면 저스트회피로 판정한다.
 7. **저스트회피 보상** — 저스트회피 성공 시 2가지 효과가 발생한다:
@@ -42,7 +42,7 @@ Dash/Evasion은 플레이어의 주요 생존기이자 공격적 리포지셔닝
 
 ### Interactions with Other Systems
 
-- **Player Movement** (상류): `AddMovementInput` 또는 Velocity API를 오버라이드하여 대쉬 속도를 적용. 공중 대쉬 시 Z축 velocity 오버라이드/Launch API 호출.
+- **Player Movement** (상류): 카메라 기준 입력 벡터와 CMC 충돌 정보를 사용해 대쉬 목적지를 계산하고, 즉시 위치 이동을 수행한다. 공중 대쉬 시 Z축 체공 보정은 `AirDashZImpulse` 값으로 별도 적용한다.
 - **Health/Damage Core** (상류): `State.Invulnerable` 태그 획득/제거(플레이어). `State.Executable` 태그 부여(적).
 - **Enemy AI (base)** (상류): `OnAttackTelegraphed`, `OnAttackCommitted` 델리게이트를 수신하여 저스트회피 가능 상태를 판단.
 - **Camera System (base)** (상류): 카메라 기준 방향 입력 파악.
@@ -54,13 +54,15 @@ Dash/Evasion은 플레이어의 주요 생존기이자 공격적 리포지셔닝
 ### Just-Dodge Check
 
 ```
-IsJustDodge = (CurrentTime >= AttackCommittedTime - JustDodgeWindow) AND (CurrentTime <= AttackCommittedTime) AND IsInAttackRange
+IsJustDodge = (CurrentTime >= AttackCommittedTime - JustDodgeWindow) AND (CurrentTime <= AttackCommittedTime) AND IsInJustDodgeQueryRadius AND IsInAttackRange
 ```
 
 | Variable | Type | Range | Source | Description |
 |----------|------|-------|--------|-------------|
 | AttackCommittedTime | float | 런타임 | Enemy AI | 적의 `OnAttackCommitted` 발생 예정 시각 |
 | JustDodgeWindow | float | 0.15–0.3 | Tuning Knob | 공격 커밋 직전 회피 판정이 인정되는 시간 (단위: 초) |
+| JustDodgeQueryRadius | float | 250–600uu | Tuning Knob | 대쉬 발동 시 저스트회피 후보 적을 조회하는 구체 반경 |
+| IsInJustDodgeQueryRadius | bool | true/false | 런타임 공간 판정 | 대상 적이 플레이어의 저스트회피 후보 조회 반경 안에 있는가 |
 | IsInAttackRange | bool | true/false | 런타임 공간 판정 | 대상 공격의 유효 반경/히트박스 내에 플레이어가 존재하는가 |
 
 **Notes**: 저스트회피는 "아슬아슬하게 피했다"는 느낌을 위해 공격 커밋 시점 직전(`JustDodgeWindow`)에 대쉬가 입력되어야 함. 
@@ -87,8 +89,8 @@ CurrentCharges = clamp(CurrentCharges + (DeltaTime / RechargeRate), 0, MaxCharge
 | Scenario | Expected Behavior | Rationale |
 |----------|-------------------|-----------|
 | 다수의 적 공격이 겹치는 상황에서 저스트회피 | 윈도우 조건을 만족하는 **모든** 적에게 `State.Executable` 태그 부여 | 군중 제어와 대규모 처형의 카타르시스 극대화 |
-| 체공 중 지상을 향해 대쉬 (또는 반대) | 수평 임펄스만 주입되며 Z축 하강 속도는 CMC 중력/낙하 가속을 따름. 단 에어 대쉬 발동 시 약간의 체공 보정(Z축 임펄스 0 세팅)을 통해 일시적 체공 | 이동 시스템의 관성을 존중하되 체공 전투의 조작성 확보 |
-| 대쉬 중 지형 모서리 밖으로 이탈 | 수평 임펄스를 유지하며 Airborne 상태로 자연스럽게 전환 | Player Movement의 기존 이탈 로직 계승 |
+| 체공 중 지상을 향해 대쉬 (또는 반대) | 카메라 기준 수평 목적지로 즉시 위치 이동하고, `AirDashZImpulse`로 하강 속도를 잠시 상쇄하거나 미세 상승을 부여한다 | 이동 시스템의 관성을 존중하되 체공 전투의 조작성 확보 |
+| 대쉬 중 지형 모서리 밖으로 이탈 | 충돌 검사된 수평 위치 이동 후 Player Movement의 낙하 판정에 따라 Airborne 상태로 자연스럽게 전환 | Player Movement의 기존 이탈 로직 계승 |
 | `State.Executable` 태그가 부여된 적이 이미 다른 디버프로 해당 태그를 갖고 있음 | 태그 참조 카운트 추가 (오버레이 중첩 유지) | Health/Damage Core의 참조 카운트 기반 태그 설계 준수 |
 
 ## Dependencies
@@ -110,6 +112,8 @@ CurrentCharges = clamp(CurrentCharges + (DeltaTime / RechargeRate), 0, MaxCharge
 | DashDuration | 0.08초 | 0.06–0.12초 | 스텝 후딜·무적 창이 길어져 순간이동 감각 약화 | 애니메이션/회피 판독이 지나치게 짧아짐 |
 | DashSpeedMultiplier | 6.25 | 5.0–7.0 | 같은 지속시간에서 이동 거리가 길어져 조준 어려움 | 이동 거리와 순간 이동 체감 감소 |
 | JustDodgeWindow | 0.2초 | 0.15–0.3초 | 판정이 관대해져 긴장감 저하 | 저스트회피 실패 확률 급증 (난이도 폭증) |
+| JustDodgeQueryRadius | 400uu | 250–600uu | 더 먼 적까지 후보로 잡혀 다수 저스트회피 보상이 쉬워짐 | 가까운 공격만 인정되어 판정이 빡빡해짐 |
+| AirDashZImpulse | 0uu/s | -100–300uu/s | 체공 시간이 늘고 공중 전투 안정성이 상승 | 낙하 관성이 더 강하게 유지되어 공중 대쉬가 무거워짐 |
 | ExecutableDuration | 3.0초 | 2.0–5.0초 | 처형 기회가 너무 길게 유지됨 | 기회를 잡기 전에 태그 소멸 |
 | DashInvulnDuration | 0.08초 | 0.06–0.12초 | 생존 쉬워짐 (무적기 스팸) | 회피 판정 빡빡해짐 |
 
@@ -136,14 +140,14 @@ CurrentCharges = clamp(CurrentCharges + (DeltaTime / RechargeRate), 0, MaxCharge
 3. **GIVEN** 적 공격의 `OnAttackTelegraphed` 이후 `JustDodgeWindow` (0.2초) 내에 플레이어가 대쉬 발동, **WHEN** 플레이어가 공격 반경에 있음, **THEN** 해당 적에게 `State.Executable` 태그가 부여되고 처형 프롬프트가 활성화된다.
 4. **GIVEN** 저스트회피 조건이 달성됨, **WHEN** 판정 완료 시, **THEN** 플레이어의 대쉬 차지가 즉시 1 회복된다.
 5. **GIVEN** 적이 공격을 시작한 지 얼마 안 되어 `JustDodgeWindow` 진입 전임, **WHEN** 플레이어가 대쉬 발동, **THEN** 대쉬는 정상 발동되나 적에게 `State.Executable` 태그는 부여되지 않는다.
-6. **GIVEN** 체공 중 (Airborne) 대쉬 입력, **WHEN** 차지 존재 시, **THEN** Z축 추락을 잠시 멈추거나 늦추며 수평 방향으로 대쉬한다.
+6. **GIVEN** 체공 중 (Airborne) 대쉬 입력, **WHEN** 차지 존재 시, **THEN** 카메라 기준 수평 방향으로 즉시 위치 이동하고 `AirDashZImpulse`에 따라 Z축 추락을 잠시 멈추거나 늦춘다.
 7. **GIVEN** Status Effect 시스템이 플레이어에게 `MovementLocked` 태그를 건 상태, **WHEN** 대쉬 버튼 입력, **THEN** 대쉬는 발동하지 않으며 차지도 소모되지 않는다.
 8. **GIVEN** 대쉬 발동 시 동시에 2개 이상의 적이 Just-Dodge 조건을 만족함, **WHEN** 판정 완료, **THEN** 조건 만족한 모든 적에게 `State.Executable`이 부여되나 플레이어의 대쉬 차지는 정확히 1스택만 반환된다(다중 반환 없음).
 
 ## Open Questions
 
 - 저스트회피 성공 시 대상 주변에 광역 타격을 주어 여러 적을 동시에 비틀거리게 할 것인가? (군중 제어 강화) -> MVP 이후 테스트 예정.
-- Z축 공중 대쉬 시 정확한 엔진 틱 기반 물리 조작(Launch Character API 오버라이드) 검증 필요.
+- `AirDashZImpulse` 기본값 0uu/s가 체공전투 감각에 충분한지 플레이테스트에서 검증 필요.
 
 ## Cross-Reference Resolutions (design-review 2026-07-17)
 

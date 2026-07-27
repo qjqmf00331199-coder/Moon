@@ -2,7 +2,7 @@
 
 > **Status**: Approved
 > **Author**: user + game-designer / ai-programmer (solo review mode)
-> **Last Updated**: 2026-07-16
+> **Last Updated**: 2026-07-27
 > **Implements Pillar**: Dopamine Driven Design — foundation supplying the enemy population that combo/overdrive/execution/chain-destruction all act upon
 
 ## Overview
@@ -25,7 +25,7 @@ Enemy AI (base)는 이 확장 범위의 모든 적 캐릭터가 공유하는 인
 1. **아키타입 2종 MVP**: Grunt(근접)와 Ranged(원거리) — 동일한 상태머신·인지 로직을 공유하고 무기/애니메이션/거리 파라미터만 아키타입별로 상이. 아키타입 확장은 향후 리비전 대상.
 2. **인지는 시야+청각**: `AIPerception`의 Sight(원뿔/거리)와 Hearing(소음 이벤트) 두 감각을 사용. 플레이어 착지음/스펠 피격음/파괴 지오메트리 붕괴음 등 큰 소음은 Hearing을 트리거해 시야 밖에서도 Alert 상태로 전환시킨다(정확한 소음 이벤트 소스 목록은 이 문서가 정의하지 않음 — 발신 시스템이 `MakeNoise` 호출 계약만 따르면 됨).
 3. **공격 텔레그래프는 애니메이션 주도**: 공격 애니메이션의 윈드업 구간 시작 지점에 `AnimNotify`로 `OnAttackTelegraphed` 이벤트를 발행하고, 실제 판정(데미지 GameplayEffect 적용)은 스트라이크 프레임의 별도 `AnimNotify`(`OnAttackCommitted`)에서만 발생한다 — 두 이벤트 사이 구간이 곧 플레이어가 읽고 반응할 수 있는 텔레그래프 윈도우다.
-4. **텔레그래프 이벤트는 공개 델리게이트로 노출**: `OnAttackTelegraphed`/`OnAttackCommitted`는 이 시스템이 소유하는 공개 인터페이스다 — Dash/Evasion(미설계)이 이를 구독해 저스트회피 판정 타이밍을 계산한다. 저스트회피 성공 여부 판정과 `State.Executable` 태그 부여는 Dash/Evasion 소유이며, 이 문서는 이벤트 발행까지만 책임진다.
+4. **텔레그래프 이벤트는 공개 델리게이트로 노출**: `OnAttackTelegraphed`/`OnAttackCommitted`는 이 시스템이 소유하는 공개 인터페이스다 — Dash/Evasion이 이를 구독해 저스트회피 판정 타이밍을 계산한다. 저스트회피 성공 여부 판정과 `State.Executable` 태그 부여는 Dash/Evasion 소유이며, 이 문서는 이벤트 발행까지만 책임진다.
 5. **Ranged 아키타입은 거리 밴드를 유지**: 최소/최대 사거리(Tuning Knob) 사이를 유지하려 하며, 플레이어가 최소 사거리 안으로 들어오면 후퇴 이동을 시도한다. 공격 판정 자체는 Rule 3과 동일한 텔레그래프 계약을 따른다(발사체 스폰 = `OnAttackCommitted`).
 6. **MaxHealth 실값은 이 문서 소유**: Health/Damage Core가 제공하는 어트리뷰트 슬롯에, 아키타입별 실제 MaxHealth 값을 이 문서가 채운다(Formulas 참조).
 7. **사망 처리는 Health/Damage Core의 `OnDeath` 구독으로만 진입**: 자체적으로 Health를 판정하지 않는다 — Rule 1(단일 데미지 진입점)을 그대로 신뢰하고, `OnDeath` 수신 시에만 Dead 상태로 전환한다(충돌/인지 비활성화 → 래그돌 재생 → 시체 유지 타이머 → 디스폰).
@@ -47,7 +47,7 @@ Enemy AI (base)는 이 확장 범위의 모든 적 캐릭터가 공유하는 인
 ### Interactions with Other Systems
 
 - **Health/Damage Core** (상류): `OnDeath` 구독 → Dead 전환(이 시스템은 자체 사망 판정 없음). MaxHealth 어트리뷰트 슬롯에 아키타입별 실값을 채움(Rule 6). `State.Invulnerable`/`State.Executable`은 읽기만 하며 부여하지 않음.
-- **Dash/Evasion** (하류, 미설계): `OnAttackTelegraphed`/`OnAttackCommitted` 델리게이트를 구독해 저스트회피 타이밍 판정. `State.Executable` 부여는 전적으로 그쪽 소유.
+- **Dash/Evasion** (하류): `OnAttackTelegraphed`/`OnAttackCommitted` 델리게이트와 공격 사거리 정보를 구독해 저스트회피 타이밍 및 공간 판정. `State.Executable` 부여는 전적으로 그쪽 소유.
 - **Enemy Elite Shield** (하류, 미설계): `Enemy.Archetype.*` 태그를 참조해 실드 부착 대상을 결정할 것으로 예상. 실드 HP/파괴는 그쪽 소유.
 - **Super Armor / CC Interrupt** (하류, 미설계): Stagger 상태의 트리거 조건을 소유. 이 문서는 `TriggerStagger()`/`ClearStagger()` 훅만 제공.
 - **Core Extraction Execution** (하류, 미설계): `State.Executable` 태그 존재 여부와 무관하게 이 시스템의 상태머신은 정상 진행(태그는 오버레이, Rule 10).
@@ -96,6 +96,20 @@ ShouldAttack  = MinEngageRange <= PlayerDistance <= MaxEngageRange
 
 **Output Range**: 두 불리언 중 하나만 참(400–1200uu 밴드 내 = 공격, 미만 = 후퇴, 초과 = 접근). **Example**: PlayerDistance=350 → ShouldRetreat=true.
 
+### Melee Attack Range Check
+
+```
+CanMeleeAttack = PlayerDistance <= MeleeAttackRange
+```
+
+**Variables:**
+| Variable | Symbol | Type | Range | Description |
+|----------|--------|------|-------|-------------|
+| PlayerDistance | — | float(uu) | 0 이상, 런타임 측정값 | Grunt 개체-플레이어 간 거리 |
+| MeleeAttackRange | — | float(uu) | 기본 180, Safe Range 120–260 | Grunt 근접 공격 진입 및 Dash/Evasion의 `IsInAttackRange` 판정에 쓰이는 근접 사거리 |
+
+**Output Range**: `true` 또는 `false`. **Example**: PlayerDistance=160uu, MeleeAttackRange=180uu → CanMeleeAttack=true.
+
 ### Enemy MaxHealth by Archetype
 
 | Variable | Type | Range | Source | Description |
@@ -126,7 +140,7 @@ ShouldAttack  = MinEngageRange <= PlayerDistance <= MaxEngageRange
 | System | Direction | Nature of Dependency |
 |--------|-----------|----------------------|
 | Health/Damage Core | 이 시스템이 의존 | `OnDeath` 이벤트 구독(Dead 전환), MaxHealth 어트리뷰트 슬롯 사용, `State.Invulnerable`/`State.Executable` 태그 읽기 전용 참조 |
-| Dash/Evasion (미설계) | Dash/Evasion이 이 시스템에 의존 | `OnAttackTelegraphed`/`OnAttackCommitted` 델리게이트 구독 |
+| Dash/Evasion | Dash/Evasion이 이 시스템에 의존 | `OnAttackTelegraphed`/`OnAttackCommitted` 델리게이트와 `MeleeAttackRange` 사거리 정보 구독 |
 | Enemy Elite Shield (미설계) | Enemy Elite Shield가 이 시스템에 의존 | `Enemy.Archetype.*` GameplayTag 참조 |
 | Super Armor / CC Interrupt (미설계) | Super Armor / CC Interrupt가 이 시스템에 의존 | Stagger 상태 슬롯, `TriggerStagger()`/`ClearStagger()` 훅 사용 |
 | Core Extraction Execution (미설계) | Core Extraction Execution이 이 시스템에 의존 | `State.Executable` 태그가 붙은 대상의 상태머신이 정상 진행됨을 전제(Rule 10) |
@@ -145,6 +159,7 @@ ShouldAttack  = MinEngageRange <= PlayerDistance <= MaxEngageRange
 | BaseHearingRadius (Ranged) | 600uu | 400–1200uu | 〃 | 〃 |
 | MinEngageRange | 400uu | 300–600uu | 더 가까이 와야 후퇴 — 근접전 유도 강해짐 | 너무 자주 후퇴해 산만해 보임 |
 | MaxEngageRange | 1200uu | 900–1500uu | 더 먼 거리서도 사격 — 압박감 강함 | 접근을 쉽게 허용, 근접전으로 몰림 |
+| MeleeAttackRange | 180uu | 120–260uu | Grunt 공격과 저스트회피 공간 판정이 더 멀리서 성립해 압박감 상승 | 근접 적이 더 자주 헛돌고 저스트회피 기회가 지나치게 좁아짐 |
 | MinTelegraphWindow | 0.4초 | 0.3–0.6초 | 회피가 관대해짐(난이도 하락) | 저스트회피 자체가 성립 불가능해질 위험(Formulas 참조) |
 | AlertToIdleTimeout | 5초 | 3–8초 | 끈질기게 경계 유지 | 너무 빨리 포기해 허술해 보임 |
 | RetreatPathfindFailTimeout | 2초 | 1–4초 | 후퇴 시도를 오래 지속(멍청해 보일 위험) | 너무 빨리 포기하고 제자리 사격 — 회피 난이도 상승 |
@@ -152,7 +167,7 @@ ShouldAttack  = MinEngageRange <= PlayerDistance <= MaxEngageRange
 | MaxHealth (Grunt) | 30 | 20–50 | 처치 지연, 물량감(swarm) 약화 위험 | 원샷킬 남발, 위협감 상실 |
 | MaxHealth (Ranged) | 20 | 15–35 | 처치 지연, 압박 지속시간 늘어남 | 너무 쉽게 죽어 위협 요소 상실 |
 
-> 상호작용 주의: `MinEngageRange`/`MaxEngageRange`는 Dash/Evasion(미설계)의 대쉬 거리와 맞물림 — 대쉬 한 번에 MinEngageRange 안쪽까지 파고들 수 있어야 근접 압박 전략이 성립. Dash/Evasion 설계 시 재검증 필요.
+> 상호작용 주의: `MinEngageRange`/`MaxEngageRange`는 Dash/Evasion의 대쉬 거리와 맞물림 — 대쉬 한 번에 MinEngageRange 안쪽까지 파고들 수 있어야 근접 압박 전략이 성립. `MeleeAttackRange`는 Dash/Evasion의 `IsInAttackRange` 판정과 동기화해야 한다.
 
 ## Visual/Audio Requirements
 
@@ -193,7 +208,7 @@ Combat HUD가 직접 참조하는 데이터는 없음(체력바 등 화면 UI는
 
 ## Open Questions
 
-- **`MinTelegraphWindow`(0.4초) 가정값 미검증** — Dash/Evasion의 실제 저스트회피 입력 버퍼 창과 대조되지 않음. Owner: Dash/Evasion 설계 시 재검증.
+- **`MinTelegraphWindow`(0.4초) 후속 검증** — Dash/Evasion의 `JustDodgeWindow` 기본값 0.2초보다 길어 저스트회피 입력 구간을 포함하지만, 실제 애니메이션별 윈드업 가독성은 플레이테스트에서 검증 필요.
 - **아키타입 확장 여부** — MVP는 Grunt/Ranged 2종. 강습형/폭발형 등 추가 아키타입은 이 리비전 범위 밖, 필요 시 후속 리비전.
 - **MaxHealth 값(Grunt 30 / Ranged 20)은 밸런스 패스 없이 잠정 설정** — solo mode로 systems-designer 미상담. 프로토타입 플레이테스트 후 조정 필요.
 - **대규모 스웜 퍼포먼스 미검증** — 환경 연쇄파괴(챕터 1/2)에서 "수십 마리 동시 몰림" 시나리오의 AIPerception/BT tick 비용이 측정되지 않음. Arena Morphing 스파이크와 유사한 별도 perf 테스트가 Production 진입 전 필요할 수 있음.
