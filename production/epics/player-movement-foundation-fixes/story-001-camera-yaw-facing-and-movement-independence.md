@@ -91,8 +91,9 @@
 - `tests/static/movement_independence_check.*`
 - Optional PIE evidence: `production/qa/evidence/camera-yaw-facing-and-movement-independence-evidence.md`
 
-**Status**: [ ] Not yet created
-**Implementation note 2026-07-27**: Started. The playtest-blocking yaw/orient rotation flag deviation is being fixed first. Full `AMoonCharacterBase` responsibility separation is not part of this story; the static check focuses on the Movement path and Build.cs module boundary.
+**Status**: [x] Static/unit evidence created; [ ] PIE evidence pending
+**Implementation note 2026-07-27**: Started. The playtest-blocking yaw/orient rotation flag deviation is fixed in `AMoonCharacterBase`. Full `AMoonCharacterBase` responsibility separation is not part of this story; the static check focuses on the Movement path and Build.cs module boundary.
+**Implementation note 2026-07-27 (Codex)**: Added `tests/unit/movement/camera_yaw_facing_test.ps1` and `tests/static/movement_independence_check.ps1`. Both checks pass locally, and `Build.bat MoonEditor Win64 Development -Project=D:\moon-fragment-hunt\Moon\Moon.uproject -NoHotReload` succeeds when run outside the filesystem sandbox so UBT can access its AppData cache/log directory. PIE validation is still pending because Unreal MCP/Editor control tools were not available in this session.
 
 ---
 

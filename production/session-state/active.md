@@ -99,6 +99,15 @@ Next implementation should start with
 because it fixes the known playtest-blocking rotation-flag bug (`bUseControllerRotationYaw` /
 `bOrientRotationToMovement`) and adds movement independence/static checks before Camera and Dash work
 depend on the build.
+**UPDATE 2026-07-27 (8)**: Story 001 progressed past the previous UBT blocker. Added required
+test evidence files `tests/unit/movement/camera_yaw_facing_test.ps1` and
+`tests/static/movement_independence_check.ps1`; both pass locally:
+`camera yaw facing unit checks passed` and `movement foundation contract static checks passed`.
+Full `MoonEditor Win64 Development` UBT build now **PASS** after rerunning outside the filesystem
+sandbox so UBT could access `C:\Users\qjqmf\AppData\Local\UnrealBuildTool`; result `Succeeded`,
+6/6 actions, total execution time 78.63s. Story 001 remains **In Progress** only because PIE/manual
+runtime validation is still pending; this session did not have Unreal MCP/Editor control tools
+available. Existing untracked marketplace/content/temp files were left untouched.
 <!-- /STATUS -->
 
 ## Completed Spike — Signature Combat Chain + Overdrive Crash (Codex, 2026-07-21)
