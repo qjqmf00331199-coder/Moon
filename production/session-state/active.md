@@ -58,6 +58,13 @@ or blocking cross-ADR conflicts. Remaining work is follow-up cleanup, not archit
 refresh `docs/architecture/architecture.md`, fix non-blocking GDD revision flags C-2/C-3 and tuning
 knobs, and verify ADR-0010/0011 implementation-time UE5.8 API assumptions before dependent stories
 are marked Ready.
+**UPDATE 2026-07-27 (4)**: `docs/architecture/architecture.md` refreshed to v1.1 from the latest
+PASS state. It now references ADR-0001 through ADR-0011, records the 2026-07-27 v4 architecture
+review result (65 ✅ / 11 ⚠️ / 0 ❌ of 76), replaces the obsolete Required ADR list with "none
+required for MVP architecture coverage", and carries forward the remaining non-blocking cleanup /
+verification items: GDD C-2/C-3 + tuning knobs, UE5.8 GAS/CommonUI/TickGroup verification before
+stories are marked Ready, and `AMoonCharacterBase` responsibility accretion watch. Overnight output
+checked first: no drafts to promote, only `production/overnight-output/README.md`.
 <!-- /STATUS -->
 
 ## Completed Spike — Signature Combat Chain + Overdrive Crash (Codex, 2026-07-21)

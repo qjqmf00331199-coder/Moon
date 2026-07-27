@@ -1,167 +1,250 @@
 # Moon Fragment Hunt — Master Architecture
 
 ## Document Status
-- Version: 1.0
-- Last Updated: 2026-07-18
+- Version: 1.1
+- Last Updated: 2026-07-27
 - Engine: Unreal Engine 5.8
-- Review Mode: Solo
+- Review Mode: Solo architecture authoring; latest independent architecture review was full delta
 - GDDs Covered: player-movement, camera-system-base, health-damage-core, enemy-ai-base, spell-casting-base, dash-evasion, combo-tension-gauge, luna-overdrive, combat-hud
-- ADRs Referenced: ADR-0001 (Player Movement and GAS Core Foundation)
-- Technical Director Sign-Off: 2026-07-18 — APPROVED WITH CONDITIONS (see Phase 7b below)
-- Lead Programmer Feasibility: SKIPPED — Solo mode (per director-gates.md)
+- ADRs Referenced: ADR-0001 through ADR-0011
+- Architecture Review: 2026-07-27 v4 — PASS, 65 covered / 11 partial / 0 gaps of 76 active requirements
+- Technical Director Sign-Off: 2026-07-27 — APPROVED WITH CONDITIONS
+- Lead Programmer Feasibility: SKIPPED — Solo mode
 
 ## Engine Knowledge Gap Summary
 
-Project pinned to UE 5.8; LLM training data covers up to ~5.3. HIGH RISK domain relevant to this scope: **GAS attribute set initialization** — legacy init functions deprecated in 5.8, replacement pattern undocumented in engine-reference. Already flagged as an Open Question in `health-damage-core.md`, `spell-casting-base.md`, and `luna-overdrive.md`. All GAS-touching modules (Health/Damage Core, Spell Casting, Combo/Tension Gauge, Luna Overdrive) inherit this flag. Additional narrow gap: `SetLooseGameplayTagCount` UE5.8 signature not in engine-reference — required for Luna Overdrive's non-counted tag ownership pattern.
+The project is pinned to Unreal Engine 5.8, which is beyond the model training cutoff and is treated as HIGH risk for engine API accuracy. All implementation stories must cross-check `docs/engine-reference/unreal/` before relying on remembered Unreal behavior.
 
-Enhanced Input, CMC, AIController/BT/Perception, SpringArm/Camera, UMG/CommonUI domains are LOW/MEDIUM risk — patterns used across GDDs already align with `current-best-practices.md`.
+The architecture is complete for MVP coverage, but several implementation-time verification items remain:
+
+- GAS attribute initialization, `PostGameplayEffectExecute`, `PreAttributeChange`, loose GameplayTag count clearing, and `FOnAttributeChangeData::GEModData` semantics must be verified against real UE5.8 headers before Health/Damage Core, Combo/Tension, or related GAS stories are marked Ready.
+- `UAbilitySystemComponent::SetLooseGameplayTagCount` usage for Luna Overdrive remains a UE5.8 verification item.
+- CommonUI / Enhanced Input unification in UE5.8 affects Combat HUD input-method glyph swapping; exact `UCommonInputSubsystem` signal and glyph asset source of truth must be verified before implementation.
+- `TG_PostUpdateWork` ordering must be validated for this project's ability and animation call sites before Combo/Tension's same-frame Gain -> Penalty -> Decay guarantee is treated as fully proven.
+- Deprecated APIs remain banned per `docs/engine-reference/unreal/deprecated-apis.md`, especially legacy `UCharacterMovementComponent::SetMovementMode()` overloads and legacy GAS attribute initialization functions.
+
+Enhanced Input, Character Movement Component basics, SpringArm/Camera, UMG `UUserWidget`, AIController/Behavior Tree, and AIPerception are acceptable with local engine-reference checks. Mass Framework, Iris, advanced CommonUI input routing, and GAS internals are not to be guessed from memory.
 
 ## System Layer Map
 
 ```
-┌─ PRESENTATION ────────────────────────────────────────┐
-│ Combat HUD                                             │
-├─ FEATURE ───────────────────────────────────────────────┤
-│ Combo/Tension Gauge · Luna Overdrive                   │
-├─ CORE ──────────────────────────────────────────────────┤
-│ Camera System (base) · Enemy AI (base) · Spell Casting  │
-│ (base) · Dash/Evasion                                   │
-├─ FOUNDATION ────────────────────────────────────────────┤
-│ Player Movement · Health/Damage Core                    │
-├─ PLATFORM ──────────────────────────────────────────────┤
-│ UE5.8 (GAS, Enhanced Input, CMC, AIController, UMG)      │
-└──────────────────────────────────────────────────────────┘
+┌─ PRESENTATION ───────────────────────────────────────────────┐
+│ Combat HUD                                                    │
+├─ FEATURE ────────────────────────────────────────────────────┤
+│ Combo/Tension Gauge · Luna Overdrive                         │
+├─ CORE ───────────────────────────────────────────────────────┤
+│ Camera System · Enemy AI · Spell Casting · Dash/Evasion      │
+├─ FOUNDATION ─────────────────────────────────────────────────┤
+│ Player Movement · Health/Damage Core · Checkpoint Runtime    │
+├─ PLATFORM ───────────────────────────────────────────────────┤
+│ Unreal Engine 5.8: GAS, Enhanced Input, CMC, AI, UMG/CommonUI │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-Matches `design/gdd/systems-index.md` dependency map exactly — no circular dependencies (confirmed there and re-verified here).
+Dependency flow is one-way: `Foundation -> Core -> Feature -> Presentation`. Presentation never mutates gameplay state. Feature systems may consume Core/Foundation events and attributes, but they do not own upstream state. Core systems may read Foundation contracts, but Foundation must not compile against Core, Feature, or Presentation systems.
 
 ## Module Ownership
 
-| Module | Layer | Owns | Exposes | Consumes | Engine APIs |
+| Module | Layer | Owns | Exposes | Consumes | Governing ADR |
 |---|---|---|---|---|---|
-| `AMoonCharacterBase` (Movement) | Foundation | Velocity, jump/coyote timers, facing | `AddMovementInput`, Z-launch API | Camera Yaw (read) | `UCharacterMovementComponent`, Enhanced Input |
-| `UMoonAttributeSet` + ASC (Health/Damage) | Foundation | Health/Mana/TensionGauge attributes, `State.Invulnerable`/`State.Executable` tags | `ApplyDamage`, `TryExecute`, `OnDeath`, `OnHealthPercentCrossed` | — | GAS `UAbilitySystemComponent`, `UGameplayEffectExecutionCalculation` ⚠️HIGH RISK |
-| Camera Module | Core | SpringArm/Camera params, FOV state | `ResetCameraLag()`, execution-blend API | Movement position, Overdrive/Execution events | `USpringArmComponent`, `UCameraComponent` |
-| Enemy AI Module | Core | AIController/BT state, archetype MaxHealth | `OnAttackTelegraphed`/`Committed`, `TriggerStagger`/`ClearStagger` | HDC `OnDeath` | `AIController`, `UAIPerceptionComponent`, Behavior Tree |
-| Spell Casting Module | Core | Mana attribute, per-element cooldown, `CostBypass.Active` consumer contract | `OnSpellCast`/`OnSpellHit`, cast gate | HDC damage entry point, Movement non-block contract | GAS `UGameplayAbility` (InstancedPerActor) ⚠️HIGH RISK |
-| Dash/Evasion Module | Core | Dash charges, `IsJustDodge`判定 | Just-Dodge events | Enemy AI telegraph, Movement velocity API, HDC tags | `LaunchCharacter`/velocity override |
-| Combo/Tension Module | Feature | TensionGauge value + decay | `OnOverdriveTriggered` | Spell `OnSpellHit`, HDC tag/damage events | GAS Attribute ⚠️HIGH RISK |
-| Luna Overdrive Module | Feature | `CostBypass.Active` grant/clear (sole owner), timer | `OnOverdriveStarted`/`Ended`, `OverdriveTimeRemaining` | Tension trigger, HDC Death | `SetLooseGameplayTagCount` (non-counted) ⚠️API signature unverified |
-| Combat HUD Module | Presentation | Widget state mirroring only | — (read-only) | All upstream delegates | UMG + CommonUI |
-
-Dependency flow: `Movement/HDC → Camera/EnemyAI/Spell/Dash → Tension/Overdrive → HUD` — no upstream module ever references a downstream one at compile time (enforced architectural invariant, matches Player Movement Core Rule 7's "no compile-time reference" pattern generalized project-wide).
+| Player Movement (`AMoonCharacterBase`, CMC-facing runtime contract) | Foundation | camera-relative movement input, airborne derived state, jump buffer/coyote timers, movement-lock read contract, presentation-only hitstop policy | `AddMovementInput`, movement-lock read, external velocity/Z launch path, non-root-motion locomotion contract | Camera yaw read, future Status Effect write authority for movement lock | ADR-0001, ADR-0009 |
+| Health/Damage Core (`UMoonAttributeSet`, ASC, health event interface) | Foundation | Health, MaxHealth, Mana, TensionGauge attributes, damage entry point, `State.Invulnerable`, `State.Executable`, `State.Dead`, death detection | damage GameplayEffects, `TryExecute`, `OnDeath`, `OnExecuted`, `OnHealthPercentCrossed`, Health attribute delegates, `ResetDeathState()` | Checkpoint restore call, execution target tags | ADR-0001, ADR-0008 |
+| Runtime Checkpoint (`UMoonCheckpointSubsystem`) | Foundation | in-memory checkpoint snapshot, restore sequencing | `CaptureCheckpoint`, `RestoreCheckpoint`, `HasActiveCheckpoint` | Health/Damage Core `ResetDeathState()`, Health restore GE | ADR-0002 |
+| Camera System | Core | SpringArm/camera hierarchy, camera tuning data, pitch clamp, camera lag reset, Overdrive/execution presentation blend | `UMoonCameraSettings`, `ResetCameraLag()`, camera presentation hooks | Movement position/yaw, checkpoint teleport, Overdrive/execution events | ADR-0005 |
+| Enemy AI | Core | enemy archetype tuning, AIController + shared BT/Blackboard, perception, telegraph/commit state, dead-state response | `OnAttackTelegraphed`, `OnAttackCommitted`, `IsTelegraphingAttack`, `GetAttackCommittedTime`, `MeleeAttackRange`, `TriggerStagger` | Health/Damage Core `OnDeath`, Dash just-dodge query | ADR-0006 |
+| Spell Casting | Core | per-element GAS abilities, shared Mana cost/cooldown gate, cast-rate limit, `CostBypass.Active` consumption, cooldown query surface | spell activation, `OnSpellCast`, `OnSpellHit`, cooldown tag/remaining/duration accessors | Movement non-block contract, HDC damage entry point, Luna Overdrive bypass state, Combo/Tension gain calls | ADR-0003, ADR-0010 |
+| Dash/Evasion | Core | instant swept dash step, dash charges, i-frame window, Just-Dodge spatial query and `State.Executable` grant | dash charge attribute, Just-Dodge success, dash HUD surface | Movement API, HDC tags, Enemy AI telegraph query, Combo/Tension gain call | ADR-0007, ADR-0010 |
+| Luna Overdrive | Feature | `Inactive`/`Active`/`Recovery` state, fixed 10s window, 1.5s recovery, `CostBypass.Active` sole ownership, mana-regen pause | `TriggerOverdrive`, `ForceEndOverdrive`, `IsOverdriveActive`, `IsTensionGainLocked`, started/ended events, remaining-time query | Combo/Tension max trigger, HDC `OnDeath`, Spell Casting bypass checks, Combat HUD state read | ADR-0004 |
+| Combo/Tension Gauge | Feature | Tension gain/penalty/decay ordering, damage-penalty pending flag, `TG_PostUpdateWork` resolution, death reset of gauge | direct gain/penalty methods on character, read-only GAS attribute value and Building/Decaying state | Spell hit, Dash Just-Dodge, Health attribute-change delegate, Luna Overdrive lock, HDC death | ADR-0001, ADR-0004, ADR-0011 |
+| Combat HUD | Presentation | read-only widget binding, per-widget update policy, cooldown overlays, glyph swapping, death/overdrive visual reset | Blueprint visual hooks only; no gameplay mutation | GAS attributes, spell cooldown query, dash charges, TensionGauge, Overdrive events, HDC death | ADR-0010 |
 
 ## Data Flow
 
-**1. Frame update path**
-```
-Input(Enhanced Input) → Movement(velocity) ─┐
-                                             ├→ Camera(read pos/yaw) → Render
-Input → Spell Cast Gate → GameplayEffect ──→ HDC.ApplyDamage → Health Attribute
-                                             └→ MakeNoise → Enemy AI Perception
-```
-Synchronous, completes within-frame (instant-cast contract — no ability latency across all spell/dash systems, InstancedPerActor).
+**Frame Update Path**
 
-**2. Event/signal path**
 ```
-Enemy AI.OnAttackTelegraphed/Committed ──(sub)──→ Dash/Evasion
-HDC.OnDeath / OnHealthPercentCrossed ──(sub)──→ Enemy AI, Combo Gauge, Boss Phase (future)
-HDC.OnTagAdded(State.Executable) ──(sub)──→ Combo/Tension Gauge
-Spell.OnSpellHit ──(sub)──→ Combo/Tension Gauge
-Combo/Tension.OnOverdriveTriggered ──(sub)──→ Luna Overdrive
-Luna Overdrive.OnOverdriveStarted/Ended ──(sub)──→ Combat HUD, Camera(FOV), Overdrive Visual State (future)
+Enhanced Input
+  ├─ Movement input -> AMoonCharacterBase / CMC -> position, velocity, facing
+  ├─ Spell input -> GAS ability gate -> cost/cooldown/damage GE -> AttributeSet
+  └─ Dash input -> instant swept position step -> i-frame tag / Just-Dodge query
+
+Attribute and state changes
+  ├─ HDC PostGameplayEffectExecute -> Health/Mana/Tension/Death delegates
+  ├─ Combo/Tension late tick -> pending penalty then decay
+  ├─ Overdrive time boundary -> tag/state/events
+  └─ HUD event bindings -> visual mirror only
 ```
-All GAS delegates/GameplayTag callbacks — no polling (matches Combat HUD Rule 3's event-driven mandate).
 
-**3. Save/load path**
-**GAP — no Persistence system exists.** `health-damage-core.md` Core Rule 6 assumes a checkpoint/respawn mechanism this architecture does not yet define. Tracked as Required New ADR below.
+Gameplay judgment remains synchronous and game-thread local. Presentation effects such as hitstop, camera blends, HUD interpolation, and glyph swaps may lag visually but must not delay movement input, ability activation, damage application, death detection, or execution success.
 
-**4. Initialization order**
-`HDC (ASC+AttributeSet) → Movement/Camera (parallel, no mutual dependency) → Enemy AI/Spell Casting → Dash/Evasion → Combo Gauge → Luna Overdrive → Combat HUD` (pure consumer, last).
+**Event and Signal Path**
 
-**Thread boundary**: Game thread only. No networking in MVP scope — no cross-thread GAS ability activation.
+```
+Enemy AI telegraph/commit ──► Dash/Evasion Just-Dodge query
+Dash Just-Dodge success ────► Combo/Tension AddTensionFromJustDodge()
+Spell OnSpellHit ──────────► Combo/Tension AddTensionFromSpellHit()
+Health attribute decrease ─► Combo/Tension pending damage penalty
+HDC death branch ──────────► Character/Enemy OnDeath
+Character OnDeath ─────────► Checkpoint restore, Overdrive force-end, HUD reset
+Enemy OnDeath ─────────────► AI StopLogic / corpse handling
+Tension reaches max ───────► Luna Overdrive TriggerOverdrive()
+Overdrive start/end ───────► Spell bypass gate, HUD, camera presentation
+GAS attribute delegates ───► HUD read-only widgets
+Cooldown tag changes ──────► HUD cooldown overlay sweep
+```
+
+Cross-system communication uses direct calls when caller and owner already share the same character instance at the triggering moment, and delegates/tag callbacks when the consumer is decoupled or presentation-only. No polling is permitted for gameplay-significant events such as Death or Overdrive entry.
+
+**Save / Restore Path**
+
+MVP persistence is runtime-only checkpoint memory, not disk save. `UMoonCheckpointSubsystem` owns capture/restore. Restore must call `UMoonAttributeSet::ResetDeathState()` before the Health restore GameplayEffect so the `bIsDead` guard and `State.Dead` tag are cleared before the restored pawn can die again. Direct `UMoonAttributeSet` value writes during restore are forbidden; Health restore still goes through GameplayEffect application.
+
+**Initialization Order**
+
+```
+ASC + AttributeSet
+  -> Checkpoint subsystem availability
+  -> Movement / Camera setup
+  -> Spell / Dash abilities
+  -> Enemy AI perception and BT
+  -> Combo/Tension subscriptions and late tick
+  -> Luna Overdrive state/events
+  -> Combat HUD BindToPlayer after real upstream delegates are available
+```
+
+HUD widgets that depend on first real upstream values must stay collapsed until their first delegate update. Showing a zero/default value before initialization is considered worse than showing nothing.
 
 ## API Boundaries
 
 ```cpp
-// Health/Damage Core — single damage entry point
-bool UMoonAttributeSet::TryExecute(AActor* Target);
-void ApplyDamage(AActor* Target, float RawDamage, bool bBypassDefense);
-DECLARE_MULTICAST_DELEGATE(OnDeath);
-DECLARE_MULTICAST_DELEGATE_OneParam(OnHealthPercentCrossed, float Threshold);
-// Invariant: RawDamage<0 hard-clamped to 0. State.Invulnerable always blocks 100%, bBypassDefense notwithstanding.
+// Player Movement
+void AddMovementInput(FVector Direction);
+bool IsMovementLocked() const;
+// Movement lock write remains private/reserved for the future Status Effect ADR.
+// Hitstop/execution freeze is mesh/camera presentation only; no Time Dilation.
 
-// Player Movement — movement contract
-void AddMovementInput(FVector Dir); // guaranteed live during casting/execution/hitstop
-void LaunchCharacterZ(float ZVelocity); // consumed by Dash, Arena Morphing (future)
-// Invariant: only the Status Effect system (future) may set MovementLocked.
+// Health/Damage Core
+bool ApplyDamage(AActor* Target, float RawDamage, bool bBypassDefense);
+bool TryExecute(AActor* Target);
+DECLARE_MULTICAST_DELEGATE(FOnMoonDeath);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMoonExecuted, AActor* Target);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMoonHealthPercentCrossed, float Threshold);
+void UMoonAttributeSet::ResetDeathState();
+// Damage is blocked by State.Invulnerable and State.Dead via ApplicationRequirement.
 
-// Spell Casting — cast gate
-bool CanCast(EElement Element); // Mana>=Cost AND !OnCooldown, true if CostBypass.Active
-void CastSpell(EElement Element); // completes same-frame, per-frame-per-element cap=1
-// Invariant: CostBypass.Active may only be granted by Luna Overdrive.
+// Checkpoint Runtime
+void CaptureCheckpoint(APawn* Player);
+void RestoreCheckpoint(APawn* Player);
+bool HasActiveCheckpoint() const;
+// Restore must reset death state before applying the Health restore GE.
 
-// Luna Overdrive — sole grantor contract
-void TriggerOverdrive(); // OnOverdriveTriggered handler, lazy time-compare gate
-float GetTimeRemaining(); // OverdriveEndTime - CurrentTime, clamped non-negative
-// Invariant: use SetLooseGameplayTagCount(1/0) — never AddLooseGameplayTag counted API.
+// Camera System
+UMoonCameraSettings* CameraSettings;
+void ResetCameraLag();
+// Camera tuning is data-asset driven. Constructor literals for tuning are forbidden.
 
-// Combat HUD — read-only mirror
-// Subscribes to the above delegates/attributes only; exposes no gameplay-mutating API (Core Rule 1).
+// Enemy AI
+DECLARE_MULTICAST_DELEGATE(FOnAttackTelegraphed);
+DECLARE_MULTICAST_DELEGATE(FOnAttackCommitted);
+bool IsTelegraphingAttack() const;
+float GetAttackCommittedTime() const;
+float GetMeleeAttackRange() const;
+void TriggerStagger();
+void ClearStagger();
+
+// Spell Casting
+bool CanCast(EMoonSpellElement Element) const;
+void CastSpell(EMoonSpellElement Element);
+FGameplayTag GetElementCooldownTag(EMoonSpellElement Element) const;
+float GetElementCooldownRemaining(EMoonSpellElement Element) const;
+float GetElementCooldownDuration(EMoonSpellElement Element) const;
+// CostBypass.Active is consumed here but owned only by Luna Overdrive.
+
+// Dash/Evasion
+void ActivateDash();
+bool CheckJustDodge();
+// Dash is an instant swept position step, not a velocity override.
+
+// Luna Overdrive
+void TriggerOverdrive();
+void ForceEndOverdrive(EMoonOverdriveEndReason Reason);
+bool IsOverdriveActive() const;
+bool IsTensionGainLocked() const;
+float GetOverdriveTimeRemaining() const;
+
+// Combo/Tension
+void AddTension(float Amount);
+void AddTensionFromSpellHit(float ManaCost);
+void AddTensionFromJustDodge();
+void ApplyTensionDamagePenalty(); // defers to TensionResolveTickFunction
+// Penalty then Decay resolves in TG_PostUpdateWork after same-frame Gain.
+
+// Combat HUD
+void BindToPlayer(APawn* Player);
+UFUNCTION(BlueprintImplementableEvent) void OnCooldownStateChanged(
+    EMoonSpellElement Element,
+    bool bOnCooldown,
+    float FractionRemaining);
+// HUD exposes no gameplay-mutating API.
 ```
-
-⚠️ All GAS types above (`UAbilitySystemComponent`, `UGameplayEffectExecutionCalculation`, `SetLooseGameplayTagCount`) are provisional pending real UE5.8 header cross-check — `ue-gas-specialist` verification required before implementation (already an Open Question in 3 GDDs).
 
 ## ADR Audit
 
-| ADR | Engine Compat | Version | GDD Linkage | Conflicts | Valid |
+| ADR | Status | Domain | Engine Compatibility | GDD Linkage | Conflicts |
 |---|---|---|---|---|---|
-| ADR-0001 (Player Movement and GAS Core Foundation) | ⚠️ Partial — GAS init flagged, no dedicated Engine Compatibility section | ✅ UE5.8 stated in header | ❌ No GDD Requirements Addressed section | None vs this session's layer map | ⚠️ **Proposed** — must move to Accepted; stories referencing it are currently auto-blocked per `docs/CLAUDE.md` |
-
-Missing required sections per `docs/CLAUDE.md`: **ADR Dependencies**, **Engine Compatibility** (as a distinct section), **GDD Requirements Addressed**. Recommend a revision pass on ADR-0001 before Accepted status.
+| ADR-0001 Player Movement and GAS Core | Accepted | Foundation | Partial; GAS init remains UE5.8 risk | Yes | None blocking |
+| ADR-0002 Runtime Checkpoint Persistence | Accepted | Foundation | OK; restore sequence amended for death reset | Yes | None |
+| ADR-0003 Spell Casting GAS Implementation | Accepted | Core | Partial; GAS cooldown/tag patterns require verification | Yes | None |
+| ADR-0004 Luna Overdrive Fixed Window | Accepted | Feature | Partial; loose tag count verification required | Yes | None |
+| ADR-0005 Camera System SpringArm | Accepted | Core | OK with known camera GDD value cleanup | Yes | C-3 non-blocking GDD contradiction |
+| ADR-0006 Enemy AI Behavior Tree | Accepted | Core | Partial; AI hearing mapping and perf remain implementation checks | Yes | None blocking |
+| ADR-0007 Dash/Evasion Just-Dodge | Accepted | Core | OK after avoiding deprecated velocity model; implementation must avoid legacy movement overloads | Yes | C-2 non-blocking GDD contradiction |
+| ADR-0008 Health/Damage Core Death Contract | Accepted | Foundation | Partial; GAS callbacks/tag clear verification required | Yes | Resolves C-1 |
+| ADR-0009 Player Movement Runtime Contract | Accepted | Foundation | OK; removes Time Dilation presentation violation by decision | Yes | Resolves V-1 architecturally |
+| ADR-0010 Combat HUD Widget Architecture | Accepted | Presentation | Partial; CommonUI glyph swap verification required | Yes | None |
+| ADR-0011 Combo/Tension Gauge | Accepted | Feature | Partial; tick ordering and `GEModData` verification required | Yes | None |
 
 ### Traceability Coverage
 
-19 baseline requirements (see Technical Requirements Baseline, captured in conversation) vs. existing ADRs:
+Latest authoritative review: `docs/architecture/architecture-review-2026-07-27-v4.md`.
 
-| Coverage | Count |
-|---|---|
-| Covered by ADR-0001 (Movement/GAS foundation) | TR-mov-001~005, TR-hp-001~003 (partial/indirect) |
-| **GAP — no ADR** | TR-cam-*, TR-ai-*, TR-spell-*, TR-dash-*, TR-tension-*, TR-overdrive-*, TR-hud-* (14 of 19) |
+| System | Covered | Partial | Gaps | Governing ADR |
+|---|---:|---:|---:|---|
+| Health/Damage Core | 9 | 0 | 0 | ADR-0001, ADR-0002, ADR-0008 |
+| Player Movement | 8 | 2 | 0 | ADR-0001, ADR-0005, ADR-0009 |
+| Camera System | 7 | 2 | 0 | ADR-0005 |
+| Luna Overdrive | 7 | 1 | 0 | ADR-0004 |
+| Enemy AI | 6 | 2 | 0 | ADR-0006 |
+| Spell Casting | 7 | 3 | 0 | ADR-0003, ADR-0004 |
+| Dash/Evasion | 6 | 2 | 0 | ADR-0007, ADR-0010 |
+| Combo/Tension Gauge | 6 | 1 | 0 | ADR-0001, ADR-0004, ADR-0011 |
+| Combat HUD | 7 | 0 | 0 | ADR-0010 |
 
-Only the Foundation layer has ADR coverage. Core, Feature, and Presentation layers are entirely uncovered.
+Total active requirements: 76. Covered: 65. Partial: 11. Gaps: 0.
 
 ## Required ADRs
 
-**Foundation (must have before coding starts):**
-- ADR-0001 → revise to Accepted (add missing required sections)
-- **New: Save/Persistence Strategy** — resolves the Data Flow Phase 3 gap; `health-damage-core.md` Core Rule 6 depends on it.
+No additional ADR is required for MVP architecture coverage as of the 2026-07-27 v4 review.
 
-**Core:**
-- Enemy AI architecture (BT/Perception composition, archetype data)
-- Spell Casting GAS ability structure (3-element slots, CostBypass hook implementation)
-- Dash/Evasion impulse + Just-Dodge implementation
-
-**Feature:**
-- Combo/Tension Gauge Attribute + decay implementation
-- Luna Overdrive tag ownership (non-counted loose tag) implementation
-
-**Presentation:**
-- Combat HUD UMG/CommonUI widget architecture
+Follow-up ADRs may still be needed before future systems are built, especially Status Effect, Core Extraction Execution, Boss Phase, Save/Persistence beyond runtime checkpoints, and any multiplayer/replication architecture. These are outside current MVP architecture coverage and should not block `/create-epics` for the approved MVP systems.
 
 ## Architecture Principles
 
-1. **Presentation never gates gameplay ticks** — hitstop, execution cameras, and casting animations are pure rendering-layer overlays; movement input processing and damage resolution continue at 100% tick rate underneath them (generalizes Player Movement Core Rule 8/9 and Health/Damage Core Rule 5 project-wide).
-2. **Single entry point per concern** — all damage flows through `ApplyDamage`/GameplayEffect (Health/Damage Core Rule 1); all cost/cooldown bypass flows through the single `CostBypass.Active` tag (Spell Casting Rule 10, Luna Overdrive sole-grantor contract). No system reimplements a sibling's entry point.
-3. **Upstream never compiles against downstream** — Movement does not reference Spell Casting types; Spell Casting does not reference Combo/Tension Gauge types. Dependencies flow one direction only, matching `systems-index.md`'s dependency map with zero circular references.
-4. **Event-driven over polling** — all cross-system communication uses GAS delegates/GameplayTag callbacks, never per-tick state polling (Combat HUD Rule 3 generalized as a project-wide default).
-5. **Engine-version risk is explicitly flagged, never silently assumed** — any UE5.8 API without a verified engine-reference entry (GAS attribute init, `SetLooseGameplayTagCount`) carries an Open Question and requires specialist header cross-check before implementation.
+1. Presentation never gates gameplay judgment. Hitstop, camera blends, execution flair, and HUD interpolation must not slow or delay movement input, cast gates, damage, death, execution, or tag state.
+2. Each shared state has one owner. Health/Damage Core owns Health/Death tags, Luna Overdrive owns `CostBypass.Active`, Enemy AI owns enemy archetype tuning, Camera owns camera tuning, and Checkpoint owns checkpoint snapshots.
+3. Use the narrowest communication shape that preserves ownership. Same-character gameplay writes may be direct method calls; decoupled consumers use delegates, GAS attribute callbacks, or GameplayTag callbacks.
+4. Data-driven tuning is mandatory for gameplay values. Constructor literals are forbidden for camera tuning and should be avoided anywhere a GDD lists a tuning knob.
+5. Engine-version risk is named at the decision boundary. UE5.8 API assumptions remain verification items until checked against local engine headers or project engine-reference docs.
+6. ADRs can ratify correct shipped spike code, but only when they also name deviations and migration steps. Spike behavior is not production architecture until an ADR accepts or amends it.
 
 ## Open Questions
 
 | ID | Summary | Priority | Resolution Path |
 |----|---------|----------|-----------------|
-| QQ-01 | Persistence/checkpoint system undesigned — Save/load path is an architecture gap | High | New ADR (Foundation) + eventual Persistence GDD |
-| QQ-02 | GAS attribute set init pattern for UE5.8 undocumented in engine-reference | High | `ue-gas-specialist` header cross-check at implementation time (inherited from 3 GDDs) |
-| QQ-03 | `SetLooseGameplayTagCount` UE5.8 signature unverified | Medium | `ue-gas-specialist` header cross-check before Luna Overdrive implementation |
-| QQ-04 | ADR-0001 missing required sections (ADR Dependencies, Engine Compatibility, GDD Requirements Addressed) | High | Revise ADR-0001 before promoting to Accepted |
+| QQ-01 | UE5.8 GAS callback signatures, attribute initialization, loose tag count clearing, and `GEModData` null semantics remain implementation-time risks | High | Verify against installed UE5.8 headers before HDC / Combo / GAS stories are Ready |
+| QQ-02 | CommonUI input-method changed signal and glyph asset source of truth after UE5.8 Enhanced Input/Common Input unification | Medium | `ue-umg-specialist` or direct header check before Combat HUD glyph implementation |
+| QQ-03 | Combo/Tension `TG_PostUpdateWork` ordering precondition for all current and future gain call sites | Medium | Engine spike before Combo/Tension story Ready |
+| QQ-04 | Same-frame multiple damage-penalty events collapse to one bool-triggered penalty; designer confirmation still needed before Production tuning | Medium | Game-design review during Combo/Tension implementation/tuning |
+| QQ-05 | `AMoonCharacterBase` responsibility accretion across Movement, Overdrive, Tension, Health events, and HUD binding remains non-blocking but growing | Medium | Reassess component decomposition before Production or when a third tick-owning concern is added |
+| QQ-06 | GDD cleanup flags C-2/C-3 and missing tuning knobs remain non-blocking for architecture PASS | Medium | Focused GDD cleanup pass for `dash-evasion.md`, `camera-system-base.md`, and `enemy-ai-base.md` |
+
