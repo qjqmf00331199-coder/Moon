@@ -1,7 +1,18 @@
 # ADR-0007: Dash/Evasion — Instant Position Step + Just-Dodge Query Architecture
 
 ## Status
-Proposed
+Accepted
+
+**Accepted:** 2026-07-27 (per `/architecture-review` — no unresolved blocking dependency: sole
+dependency ADR-0006 now Accepted; `Blocks` field states None. Dash/Evasion Rules 1/2/4/5/6/7/8/9
+addressed per its own GDD Requirements table (architecture-review-2026-07-27 scored this system
+5 ✅ / 2 ⚠️ / 1 ❌ — the one gap, TR-dash-008 Combat HUD charge/cooldown surface, belongs to the
+not-yet-architected Combat HUD system, not to this ADR's own Just-Dodge/dash-motion scope, so it
+is non-blocking here). E-1 finding (deprecated `SetMovementMode()` overload, Engine Compatibility
+table previously claimed "None" for a fact this ADR itself ratifies) corrected in this pass —
+Engine Compatibility table and Migration Plan item 6 now state it accurately. Other Verification
+Required items (`JustDodgeQueryRadius` placeholder value, Ranged Just-Dodge simplification) remain
+open as implementation/playtest-time risks, non-blocking, same treatment as ADR-0005/0008/0004/0006.)
 
 ## Date
 2026-07-23
@@ -14,14 +25,14 @@ Proposed
 | **Domain** | Physics / GAS |
 | **Knowledge Risk** | LOW-MEDIUM — `SetActorLocation` (swept), `GameplayAbility`/`ActivationOwnedTags`, and sphere-overlap queries are all stable pre-cutoff APIs. No dedicated physics-module coverage of overlap queries in this project's engine-reference beyond `docs/engine-reference/unreal/modules/physics.md`'s general collision-channel material, which was consulted. |
 | **References Consulted** | `docs/engine-reference/unreal/VERSION.md`, `docs/engine-reference/unreal/breaking-changes.md`, `docs/engine-reference/unreal/deprecated-apis.md`, `docs/engine-reference/unreal/modules/physics.md` |
-| **Post-Cutoff APIs Used** | None. |
-| **Verification Required** | None beyond standard collision-query correctness at implementation time. |
+| **Post-Cutoff APIs Used** | None new — but the already-shipped dash code this ADR ratifies (`MoonGameplayAbility_Dash.cpp:187`) calls the legacy `UCharacterMovementComponent::SetMovementMode()` overload, flagged deprecated-in-5.8 by `deprecated-apis.md:183` (replacement: `SetMovementModeWithCustomMode()`). Corrected per architecture-review E-1 finding (2026-07-27) — this table previously claimed "None" for both fields, which was inaccurate for the code being ratified. |
+| **Verification Required** | Migrate `MoonGameplayAbility_Dash.cpp:187`'s legacy `SetMovementMode()` call to `SetMovementModeWithCustomMode()` before this ships (see Migration Plan item 6), beyond standard collision-query correctness at implementation time. |
 
 ## ADR Dependencies
 
 | Field | Value |
 |-------|-------|
-| **Depends On** | ADR-0006 (Enemy AI, Proposed) — Just-Dodge detection requires a **queryable** telegraph-state accessor on `AMoonEnemyCharacterBase` that ADR-0006 did not originally specify (that ADR only defined the broadcast delegates). This ADR proposes a small addition to ADR-0006's Key Interfaces (see Decision point 3) rather than re-deciding ADR-0006's architecture. |
+| **Depends On** | ADR-0006 (Enemy AI, Accepted 2026-07-27) — Just-Dodge detection requires a **queryable** telegraph-state accessor on `AMoonEnemyCharacterBase` that ADR-0006 did not originally specify (that ADR only defined the broadcast delegates). This ADR proposes a small addition to ADR-0006's Key Interfaces (see Decision point 3) rather than re-deciding ADR-0006's architecture. |
 | **Enables** | Core Extraction Execution GDD (consumes the `State.Executable` tag this ADR grants) |
 | **Blocks** | None currently blocking an epic — closes an architecture-review gap (TR-dash-001..008, 8/8 previously uncovered) |
 | **Ordering Note** | Should be Accepted together with or after ADR-0006, since it extends that ADR's interface |
@@ -139,6 +150,7 @@ UMoonGameplayAbility_Dash::ActivateAbility()
 3. Implement `UMoonGameplayAbility_Dash::CheckJustDodge()` per the Decision section's overlap-query algorithm.
 4. Add `AirDashZImpulse` Tuning Knob + apply it in `ApplyDashImpulse` when `MoveComp->IsFalling()`.
 5. Add `JustDodgeQueryRadius` and `AirDashZImpulse` to `dash-evasion.md`'s Tuning Knobs table (GDD addendum — this ADR introduces two values the GDD doesn't currently have).
+6. Migrate `MoonGameplayAbility_Dash.cpp:187`'s legacy `SetMovementMode()` call to `SetMovementModeWithCustomMode()` (architecture-review E-1 finding, 2026-07-27) — same behavior, non-deprecated overload.
 
 ## Validation Criteria
 - `dash-evasion.md` AC3/AC4/AC5/AC8 (the Just-Dodge-specific criteria) — currently **cannot pass** since `CheckJustDodge` is a no-op; this ADR's implementation is what makes them testable at all.
