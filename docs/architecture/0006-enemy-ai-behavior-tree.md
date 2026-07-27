@@ -21,7 +21,7 @@ Proposed
 
 | Field | Value |
 |-------|-------|
-| **Depends On** | ADR-0008 (Health/Damage Core death event contract — Proposed; defines the `OnDeath`/`IMoonHealthEventInterface` producer this ADR's Dead-state branch subscribes to. TR-hp-006/007/008 now covered by ADR-0008 rather than uncovered. This ADR cannot be Accepted until ADR-0008 is.) |
+| **Depends On** | ADR-0008 (Health/Damage Core death event contract — Accepted 2026-07-27; defines the `OnDeath`/`IMoonHealthEventInterface` producer this ADR's Dead-state branch subscribes to. TR-hp-006/007/008 now covered by ADR-0008.) |
 | **Enables** | Dash/Evasion ADR (just-dodge timing subscribes to `OnAttackTelegraphed`/`OnAttackCommitted` defined here) |
 | **Blocks** | None currently — closes an architecture-review gap (TR-ai-001..008, 8/8 previously uncovered) |
 | **Ordering Note** | Should be written before or alongside the Dash/Evasion ADR since Dash/Evasion's just-dodge timing is a direct consumer of this ADR's telegraph delegate interface |
@@ -163,5 +163,5 @@ N/A — greenfield, no existing AI implementation to migrate from (`BP_Enemy_Bas
 
 ## Related Decisions
 - ADR-0005 (camera-system-springarm) — establishes the `UDataAsset`-driven tuning pattern this ADR reuses for `UMoonEnemyArchetypeData`.
-- ADR-0008 (health-damage-core-death-event-contract, Proposed) — defines the `OnDeath` producer this ADR's Dead-state branch subscribes to; blocking dependency until Accepted.
+- ADR-0008 (health-damage-core-death-event-contract, Accepted) — defines the `OnDeath` producer this ADR's Dead-state branch subscribes to.
 - `design/gdd/enemy-ai-base.md`, `design/gdd/dash-evasion.md` (telegraph consumer), `design/gdd/health-damage-core.md` (`OnDeath` producer) — GDDs this ADR implements or interfaces with.

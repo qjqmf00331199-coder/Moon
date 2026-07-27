@@ -21,7 +21,7 @@
 
 | Field | Value |
 |-------|-------|
-| **Depends On** | ADR-0001 (character-owned ASC/attributes), ADR-0003 (`CostBypass.Active` spell gate), ADR-0008 (Health/Damage Core death event contract — Proposed, must be Accepted before this ADR can be, since `PlayerDeath` end-reason subscribes to its `OnDeath`) |
+| **Depends On** | ADR-0001 (character-owned ASC/attributes), ADR-0003 (`CostBypass.Active` spell gate), ADR-0008 (Health/Damage Core death event contract — Accepted 2026-07-27; `PlayerDeath` end-reason subscribes to its `OnDeath`) |
 | **Enables** | Luna Overdrive implementation, Combat HUD overdrive timer/state, signature-combat-chain spike |
 | **Blocks** | Production Luna Overdrive story must not be marked Ready until this ADR is accepted and its GDD revisions pass independent review |
 | **Ordering Note** | Revise Luna Overdrive, Combo/Tension, and Spell Casting GDD contracts in the same change as this ADR |
@@ -122,7 +122,7 @@ The character exposes Blueprint-assignable started/ended events. Combat HUD and 
 
 ### Risks
 - A Blueprint may still grant `CostBypass.Active` directly. Mitigation: PIE inspect tag ownership and remove legacy graph logic.
-- Death handling: the canonical death delegate now exists (ADR-0008 `IMoonHealthEventInterface`/`OnDeath`, Proposed). Mitigation: expose `ForceEndOverdrive(PlayerDeath)` and connect it to `AMoonCharacterBase::OnDeath` once ADR-0008 is Accepted — no longer blocked on an undefined producer, only on ADR-0008's Acceptance.
+- Death handling: the canonical death delegate now exists and is Accepted (ADR-0008 `IMoonHealthEventInterface`/`OnDeath`). Mitigation: expose `ForceEndOverdrive(PlayerDeath)` and connect it to `AMoonCharacterBase::OnDeath` at implementation time — no longer blocked on an undefined or unaccepted producer.
 - Tick-based state transitions could be missed if the actor stops ticking. Mitigation: character tick is already mandatory for movement/resource logic; tests call the pure time predicates directly.
 
 ## GDD Requirements Addressed
