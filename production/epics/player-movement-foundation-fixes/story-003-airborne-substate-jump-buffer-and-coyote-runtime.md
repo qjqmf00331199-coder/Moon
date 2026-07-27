@@ -1,12 +1,12 @@
 # Story 003: Airborne Substate, Jump Buffer, and Coyote Runtime
 
 > **Epic**: Player Movement Foundation Fixes
-> **Status**: Ready
+> **Status**: In Progress
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: 2-4 hours
 > **Manifest Version**: 2026-07-27
-> **Last Updated**:
+> **Last Updated**: 2026-07-27
 
 ## Context
 
@@ -28,10 +28,10 @@
 
 ## Acceptance Criteria
 
-- [ ] GIVEN Falling state and an external Z impulse makes `Velocity.Z > 0`, WHEN the next post-CMC tick runs, THEN airborne substate is Ascending.
-- [ ] GIVEN coyote timer values 149ms, 150ms, 150.5ms, and 151ms, WHEN jump input is evaluated, THEN 149ms and 150ms pass, while 150.5ms and 151ms fail.
-- [ ] GIVEN jump buffer timer values 149ms, 150ms, 150.5ms, and 151ms before landing, WHEN landing occurs, THEN 149ms and 150ms trigger the buffered jump, while later values do not.
-- [ ] GIVEN `MovementLocked=true`, WHEN movement input occurs, THEN movement is ignored; GIVEN Spell Casting attempts to write the flag, THEN no write path is available.
+- [x] GIVEN Falling state and an external Z impulse makes `Velocity.Z > 0`, WHEN the next post-CMC tick runs, THEN airborne substate is Ascending. — `AMoonCharacterBase::Tick()`, derived after `Super::Tick()`; covered by `airborne_and_grace_windows_test.ps1`.
+- [x] GIVEN coyote timer values 149ms, 150ms, 150.5ms, and 151ms, WHEN jump input is evaluated, THEN 149ms and 150ms pass, while 150.5ms and 151ms fail. — `IsWithinGraceWindow()` inclusive `[0.0f, 0.150f]` check against the remaining-timer value; covered by `airborne_and_grace_windows_test.ps1` (elapsed→remaining conversion, exact-150ms-boundary regression test included).
+- [x] GIVEN jump buffer timer values 149ms, 150ms, 150.5ms, and 151ms before landing, WHEN landing occurs, THEN 149ms and 150ms trigger the buffered jump, while later values do not. — same `IsWithinGraceWindow()` boundary, consumed in `Landed()`.
+- [x] GIVEN `MovementLocked=true`, WHEN movement input occurs, THEN movement is ignored; GIVEN Spell Casting attempts to write the flag, THEN no write path is available. — `Move()` gates on `bMovementLocked`; `SetMovementLocked()` private/uncalled; covered by `movement_lock_contract_test.ps1`.
 
 ---
 
@@ -87,11 +87,20 @@
 - `tests/unit/movement/airborne_and_grace_windows_test.*`
 - `tests/unit/movement/movement_lock_contract_test.*`
 
-**Status**: [ ] Not yet created
+**Status**: [x] Created — both files present, PASS
+
+**Verification (2026-07-27)**:
+- `tests/unit/movement/airborne_and_grace_windows_test.ps1` — PASS
+- `tests/unit/movement/movement_lock_contract_test.ps1` — PASS
+- Regression re-run: `camera_yaw_facing_test.ps1`, `movement_foundation_contract.ps1`, `movement_independence_check.ps1` — all PASS
+- UBT full build (`MoonEditor Win64 Development`) — **Succeeded**, 5/5 actions
+- PIE runtime verification — **not yet performed** (no Unreal MCP/Editor control tool available this session)
+
+**Bug found and fixed during implementation**: initial boundary check used `Timer > 0.0f`, which silently rejected the exact-150ms-elapsed case (remaining timer value `0.0f`) that AC-2/AC-3 require to pass. Fixed by introducing a distinct `UnarmedTimerSentinel = -1.0f` and changing the check to inclusive `>= 0.0f`. Caught before acceptance by manual trace of the diff, not by the first self-reported test pass — the original test mirrored the buggy formula rather than exercising real elapsed→remaining semantics.
 
 ---
 
 ## Dependencies
 
-- Depends on: Story 001
+- Depends on: Story 001 (status: In Progress — PIE verification still pending; user accepted this risk to proceed with Story 003)
 - Unlocks: Dash/Evasion air-dash and MovementLocked dash gating work

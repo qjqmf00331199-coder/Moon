@@ -62,6 +62,31 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	// Airborne substate (TR-mov-003): derived purely from Velocity.Z's sign, sampled here
+	// because Super::Tick() above has already run CMC's own movement tick this frame — reading
+	// Velocity.Z before Super::Tick() would see last frame's stale value. Ascending/Falling both
+	// map to the single native MOVE_Falling mode; there is no stored transition table and no
+	// custom movement mode (ADR-0009 Decision 2). External Z-impulse re-entry (Dash/Launch
+	// pushing Velocity.Z positive while Falling) and ceiling-bump deceleration back to Falling
+	// both fall out of this one-line sign check with no special-casing.
+	if (const UCharacterMovementComponent* MoveCompForSubState = GetCharacterMovement())
+	{
+		AirborneSubState = (MoveCompForSubState->Velocity.Z > 0.0f) ? EMoonAirborneSubState::Ascending : EMoonAirborneSubState::Falling;
+	}
+
+	// Jump input buffer / coyote time (TR-mov-007): plain delta-time countdowns, never a fixed
+	// frame count. Each stops decrementing once armed reaches (or crosses) zero elapsed-time —
+	// clamped at UnarmedTimerSentinel so an expired/unarmed timer settles at a single well-known
+	// value instead of drifting to an arbitrary negative number.
+	if (JumpInputBufferTimer > 0.0f)
+	{
+		JumpInputBufferTimer = FMath::Max(JumpInputBufferTimer - DeltaTime, UnarmedTimerSentinel);
+	}
+	if (CoyoteTimeTimer > 0.0f)
+	{
+		CoyoteTimeTimer = FMath::Max(CoyoteTimeTimer - DeltaTime, UnarmedTimerSentinel);
+	}
+
 	const double CurrentWorldTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	UpdateOverdriveState(CurrentWorldTime);
 
@@ -113,7 +138,18 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 	// Jump_Start once. OnJumpStartAnimFinished() hands off to a looping Jump_Apex if still
 	// airborne once Jump_Start finishes; Landed() plays Jump_Land on touchdown.
 	const bool bIsFalling = GetCharacterMovement()->IsFalling();
-	if (bIsFalling && !bWasFalling && JumpStartAnim)
+	const bool bJustStartedFalling = bIsFalling && !bWasFalling;
+
+	// Coyote time (TR-mov-007): only armed when the character left the ground without jumping
+	// (JumpCurrentCount still 0 this frame — walked off a ledge, was pushed, etc.). An explicit
+	// jump already increments JumpCurrentCount by the time CMC's IsFalling() flips true, so a
+	// normal jump-triggered fall does not re-arm this timer.
+	if (bJustStartedFalling && JumpCurrentCount == 0)
+	{
+		CoyoteTimeTimer = JumpGraceWindowSeconds;
+	}
+
+	if (bJustStartedFalling && JumpStartAnim)
 	{
 		if (USkeletalMeshComponent* MeshComp = GetMesh())
 		{
@@ -158,6 +194,18 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 void AMoonCharacterBase::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
+
+	// Jump input buffer (TR-mov-007): a jump pressed shortly before touchdown is honored here.
+	// By this point the character is grounded again, so the normal Jump() path (native CanJump())
+	// succeeds without any special-casing.
+	if (IsWithinGraceWindow(JumpInputBufferTimer))
+	{
+		// Reset to the unarmed sentinel, not 0.0f — 0.0f is itself a valid "exactly 150ms
+		// elapsed" passing value, so resetting to it here would let this same buffered jump be
+		// consumed again on a later frame before it is next armed.
+		JumpInputBufferTimer = UnarmedTimerSentinel;
+		Jump();
+	}
 
 	// Landing impact: pause only this character very briefly. CustomTimeDilation leaves
 	// the world clock untouched, so enemies and projectiles continue to update normally.
@@ -428,6 +476,14 @@ void AMoonCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 void AMoonCharacterBase::Move(const FInputActionValue& Value)
 {
+	// MovementLocked (TR-mov-006): access-control gate for the not-yet-designed Status Effect
+	// system. bMovementLocked has no writer yet (SetMovementLocked() is private and uncalled) —
+	// this check exists now so the gate is already correct once that system is designed.
+	if (bMovementLocked)
+	{
+		return;
+	}
+
 	FVector2D MovementVector = Value.Get<FVector2D>();
 
 	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Move fired: %s"), *MovementVector.ToString());
@@ -443,6 +499,15 @@ void AMoonCharacterBase::Move(const FInputActionValue& Value)
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
 	}
+}
+
+void AMoonCharacterBase::SetMovementLocked(bool bLocked)
+{
+	// TR-mov-006 reservation: intentionally uncalled. The Status Effect system (not yet
+	// designed) is the only intended future caller — its ADR must expose this via a narrow
+	// friend/interface grant rather than this method becoming public/BlueprintCallable directly.
+	// Do not add a call site here or elsewhere until that ADR exists (ADR-0009 Decision 3).
+	bMovementLocked = bLocked;
 }
 
 void AMoonCharacterBase::Look(const FInputActionValue& Value)
@@ -511,6 +576,30 @@ void AMoonCharacterBase::Input_Jump()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Input_Jump fired. CanJump=%d IsFalling=%d JumpCurrentCount=%d/%d MovementMode=%d"),
 		CanJump(), GetCharacterMovement()->IsFalling(), JumpCurrentCount, JumpMaxCount, (int32)GetCharacterMovement()->MovementMode.GetValue());
+
+	const bool bIsFalling = GetCharacterMovement()->IsFalling();
+
+	// Coyote time (TR-mov-007): native ACharacter::CanJump() unconditionally refuses a jump when
+	// JumpCurrentCount==0 while airborne (it has no concept of a post-ground-exit grace window),
+	// so a plain Jump() call here would silently do nothing during the coyote window. Bypass that
+	// gate directly with LaunchCharacter using the same JumpZVelocity CMC would have applied.
+	if (bIsFalling && JumpCurrentCount == 0 && IsWithinGraceWindow(CoyoteTimeTimer))
+	{
+		// Reset to the unarmed sentinel, not 0.0f — see the identical note in Landed().
+		CoyoteTimeTimer = UnarmedTimerSentinel;
+		LaunchCharacter(FVector(0.0f, 0.0f, GetCharacterMovement()->JumpZVelocity), false, true);
+		return;
+	}
+
+	// Jump input buffer (TR-mov-007): pressing jump while airborne and not coyote-eligible is
+	// buffered so landing within the grace window still triggers a jump (see Landed()). Jump()
+	// is still called normally below — this is purely additive, e.g. a double-jump ability would
+	// still fire through the native path unaffected.
+	if (bIsFalling)
+	{
+		JumpInputBufferTimer = JumpGraceWindowSeconds;
+	}
+
 	Jump();
 }
 

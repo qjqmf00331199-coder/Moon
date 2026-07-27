@@ -922,3 +922,13 @@ from "**This IS the exact resume point**" above.
   "Movement-owning file has zero Spell refs" ideal cannot be closed by a tiny flag fix. The static
   script therefore checks the `Move()` path and `Moon.Build.cs` module boundary. A future component
   decomposition story may be needed if the team wants the stricter file-level invariant.
+
+## Session Extract — /dev-story 2026-07-27 (Story 003)
+- Story: production/epics/player-movement-foundation-fixes/story-003-airborne-substate-jump-buffer-and-coyote-runtime.md — Airborne Substate, Jump Buffer, and Coyote Runtime
+- Files changed: Moon/Source/Moon/Character/MoonCharacterBase.h, Moon/Source/Moon/Character/MoonCharacterBase.cpp, tests/unit/movement/airborne_and_grace_windows_test.ps1 (new), tests/unit/movement/movement_lock_contract_test.ps1 (new)
+- Test written: both above — PASS. Regression (camera_yaw_facing_test.ps1, movement_foundation_contract.ps1, movement_independence_check.ps1) — all PASS.
+- UBT full build: Succeeded (5/5 actions).
+- Bug caught mid-review: initial `Timer > 0.0f` boundary check silently rejected exact-150ms-elapsed case; fixed with `UnarmedTimerSentinel = -1.0f` + inclusive `>= 0.0f` check. Verified by manual trace, not just re-trusting agent self-report.
+- Deviation: proceeded with Story 001 dependency still In Progress (PIE pending) — user explicitly accepted this risk.
+- Blockers: PIE runtime verification still not possible this session (no Unreal MCP/Editor control tool exposed).
+- Next: /code-review Moon/Source/Moon/Character/MoonCharacterBase.h Moon/Source/Moon/Character/MoonCharacterBase.cpp, then /story-done production/epics/player-movement-foundation-fixes/story-003-airborne-substate-jump-buffer-and-coyote-runtime.md

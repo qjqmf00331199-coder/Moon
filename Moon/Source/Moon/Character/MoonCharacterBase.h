@@ -20,6 +20,18 @@ class UCameraComponent;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMoonOverdriveStartedSignature);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMoonOverdriveEndedSignature, EMoonOverdriveEndReason, Reason);
 
+// Airborne substate (TR-mov-003): a derived read-only value, never a stored state machine and
+// never a custom CMC movement mode. Both values map to the single native MOVE_Falling mode;
+// AMoonCharacterBase::Tick() derives this purely from Velocity.Z's sign after Super::Tick() has
+// run each frame. See ADR-0009 Decision 2 / Alternative 3 (explicitly rejects
+// SetMovementModeWithCustomMode() for this purpose).
+UENUM(BlueprintType)
+enum class EMoonAirborneSubState : uint8
+{
+	Ascending,
+	Falling
+};
+
 UCLASS()
 class MOON_API AMoonCharacterBase : public ACharacter, public IAbilitySystemInterface
 {
@@ -107,6 +119,16 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Moon|Overdrive")
 	FMoonOverdriveEndedSignature OnOverdriveEnded;
+
+	// Derived read-only airborne substate (TR-mov-003) — see EMoonAirborneSubState above.
+	// Updated once per frame in Tick(), after Super::Tick() has run.
+	UFUNCTION(BlueprintPure, Category = "Moon|Movement")
+	EMoonAirborneSubState GetAirborneSubState() const { return AirborneSubState; }
+
+	// Movement lock read-only query (TR-mov-006). Write access is a private reservation for the
+	// not-yet-designed Status Effect system — see SetMovementLocked() below.
+	UFUNCTION(BlueprintPure, Category = "Moon|Movement")
+	bool IsMovementLocked() const { return bMovementLocked; }
 
 	// Plays a one-shot animation on the mesh (e.g. Dash/spell cast), suppressing the idle/jog
 	// locomotion swap in Tick until it finishes. Used by abilities that don't have their own
@@ -250,6 +272,42 @@ private:
 	FTimerHandle JumpAnimTimerHandle;
 	FTimerHandle OneShotAnimTimerHandle;
 	FTimerHandle HitStopTimerHandle;
+
+	// Airborne substate (TR-mov-003): derived once per frame in Tick(), after Super::Tick(), from
+	// GetCharacterMovement()->Velocity.Z's sign. Not a stored transition table.
+	EMoonAirborneSubState AirborneSubState = EMoonAirborneSubState::Falling;
+
+	// MovementLocked (TR-mov-006): private access-control reservation. The Status Effect system
+	// (not yet designed) is the sole intended future caller of SetMovementLocked() — see
+	// ADR-0009 Decision 3. Do not call this from anywhere until that system's ADR grants access;
+	// Spell Casting must never gain write access, even accidentally.
+	bool bMovementLocked = false;
+	void SetMovementLocked(bool bLocked);
+
+	// Jump input buffer / coyote time (TR-mov-007): Character-owned float accumulators, seconds,
+	// REMAINING time until the grace window closes — armed at JumpGraceWindowSeconds (0.150f) and
+	// decremented via -= DeltaTime in Tick() (never a fixed frame count). Consumption uses an
+	// inclusive boundary against JumpGraceWindowSeconds (149ms/150ms elapsed pass, 150.5ms/151ms
+	// elapsed fail) — see ADR-0009 Decision 4.
+	//
+	// UnarmedTimerSentinel (a negative value, never reachable by a real countdown from 0.150f
+	// down to 0) is the "not armed" default/reset value. This is deliberately NOT 0.0f: a timer
+	// armed at 0.150f and decremented for exactly 150ms elapsed lands on remaining == 0.0f, which
+	// must PASS the grace-window check (149ms/150ms are both required to pass, inclusive) — so
+	// 0.0f cannot double as the "never armed" sentinel without incorrectly failing that exact
+	// boundary case.
+	static constexpr float JumpGraceWindowSeconds = 0.150f;
+	static constexpr float UnarmedTimerSentinel = -1.0f;
+	float JumpInputBufferTimer = UnarmedTimerSentinel;
+	float CoyoteTimeTimer = UnarmedTimerSentinel;
+
+	// True while a timer's REMAINING value is still within its inclusive grace window:
+	// [0.0f, JumpGraceWindowSeconds]. The >= 0.0f lower bound is what makes the exact
+	// 150ms-elapsed case (remaining == 0.0f) pass; it also correctly excludes the negative
+	// UnarmedTimerSentinel default and any post-expiry negative remaining value. The
+	// <= JumpGraceWindowSeconds upper bound is the ADR-mandated boundary operator (not a bare
+	// > 0.f check) so that any value beyond the 150ms window — however it got there — is rejected.
+	static bool IsWithinGraceWindow(float TimerSeconds) { return TimerSeconds >= 0.0f && TimerSeconds <= JumpGraceWindowSeconds; }
 
 	void RefreshLocomotionAnim();
 	void OnJumpStartAnimFinished();
