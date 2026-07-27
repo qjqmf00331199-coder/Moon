@@ -86,6 +86,19 @@ Luna-specific work: legacy attribute initialization, `PostGameplayEffectExecute`
 `PreAttributeChange` signatures, and loose gameplay-tag full-clear semantics. Future latent
 AbilityTasks or BP ticks scheduled at/after `TG_PostUpdateWork` must not call `AddTension*` unless
 explicitly ordered before `TensionResolveTickFunction`.
+**UPDATE 2026-07-27 (7)**: `/create-control-manifest`, `/create-epics`, and `/create-stories`
+completed for the first implementation lane. New `docs/architecture/control-manifest.md` generated
+from Accepted ADRs + UE5.8 engine-reference docs (note: `.Codex/docs/technical-preferences.md` is
+not present, so naming/commit rules are sourced from `AGENTS.md`). New epics:
+`production/epics/player-movement-foundation-fixes/EPIC.md`,
+`production/epics/camera-system-foundation-fixes/EPIC.md`, and
+`production/epics/dash-evasion-foundation-fixes/EPIC.md`, with `production/epics/index.md` updated.
+First epic decomposed into 5 stories under `production/epics/player-movement-foundation-fixes/`.
+Next implementation should start with
+`production/epics/player-movement-foundation-fixes/story-001-camera-yaw-facing-and-movement-independence.md`
+because it fixes the known playtest-blocking rotation-flag bug (`bUseControllerRotationYaw` /
+`bOrientRotationToMovement`) and adds movement independence/static checks before Camera and Dash work
+depend on the build.
 <!-- /STATUS -->
 
 ## Completed Spike — Signature Combat Chain + Overdrive Crash (Codex, 2026-07-21)
@@ -877,3 +890,26 @@ from "**This IS the exact resume point**" above.
 - Stories may now reference ADR-0005 without being auto-blocked (per docs/CLAUDE.md status lifecycle).
 - ADR-0004/0006/0007 remain Proposed — still blocked on the HDC death+event contract (C-1) and,
   for 0007, on ADR-0006 also being Proposed.
+
+## Session Extract — /create-epics + /create-stories + Story 001 start (Codex, 2026-07-27)
+- Created the missing control manifest (`docs/architecture/control-manifest.md`) from Accepted ADRs,
+  `AGENTS.md`, and UE5.8 engine reference docs. `.Codex/docs/technical-preferences.md` is not present,
+  so the manifest explicitly records that fallback source.
+- Created first-lane epics: `player-movement-foundation-fixes`,
+  `camera-system-foundation-fixes`, and `dash-evasion-foundation-fixes`; updated
+  `production/epics/index.md`.
+- Broke the first epic into 5 stories under
+  `production/epics/player-movement-foundation-fixes/`. The next intended implementation order is
+  Story 001 → Story 003/004 → Camera/Dash epics.
+- Started Story 001 (`story-001-camera-yaw-facing-and-movement-independence.md`): fixed the known
+  C++ camera-yaw facing deviation in `Moon/Source/Moon/Character/MoonCharacterBase.cpp`
+  (`bUseControllerRotationYaw=true`, pitch/roll false, `bOrientRotationToMovement=false`).
+- Added `tests/static/movement_foundation_contract.ps1`; static check PASS:
+  `movement foundation contract static checks passed`.
+- UBT build attempt started with `Build.bat MoonEditor Win64 Development -Project=... -NoHotReload`,
+  but UBT's `dotnet` process sat with near-zero CPU and no output for several minutes, so it was
+  stopped. Full Unreal compile/PIE validation is still pending.
+- Important scope note: `AMoonCharacterBase` currently owns Spell input/casting hooks, so the broader
+  "Movement-owning file has zero Spell refs" ideal cannot be closed by a tiny flag fix. The static
+  script therefore checks the `Move()` path and `Moon.Build.cs` module boundary. A future component
+  decomposition story may be needed if the team wants the stricter file-level invariant.
