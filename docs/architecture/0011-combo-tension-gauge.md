@@ -1,7 +1,14 @@
 # ADR-0011: Combo/Tension Gauge — Gain/Penalty/Decay Ordering and Wiring Contract
 
 ## Status
-Proposed
+Accepted
+
+**Accepted:** 2026-07-27 (fresh `/architecture-review` delta pass in
+`architecture-review-2026-07-27-v4.md` — closes TR-tension-002/003/004/005/007,
+no unresolved blocking dependency; all `Depends On` ADRs are already Accepted.
+Verification Required items for `TG_PostUpdateWork` call-site ordering and
+`FOnAttributeChangeData::GEModData` semantics remain implementation-time risks,
+non-blocking for Acceptance under the same precedent as ADR-0004/0006/0008/0009.)
 
 ## Date
 2026-07-27

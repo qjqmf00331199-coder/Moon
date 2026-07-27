@@ -11,8 +11,53 @@ Task: **Signature Combat Chain Spike — CLOSED (2026-07-21, commit 8753883)**. 
 59→23 of 76. The 4 new ADRs closed 34 gaps and Camera/Enemy AI/Dash/Overdrive are now fully
 addressed, but the review found a **blocking** issue: `OnDeath` is consumed by ADR-0002/0004/0006
 and defined by no ADR (the 2026-07-18 conflict, recurred 3× wider). `/create-epics` still gated.
-Next: write the Health/Damage Core death+event contract ADR in a fresh session, and Accept ADR-0005
-(no unresolved deps). Report: `docs/architecture/architecture-review-2026-07-27.md`.
+**UPDATE 2026-07-27 (2)**: ADR-0005 Accepted (separate session). **ADR-0008 written** (this session,
+fresh — did not author the review) — `docs/architecture/0008-health-damage-core-death-event-contract.md`,
+status Proposed, closes C-1. Death detection in `UMoonAttributeSet::PostGameplayEffectExecute`
+(bIsDead guard, exactly-once), new `IMoonHealthEventInterface::HandleDeath()` implemented by both
+`AMoonCharacterBase`/`AMoonEnemyCharacterBase` (each broadcasts its own `OnDeath`), new `State.Dead`
+tag gating damage via the same `ApplicationRequirement` mechanism as `State.Invulnerable`, `TryExecute`
+broadcasts its own `OnExecuted` via an Override-to-0 GE, `MaxHealth` re-clamp moved to
+`PreAttributeChange` (structurally can't trigger Death). **Requires one non-breaking amendment to
+ADR-0002** (Accepted): `RestoreCheckpoint` must call a new `UMoonAttributeSet::ResetDeathState()`
+before its Health-restore GE — not yet applied to ADR-0002's file, flagged in ADR-0008 Migration Plan
+item 5 only. Registry (`docs/registry/architecture.yaml`) updated: `death_state` state ownership,
+`death_event`/`execution_event` interface contracts, `death_detection_mechanism` api_decision.
+Solo mode — engine specialist (`ue-gas-specialist`) and TD-ADR review both skipped per standing
+solo-mode default (consistent with ADR-0004/0005/0006/0007's own pattern); the two GAS-signature
+risks (PostGameplayEffectExecute/PreAttributeChange unchanged in 5.8, loose-tag ref-count full-clear
+semantics) are flagged in ADR-0008's own Risks section as unverified, same posture as ADR-0001.
+**ADR-0009 also written** (same session) — `docs/architecture/0009-player-movement-runtime-contract.md`,
+status Proposed, closes 7 of the 10 Player Movement TR gaps (002/003/006/007/008/009/010) and **V-1**
+(shipped `CustomTimeDilation` hitstop code — decided to fix code, not revise GDD Rule 9, since 3
+rules in this GDD + HDC Rule 5 all converge on the same judgment/presentation-separation principle).
+Key decisions: Ascending/Falling stay a derived `Velocity.Z`-sign value (no custom movement mode,
+avoids the GDD's own flagged `SetMovementModeWithCustomMode` deprecation risk entirely); hitstop
+rewritten as capture-mesh-transform-and-blend (Capsule/CMC never touched); `MovementLocked` added
+as a private field with a private, currently-uncalled setter (reserved for Status Effect); two new
+`TRACE_CPUPROFILER_EVENT_SCOPE` channels added for the Insights-based latency ACs; TR-mov-002/010
+closed by pointing at CI checks the GDD already specifies, no new module split. **Not yet
+implemented in code** — this ADR is a design decision, the `TriggerHitStop()` rewrite and other
+Migration Plan steps are still pending actual C++ work. Registry updated: `movement_lock` state
+ownership, `hitstop_presentation_technique`/`airborne_substate_representation` api_decisions,
+`time_dilation_for_presentation`/`montage_based_input_lock` forbidden_patterns. Solo mode — same
+skip pattern as ADR-0008.
+**Next required, per ADR authoring protocol**: run `/architecture-review` in a FRESH session (must
+not be this one, and must not be the session that authored ADR-0008 either — both were authored
+here) to confirm TR-hp-006/007/008 and TR-mov-002/003/006/007/008/009/010 all flip to ✅/⚠️ and both
+C-1 and V-1 clear; also apply the ADR-0002 amendment (ADR-0008 Migration Plan item 5, `ResetDeathState()`
+call) before that review, or it will re-flag as a new gap. Remaining priority ADRs after that:
+Combo/Tension Gauge (Feature layer, TR-tension-002/003/004/005/007) and Combat HUD (Presentation
+layer, TR-hud-001..007, partly reverse-documentation of the already-built `WBP_CombatHUD`).
+Report: `docs/architecture/architecture-review-2026-07-27.md`.
+**UPDATE 2026-07-27 (3)**: Fresh `/architecture-review` delta pass completed against latest pushed
+commit `9838a1b` after ADR-0010/0011 landed. ADR-0010 and ADR-0011 are now **Accepted**. New report:
+`docs/architecture/architecture-review-2026-07-27-v4.md`, verdict **PASS**. Coverage is now
+65 ✅ / 11 ⚠️ / 0 ❌ of 76 active requirements; all 11 ADRs Accepted; no unresolved dependency cycles
+or blocking cross-ADR conflicts. Remaining work is follow-up cleanup, not architecture gap closure:
+refresh `docs/architecture/architecture.md`, fix non-blocking GDD revision flags C-2/C-3 and tuning
+knobs, and verify ADR-0010/0011 implementation-time UE5.8 API assumptions before dependent stories
+are marked Ready.
 <!-- /STATUS -->
 
 ## Completed Spike — Signature Combat Chain + Overdrive Crash (Codex, 2026-07-21)

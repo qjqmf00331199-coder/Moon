@@ -1,7 +1,13 @@
 # ADR-0010: Combat HUD — Widget Architecture and Data Binding Contract
 
 ## Status
-Proposed
+Accepted
+
+**Accepted:** 2026-07-27 (fresh `/architecture-review` delta pass in
+`architecture-review-2026-07-27-v4.md` — closes TR-hud-001..007 and TR-dash-008,
+no unresolved blocking dependency; all `Depends On` ADRs are already Accepted.
+Verification Required item for UE5.8 CommonUI glyph/input-method details remains
+an implementation-time risk, non-blocking, consistent with ADR-0004/0006/0008/0009.)
 
 ## Date
 2026-07-27
