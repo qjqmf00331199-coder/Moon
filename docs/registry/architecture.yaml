@@ -235,6 +235,19 @@ interfaces:
     added: 2026-07-27
     revised: ""
 
+  - contract: damage_ge_vs_reclamp_disambiguation
+    status: active
+    pattern: direct_call
+    producer: health-damage-core (UMoonAttributeSet's generic GetGameplayAttributeValueChangeDelegate(Health), FOnAttributeChangeData::GEModData field)
+    consumers:
+      - combo-tension-gauge (ADR-0011 — damage-penalty trigger, filters GEModData != nullptr && NewValue < OldValue to exclude ADR-0008's MaxHealth-driven PreAttributeChange reclamp)
+    adr: docs/architecture/0011-combo-tension-gauge.md
+    signal_signature: "FOnAttributeChangeData::GEModData != nullptr distinguishes a GameplayEffect-originated attribute write from a direct/PreAttributeChange-driven one (e.g. ADR-0008's MaxHealth re-clamp) on the SAME attribute-change delegate — use this filter instead of adding a new dedicated event whenever a consumer needs 'was this an actual GameplayEffect application' on an attribute that also has non-GE write paths."
+    referenced_by:
+      - docs/architecture/0011-combo-tension-gauge.md
+    added: 2026-07-27
+    revised: ""
+
 # Example:
 #
 # interfaces:
@@ -368,6 +381,17 @@ api_decisions:
     reason: "A non-focusable, 100%-read-only HUD has no use for CommonUI's screen/activation-stack pattern. CommonUI is still used, but scoped narrowly to its input-method-detection utility for glyph swapping (TR-hud-007) — not as the widget's inheritance base. Future UI ADRs for genuinely focusable/navigable screens (menus, inventory) should default to CommonActivatableWidget instead — this decision applies to passive HUD-class widgets only, not project-wide."
     referenced_by:
       - docs/architecture/0010-combat-hud-widget-architecture.md
+    added: 2026-07-27
+    revised: ""
+
+  - purpose: same_frame_ordering_via_tick_group
+    status: active
+    api: "A dedicated FTickFunction explicitly registered at TickGroup = TG_PostUpdateWork, when a system needs a deterministic same-frame ordering guarantee between two or more independent, unrelated call sites (e.g. two different systems both able to mutate the same state in one frame with no inherent call-order relationship)"
+    not: "Leaving the resolution step inside the owning actor's default Tick() and asserting the ordering 'should' hold — this does not structurally guarantee anything about relative execution order against call sites outside that actor's own default tick group (ability activation, AnimNotify firing, etc. are not guaranteed to run before or after a default-group Tick in a way you should depend on)"
+    adr: docs/architecture/0011-combo-tension-gauge.md
+    reason: "ADR-0011's Gain→Penalty→Decay ordering requirement (TR-tension-004) could not be satisfied by deferring Penalty into the Character's normal Tick() alone — a Gain-triggering call (e.g. ability activation) could still fire after that Tick() in the same frame, producing the wrong order. Moving the Penalty+Decay resolution to TG_PostUpdateWork (the latest standard tick group) structurally guarantees it runs after normal same-frame input/ability/AnimNotify processing, closing the hole rather than assuming it won't occur. Any future ADR facing the same 'two independent triggers, one needs to always resolve after the other, same frame' shape should default to this pattern rather than re-deriving it."
+    referenced_by:
+      - docs/architecture/0011-combo-tension-gauge.md
     added: 2026-07-27
     revised: ""
 
