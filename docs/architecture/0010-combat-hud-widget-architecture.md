@@ -6,8 +6,8 @@ Accepted
 **Accepted:** 2026-07-27 (fresh `/architecture-review` delta pass in
 `architecture-review-2026-07-27-v4.md` — closes TR-hud-001..007 and TR-dash-008,
 no unresolved blocking dependency; all `Depends On` ADRs are already Accepted.
-Verification Required item for UE5.8 CommonUI glyph/input-method details remains
-an implementation-time risk, non-blocking, consistent with ADR-0004/0006/0008/0009.)
+UE5.8 CommonUI glyph/input-method details verified 2026-07-27 in
+`ue58-api-verification-adr-0010-0011-2026-07-27.md`.)
 
 ## Date
 2026-07-27
@@ -20,8 +20,8 @@ an implementation-time risk, non-blocking, consistent with ADR-0004/0006/0008/00
 | **Domain** | UI (UMG / CommonUI) |
 | **Knowledge Risk** | MEDIUM — `docs/engine-reference/unreal/modules/ui.md` is only verified to 5.7. The one verified 5.8-era change relevant to this domain (`breaking-changes.md` "5.7→5.8 Delta") is the Enhanced Input / Common Input unification, which directly affects TR-hud-007's glyph-swap mechanism (Decision 7). No breaking change is documented for plain UMG `UUserWidget` usage. |
 | **References Consulted** | `docs/engine-reference/unreal/VERSION.md`, `breaking-changes.md` (5.7→5.8 Delta — input consolidation), `deprecated-apis.md` (no UI-domain entries), `modules/ui.md` |
-| **Post-Cutoff APIs Used** | None directly. `UCommonInputSubsystem`'s post-unification API surface (Decision 7) is referenced but not verified against real 5.8 headers — see Verification Required. |
-| **Verification Required** | `UCommonInputSubsystem`'s input-method-changed delegate name/signature, **and** where the execution-prompt glyph asset itself lives post-5.8-unification (the pre-5.8 CommonUI glyph-data-asset pattern may be one of the "duplicate data asset requirements" the 5.8 delta removed) — both must be confirmed against real 5.8 CommonUI headers before implementation, `ue-umg-specialist` sign-off required (this is the same Open Question `combat-hud.md` already flags for its `gameplay-programmer` owner, scope widened by this ADR's own engine-specialist validation pass). |
+| **Post-Cutoff APIs Used** | `UCommonInputSubsystem` input-method notification and CommonUI glyph helpers, verified against local UE5.8 headers on 2026-07-27. |
+| **Verification Required** | Complete for ADR-0010 story-readiness gating. Use `UCommonInputSubsystem::OnInputMethodChangedNative` with handler signature `void Handler(ECommonInputType)`, read initial state via `GetCurrentInputType()`, and source glyphs through `UCommonActionWidget::SetEnhancedInputAction(...)` or CommonUI's controller-data `TryGetInputBrush(...)` path. Evidence: `ue58-api-verification-adr-0010-0011-2026-07-27.md`. |
 
 ## ADR Dependencies
 
@@ -46,7 +46,7 @@ Auditing the shipped code against `combat-hud.md` found:
 - **Deviation — W2 bypasses the GDD's stated interface**: the GDD binds W2 to `OnHealthPercentCrossed(LowHealthWarningThreshold)` (ADR-0008's interface), but the shipped code recomputes the threshold-crossing locally from the raw `Health`/`MaxHealth` delegate instead.
 - **Gap — no `OnDeath` subscription**: Rule 9 (HUD reset on player Death) has zero wiring in `MoonCombatHUDWidget`.
 - **Deviation — `BindToPlayer` pushes stale-or-initial values immediately, without waiting for a first real delegate**: found during this ADR's engine-specialist validation pass, missed by the initial audit. `combat-hud.md`'s Edge Cases table explicitly requires widgets stay hidden until their first real upstream delegate fires ("초기화 완료 이벤트 수신 후 일괄 표시... 미표시가 오표시보다 안전"), but shipped `BindToPlayer` immediately calls `OnHealthChanged`/`OnManaChanged`/`OnDashChargesChanged`/`OnOverdriveStateChanged` with whatever the AttributeSet already holds at bind time — see Decision 10.
-- **Expected-incomplete, non-blocking**: TR-hud-007 (input-device glyph swap) and W7's execution-prompt half are unimplemented — both are GDD-acknowledged Open Questions (Core Extraction Execution doesn't exist yet; UE5.8 unified Input System needs `ue-umg-specialist` verification), not oversights this ADR is expected to close.
+- **Expected-incomplete, non-blocking**: TR-hud-007 (input-device glyph swap) and W7's execution-prompt half are unimplemented — the CommonUI API/glyph path is now verified, while Core Extraction Execution still does not exist yet. These are implementation-scope gaps, not architecture oversights.
 
 > **Note on audit completeness**: this ADR's own engine-specialist validation pass (`ue-umg-specialist`, 2026-07-27) found the `BindToPlayer` deviation above after the initial draft's audit had already framed its findings as exhaustive. Recorded here rather than silently folded in, since the ADR's stated methodology is "ratify what's correct, fix what deviates" — an audit that misses a real deviation undermines that claim if left uncorrected.
 
@@ -86,7 +86,7 @@ Auditing the shipped code against `combat-hud.md` found:
 
 6. **`OnDeath` subscription added — mirrors Rule 9's reset contract.** `BindToPlayer` gets a new `Character->OnDeath.AddDynamic(this, &UMoonCombatHUDWidget::HandleDeath)` (the same `FOnMoonDeath` delegate ADR-0008 already defines and ADR-0002/0004/0006 already consume — no new interface). `HandleDeath()`: clears the execution-prompt/world-marker state (`OnExecutionPromptChanged(false)`), forces `OnOverdriveStateChanged(false)` if Overdrive was active (idempotent with the existing `OnOverdriveEnded(PlayerDeath)` path — both may fire, second call is a no-op mirror), and resets `DisplayedTension`/`TargetTension` to `0` (`OnTensionStateChanged` re-fires with zeroed values). This closes the one Rule 9 gap the code audit found.
 
-7. **TR-hud-007 — CommonUI's input-method-changed signal drives glyph swap only; specifics deferred to implementation-time verification.** Subscribe to `UCommonInputSubsystem`'s current-input-type-changed notification (exact delegate name/signature to be confirmed against real 5.8 CommonUI headers by `ue-umg-specialist` before implementation — this ADR does not guess the signature, consistent with not fabricating post-cutoff API specifics). On change, swap only the F-key/gamepad-button glyph texture on the execution-prompt widget — no other HUD behavior differs by input device (`combat-hud.md` Rule 7 / UI Requirements, `design/ux/combat-hud.md` Platform & Input Variants). This decision fixes the *mechanism* (CommonUI input-method signal → glyph-only swap); the *exact API* remains a Verification Required item, matching the GDD's own Open Question ownership (`gameplay-programmer`, target: implementation time).
+7. **TR-hud-007 — CommonUI's input-method-changed signal drives glyph swap only; API verified.** Subscribe to `UCommonInputSubsystem::OnInputMethodChangedNative` with a `void Handler(ECommonInputType)` callback, and read initial state via `GetCurrentInputType()` when binding. On change, swap only the F-key/gamepad-button glyph texture on the execution-prompt widget — no other HUD behavior differs by input device (`combat-hud.md` Rule 7 / UI Requirements, `design/ux/combat-hud.md` Platform & Input Variants). The preferred glyph source is `UCommonActionWidget::SetEnhancedInputAction(ExecuteAction)` if the prompt can be represented as a CommonUI widget; otherwise resolve a `FSlateBrush` via CommonUI's controller-data `TryGetInputBrush(...)` path. Verified against local UE5.8 headers on 2026-07-27; see `ue58-api-verification-adr-0010-0011-2026-07-27.md`.
 
 8. **TR-dash-008 — already satisfied, closed formally.** W5's existing binding to `UMoonAttributeSet::GetDashChargesAttribute()`'s change delegate (shipped, `HandleDashChargesChanged`) already exposes dash charge count + recharge fraction to the HUD exactly as `dash-evasion.md`'s Dependencies table requires. No code change; this ADR's role is the same as ADR-0009's Decision 7 for TR-mov-010 — formal closure of an already-correct implementation.
 
@@ -123,7 +123,7 @@ UMoonAbilitySystemComponent (Spell Casting, ADR-0003-owned, additively extended 
  └─ GetElementCooldownDuration(Element): float                         [NEW — Decision 2]
       (trigger = stock ASC::RegisterGameplayTagEvent(CooldownTag, NewOrRemoved) — no new delegate)
 
-CommonUI input-method-changed signal ──► glyph swap only (execution-prompt widget)   [Decision 7, Verification Required]
+CommonUI input-method-changed signal ──► glyph swap only (execution-prompt widget)   [Decision 7, verified 2026-07-27]
 ```
 
 ### Key Interfaces
@@ -186,7 +186,7 @@ UMoonCombatHUDWidget (new protected members)
 ### Risks
 
 - **AC10's coalescing claim now rests on Slate's flag-not-queue invalidation model, which is standard and stable UMG/Slate behavior, but has not been profiled on this project's actual widget tree.** Mitigation: `performance-analyst`'s already-flagged Open Question (HUD frame-budget measurement under full Overdrive load) must explicitly include a same-frame-event-flood test for at least one text-bearing widget (Health or Mana), not only Tension, per Decision 5's corrected scope — this is a widened test, not a new one.
-- **CommonUI input-method-changed API (Decision 7) is unverified against real 5.8 headers — and the verification scope is broader than just the delegate's name/signature.** Given `breaking-changes.md`'s "removes duplicate data asset requirements" phrasing, the pre-5.8 CommonUI glyph-data-asset pattern itself may be one of the things removed, meaning the glyph asset's source of truth may have moved into Enhanced Input directly. Mitigation: `ue-umg-specialist` must confirm both the input-method-changed API *and* where the glyph asset lives in 5.8 before implementation, per this ADR's own Verification Required field and Migration Plan item 5 — already the GDD's stated plan, widened here rather than newly introduced.
+- **CommonUI input-method-changed API and glyph path were verified against local UE5.8 headers on 2026-07-27.** The surviving API surface is `UCommonInputSubsystem::OnInputMethodChangedNative`, `GetCurrentInputType()`, `UCommonActionWidget::SetEnhancedInputAction(...)`, and CommonUI controller-data `TryGetInputBrush(...)`. Remaining risk is ordinary implementation wiring, not post-cutoff API uncertainty.
 - **The two-independent-defaults risk (0.25 in two places, Negative above) could silently diverge.** Mitigation: implementation should add a code comment on both `HealthPercentThresholds`'s default and `LowHealthWarningThreshold`'s default cross-referencing each other, so a future balance pass notices the pairing.
 - **`HandleHealthChanged`/`HandleManaChanged` divide by `MaxHealth`/`MaxMana` with no zero-guard**, unlike `HandleTensionChanged`'s Tick path (which checks `MaxTension > 0.0f`). Not currently reachable (both Max attributes are always positive by GDD design) but inconsistent with the guarded sibling path. Mitigation: Migration Plan item 4 adds the guard.
 
@@ -200,7 +200,7 @@ UMoonCombatHUDWidget (new protected members)
 | combat-hud.md | TR-hud-004 (per-frame coalescing) | Decision 5 — UMG paint-invalidation for non-interpolated widgets, Tick-single-read for Tension |
 | combat-hud.md | TR-hud-005 (trigger off real values, not interpolated) | Ratifies existing `bIsCharged` computed off `TargetTension`, not `DisplayedTension` |
 | combat-hud.md | TR-hud-006 (mirror reset/Death/Overdrive without HUD judgment) | Decision 6 — new `OnDeath` subscription closes the Death-reset gap; Overdrive already correctly wired |
-| combat-hud.md | TR-hud-007 (input-device glyph swap) | Decision 7 — CommonUI input-method signal, glyph-only scope, exact API deferred to verified implementation |
+| combat-hud.md | TR-hud-007 (input-device glyph swap) | Decision 7 — CommonUI input-method signal, glyph-only scope, exact API verified 2026-07-27 |
 | dash-evasion.md | TR-dash-008 (dash charge/cooldown → HUD) | Decision 8 — already satisfied by shipped `DashChargesAttribute` binding, formally closed |
 
 ## Performance Implications
@@ -216,7 +216,7 @@ UMoonCombatHUDWidget (new protected members)
 2. Add `HandleElementCooldownTagChanged` + `OnCooldownStateChanged` (`BlueprintImplementableEvent`, now carrying `bOnCooldown` + `FractionRemaining`) to `UMoonCombatHUDWidget`; call `BoundASC->RegisterGameplayTagEvent(GetElementCooldownTag(Element), EGameplayTagEventType::NewOrRemoved)` per element in `BindToPlayer`; arm/disarm the Cooldown Tick-sweep from the same callback (Decision 2/4).
 3. Add `Character->OnDeath` subscription in `BindToPlayer`; implement `HandleDeath()` per Decision 6 (clear execution prompt, force Overdrive-off idempotently, zero Tension display).
 4. Leave W2's existing local-recompute logic untouched (Decision 3 — no code change, ratification only); add a zero-guard to `HandleHealthChanged`/`HandleManaChanged`'s division (currently only `HandleTensionChanged`'s Tick path guards against `MaxTension <= 0`).
-5. Implement TR-hud-007's glyph swap once `ue-umg-specialist` confirms, against real 5.8 CommonUI headers, both the input-method-changed API **and** where the glyph asset itself now lives post-unification (the ADR does not assume the pre-5.8 CommonUI glyph-data-asset pattern survived the "removes duplicate data asset requirements" change verbatim) — do not implement against a guessed signature or a guessed data-asset location.
+5. Implement TR-hud-007's glyph swap using the verified UE5.8 API: `UCommonInputSubsystem::OnInputMethodChangedNative`, `GetCurrentInputType()`, and either `UCommonActionWidget::SetEnhancedInputAction(ExecuteAction)` or CommonUI controller-data `TryGetInputBrush(...)` for the glyph brush. Do not hardcode keyboard/gamepad textures in the HUD.
 6. Add the cross-reference comment pairing `HealthPercentThresholds`'s and `LowHealthWarningThreshold`'s 0.25 defaults (Negative/Risks).
 7. Add `bHealthInitialized`/`bManaInitialized`/`bDashInitialized` gates per Decision 10; set initial `Visibility` to `Collapsed` (not `Hidden`, per this project's own widget-visibility convention) for the gated groups until each fires once.
 8. Use fixed-width, non-auto-wrap text styles for HUD numeric readouts (Health/Mana) — guarantees paint-only invalidation for those widgets independent of what AC10's measurement finds (Decision 5).
@@ -227,7 +227,7 @@ UMoonCombatHUDWidget (new protected members)
 
 ## Validation Criteria
 
-- `combat-hud.md`'s own Acceptance Criteria 1–12, in particular AC2 (cooldown overlay fraction display, now implementable via Decision 2), AC10 (same-frame event-flood coalescing — performance-counter verification must cover **at least one text-bearing widget, e.g. Health or Mana, not only Tension**, per Decision 5's corrected rationale), AC11 (Death-frame reset, now implementable via Decision 6), and AC12 (input-device glyph swap, gated on Decision 7's implementation-time verification). Also verify the GDD's "hidden until first real delegate" Edge Case (Decision 10) directly — a widget must render nothing, not a zero value, before its first bind-time update.
+- `combat-hud.md`'s own Acceptance Criteria 1–12, in particular AC2 (cooldown overlay fraction display, now implementable via Decision 2), AC10 (same-frame event-flood coalescing — performance-counter verification must cover **at least one text-bearing widget, e.g. Health or Mana, not only Tension**, per Decision 5's corrected rationale), AC11 (Death-frame reset, now implementable via Decision 6), and AC12 (input-device glyph swap, now backed by the verified Decision 7 API). Also verify the GDD's "hidden until first real delegate" Edge Case (Decision 10) directly — a widget must render nothing, not a zero value, before its first bind-time update.
 - Re-run `/architecture-review` — confirms the Combat HUD + Dash-HUD-surface coverage rows move to full ✅ and the project's remaining-gap count drops to Combo/Tension Gauge only.
 
 ## Related Decisions

@@ -15,12 +15,13 @@
 
 The project is pinned to Unreal Engine 5.8, which is beyond the model training cutoff and is treated as HIGH risk for engine API accuracy. All implementation stories must cross-check `docs/engine-reference/unreal/` before relying on remembered Unreal behavior.
 
-The architecture is complete for MVP coverage, but several implementation-time verification items remain:
+The architecture is complete for MVP coverage. Some implementation-time verification items remain, but the ADR-0010/0011 story-readiness blockers were verified on 2026-07-27:
 
-- GAS attribute initialization, `PostGameplayEffectExecute`, `PreAttributeChange`, loose GameplayTag count clearing, and `FOnAttributeChangeData::GEModData` semantics must be verified against real UE5.8 headers before Health/Damage Core, Combo/Tension, or related GAS stories are marked Ready.
+- ADR-0010/0011 verification report: `ue58-api-verification-adr-0010-0011-2026-07-27.md`.
+- `FOnAttributeChangeData::GEModData` semantics, ASC cooldown tag/time queries, CommonUI input-method/glyph APIs, and `TG_PostUpdateWork` ordering for current planned call sites are verified against local UE5.8 headers/source.
+- GAS attribute initialization, `PostGameplayEffectExecute`, `PreAttributeChange`, and loose GameplayTag count clearing remain separate UE5.8 verification items before Health/Damage Core or Luna Overdrive stories using those exact APIs are marked Ready.
 - `UAbilitySystemComponent::SetLooseGameplayTagCount` usage for Luna Overdrive remains a UE5.8 verification item.
-- CommonUI / Enhanced Input unification in UE5.8 affects Combat HUD input-method glyph swapping; exact `UCommonInputSubsystem` signal and glyph asset source of truth must be verified before implementation.
-- `TG_PostUpdateWork` ordering must be validated for this project's ability and animation call sites before Combo/Tension's same-frame Gain -> Penalty -> Decay guarantee is treated as fully proven.
+- Future latent `AbilityTask` completions or Blueprint ticks at `TG_PostUpdateWork`/`TG_LastDemotable` must not call `AddTension*` unless explicitly ordered before `TensionResolveTickFunction`.
 - Deprecated APIs remain banned per `docs/engine-reference/unreal/deprecated-apis.md`, especially legacy `UCharacterMovementComponent::SetMovementMode()` overloads and legacy GAS attribute initialization functions.
 
 Enhanced Input, Character Movement Component basics, SpringArm/Camera, UMG `UUserWidget`, AIController/Behavior Tree, and AIPerception are acceptable with local engine-reference checks. Mass Framework, Iris, advanced CommonUI input routing, and GAS internals are not to be guessed from memory.
@@ -194,15 +195,15 @@ UFUNCTION(BlueprintImplementableEvent) void OnCooldownStateChanged(
 |---|---|---|---|---|---|
 | ADR-0001 Player Movement and GAS Core | Accepted | Foundation | Partial; GAS init remains UE5.8 risk | Yes | None blocking |
 | ADR-0002 Runtime Checkpoint Persistence | Accepted | Foundation | OK; restore sequence amended for death reset | Yes | None |
-| ADR-0003 Spell Casting GAS Implementation | Accepted | Core | Partial; GAS cooldown/tag patterns require verification | Yes | None |
+| ADR-0003 Spell Casting GAS Implementation | Accepted | Core | OK for ADR-0010 cooldown HUD query; broader GAS init risks separate | Yes | None |
 | ADR-0004 Luna Overdrive Fixed Window | Accepted | Feature | Partial; loose tag count verification required | Yes | None |
 | ADR-0005 Camera System SpringArm | Accepted | Core | OK with known camera GDD value cleanup | Yes | C-3 non-blocking GDD contradiction |
 | ADR-0006 Enemy AI Behavior Tree | Accepted | Core | Partial; AI hearing mapping and perf remain implementation checks | Yes | None blocking |
 | ADR-0007 Dash/Evasion Just-Dodge | Accepted | Core | OK after avoiding deprecated velocity model; implementation must avoid legacy movement overloads | Yes | C-2 non-blocking GDD contradiction |
 | ADR-0008 Health/Damage Core Death Contract | Accepted | Foundation | Partial; GAS callbacks/tag clear verification required | Yes | Resolves C-1 |
 | ADR-0009 Player Movement Runtime Contract | Accepted | Foundation | OK; removes Time Dilation presentation violation by decision | Yes | Resolves V-1 architecturally |
-| ADR-0010 Combat HUD Widget Architecture | Accepted | Presentation | Partial; CommonUI glyph swap verification required | Yes | None |
-| ADR-0011 Combo/Tension Gauge | Accepted | Feature | Partial; tick ordering and `GEModData` verification required | Yes | None |
+| ADR-0010 Combat HUD Widget Architecture | Accepted | Presentation | OK; CommonUI glyph/input-method API verified 2026-07-27 | Yes | None |
+| ADR-0011 Combo/Tension Gauge | Accepted | Feature | OK for current call sites; `GEModData` and `TG_PostUpdateWork` verified 2026-07-27 | Yes | None |
 
 ### Traceability Coverage
 
@@ -241,10 +242,9 @@ Follow-up ADRs may still be needed before future systems are built, especially S
 
 | ID | Summary | Priority | Resolution Path |
 |----|---------|----------|-----------------|
-| QQ-01 | UE5.8 GAS callback signatures, attribute initialization, loose tag count clearing, and `GEModData` null semantics remain implementation-time risks | High | Verify against installed UE5.8 headers before HDC / Combo / GAS stories are Ready |
-| QQ-02 | CommonUI input-method changed signal and glyph asset source of truth after UE5.8 Enhanced Input/Common Input unification | Medium | `ue-umg-specialist` or direct header check before Combat HUD glyph implementation |
-| QQ-03 | Combo/Tension `TG_PostUpdateWork` ordering precondition for all current and future gain call sites | Medium | Engine spike before Combo/Tension story Ready |
+| QQ-01 | UE5.8 GAS callback signatures, attribute initialization, and loose tag count clearing remain implementation-time risks; `GEModData` was verified for ADR-0011 on 2026-07-27 | High | Verify remaining exact APIs against installed UE5.8 headers before HDC / Luna Overdrive stories are Ready |
+| QQ-02 | CommonUI input-method changed signal and glyph asset source of truth after UE5.8 Enhanced Input/Common Input unification | Resolved | Verified 2026-07-27 in `ue58-api-verification-adr-0010-0011-2026-07-27.md` |
+| QQ-03 | Combo/Tension `TG_PostUpdateWork` ordering precondition for current gain call sites | Resolved | Verified 2026-07-27; preserve invariant for future latent AbilityTasks / late Blueprint ticks |
 | QQ-04 | Same-frame multiple damage-penalty events collapse to one bool-triggered penalty; designer confirmation still needed before Production tuning | Medium | Game-design review during Combo/Tension implementation/tuning |
 | QQ-05 | `AMoonCharacterBase` responsibility accretion across Movement, Overdrive, Tension, Health events, and HUD binding remains non-blocking but growing | Medium | Reassess component decomposition before Production or when a third tick-owning concern is added |
-| QQ-06 | GDD cleanup flags C-2/C-3 and missing tuning knobs remain non-blocking for architecture PASS | Medium | Focused GDD cleanup pass for `dash-evasion.md`, `camera-system-base.md`, and `enemy-ai-base.md` |
-
+| QQ-06 | GDD cleanup flags C-2/C-3 and missing tuning knobs remain non-blocking for architecture PASS | Resolved | Cleaned up 2026-07-27 in `dash-evasion.md`, `camera-system-base.md`, and `enemy-ai-base.md` |

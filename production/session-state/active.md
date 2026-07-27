@@ -72,6 +72,20 @@ and `AirDashZImpulse` tuning knobs, and refreshes stale Dash review/status wordi
 now consistently uses `CameraLagMaxDistance = 60.0uu` including Formula 3 and the Arena Morphing
 dependency row; `enemy-ai-base.md` now defines `MeleeAttackRange` as both formula input and tuning
 knob, and removes stale "Dash/Evasion 미설계" references for the now-approved dependency.
+**UPDATE 2026-07-27 (6)**: ADR-0010/0011 implementation-time UE5.8 API blocker pass completed.
+New report: `docs/architecture/ue58-api-verification-adr-0010-0011-2026-07-27.md`. Verified
+against the local `UE_5.8` install: `UCommonInputSubsystem::OnInputMethodChangedNative`,
+`GetCurrentInputType()`, CommonUI `UCommonActionWidget::SetEnhancedInputAction(...)` /
+controller-data `TryGetInputBrush(...)` glyph paths, ASC cooldown tag/time query APIs
+(`RegisterGameplayTagEvent`, `GetActiveEffectsTimeRemainingAndDuration`,
+`FGameplayEffectQuery::MakeQuery_MatchAnyOwningTags`), `FOnAttributeChangeData::GEModData`
+null/non-null semantics for GE-vs-direct attribute changes, and `TG_PostUpdateWork` ordering for
+current planned Combo/Tension gain call sites. ADR-0010/0011 and `architecture.md` updated to mark
+these blockers resolved for story-readiness. Remaining separate UE5.8 checks still exist for HDC /
+Luna-specific work: legacy attribute initialization, `PostGameplayEffectExecute` /
+`PreAttributeChange` signatures, and loose gameplay-tag full-clear semantics. Future latent
+AbilityTasks or BP ticks scheduled at/after `TG_PostUpdateWork` must not call `AddTension*` unless
+explicitly ordered before `TensionResolveTickFunction`.
 <!-- /STATUS -->
 
 ## Completed Spike — Signature Combat Chain + Overdrive Crash (Codex, 2026-07-21)
