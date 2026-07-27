@@ -1,8 +1,8 @@
 # Architecture Traceability Index
 
-- **Last Updated:** 2026-07-27 (v2)
+- **Last Updated:** 2026-07-27 (v3)
 - **Engine:** Unreal Engine 5.8
-- **Source review:** [architecture-review-2026-07-27-v2.md](architecture-review-2026-07-27-v2.md) — verdict **CONCERNS**
+- **Source review:** [architecture-review-2026-07-27-v3.md](architecture-review-2026-07-27-v3.md) — verdict **CONCERNS**
 - **Previous:** [architecture-review-2026-07-27.md](architecture-review-2026-07-27.md) — verdict FAIL (38 / 15 / 23)
 - **Registry:** `tr-registry.yaml` v3 (unchanged this pass — no new/superseded/reworded requirements)
 
@@ -46,7 +46,7 @@ contract). 4 partials upgraded to covered — 2 by ADR-0008 closing ambiguity AD
 | ADR-0006 Enemy AI Behavior Tree | **Accepted** (2026-07-27) | — |
 | ADR-0007 Dash/Evasion Just-Dodge | **Accepted** (2026-07-27) | — |
 | ADR-0008 Health/Damage Core Death Contract | **Accepted** (2026-07-27) | — |
-| ADR-0009 Player Movement Runtime Contract | **Proposed** | none — content-complete, no unresolved dependency, just needs an Accept pass |
+| ADR-0009 Player Movement Runtime Contract | **Accepted** (2026-07-27) | — |
 
 ## Full Matrix
 
