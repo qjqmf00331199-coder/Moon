@@ -137,12 +137,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Moon|Animation")
 	void PlayOneShotAnim(class UAnimSequence* Anim, float PlayRate = 1.0f);
 
-	// Brief local "hitstop": slows just this character (CustomTimeDilation), not the whole
-	// world, for RealDuration seconds — the rest of the game (enemies, projectiles) keeps
-	// running normally. Used to sell impact on Dash-end and landing. RealDuration is real time;
-	// the restore timer is unaffected by the dilation it's undoing.
+	// Presentation-only "hitstop" (TR-mov-008 / ADR-0009 Decision 5 / player-movement.md Core
+	// Rule 9): briefly freezes the mesh's VISUAL presentation only (world transform + anim
+	// playback) for RealDuration seconds, then blends it back to its actual position over a short
+	// window. The Capsule and CharacterMovementComponent are never touched — gameplay position
+	// keeps advancing at 100% normal tick rate throughout. No form of Time Dilation (actor-level
+	// or global) is used anywhere in this path. Used to sell impact on Dash-end and landing.
 	UFUNCTION(BlueprintCallable, Category = "Moon|Animation")
-	void TriggerHitStop(float RealDuration, float DilationScale = 0.05f);
+	void TriggerHitStop(float RealDuration);
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
@@ -189,6 +191,20 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Moon|Overdrive|Tuning", meta = (ClampMin = "1.0", ClampMax = "2.0"))
 	float OverdriveRecoveryDuration = 1.5f;
+
+	// Hitstop presentation tuning (TR-mov-008): capture-and-blend, no form of Time Dilation.
+	// See TriggerHitStop()/EndHitStop()/UpdateHitStopPresentation().
+	// Blend-out interpolation constant (1/seconds) for the post-freeze unfreeze correction —
+	// higher is snappier. This alone cannot guarantee convergence (the blend target keeps moving
+	// while the Capsule keeps moving), so HitStopBlendOutDuration below is the actual hard stop.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Moon|Animation|Hitstop Tuning", meta = (ClampMin = "5.0"))
+	float HitStopBlendOutInterpSpeed = 40.0f;
+
+	// Hard cap (seconds) on the unfreeze blend — "1-2 frames" per the ADR/GDD. Needed because
+	// interpolating toward a still-moving target (the mesh's natural, Capsule-following transform)
+	// never reaches exact convergence on its own; this is what actually ends the blend.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Moon|Animation|Hitstop Tuning", meta = (ClampMin = "0.008"))
+	float HitStopBlendOutDuration = 0.033f;
 
 public:
 	// Enhanced Input
@@ -273,6 +289,41 @@ private:
 	FTimerHandle OneShotAnimTimerHandle;
 	FTimerHandle HitStopTimerHandle;
 
+	// Hitstop presentation freeze (TR-mov-008 / ADR-0009 Decision 5): capture-and-blend, never
+	// Time Dilation. Capsule/CMC keep ticking at 100% normal rate the entire time; only the mesh's
+	// visual presentation freezes then blends back. See TriggerHitStop()/EndHitStop() and
+	// UpdateHitStopPresentation() (called from Tick()).
+	enum class EMoonHitStopPhase : uint8
+	{
+		Inactive,
+		Freezing,
+		BlendingOut
+	};
+	EMoonHitStopPhase HitStopPhase = EMoonHitStopPhase::Inactive;
+
+	// World-space mesh transform captured the instant the freeze began — held every tick during
+	// Freezing, and the blend-out start point during BlendingOut.
+	FTransform FreezeStartMeshTransform;
+
+	// The mesh's RELATIVE transform (to its attach parent, the Capsule) at the last moment it was
+	// in a fully natural, non-frozen state. SetWorldTransform() on an attached component silently
+	// rewrites its stored relative transform every time it's called, so repeatedly forcing a
+	// world-space freeze would otherwise permanently corrupt this offset once the freeze ends.
+	// Restoring this exact value when the blend finishes guarantees zero residual drift, even
+	// across repeated/re-triggered hitstops (see the Inactive-only recapture guard in
+	// TriggerHitStop()).
+	FTransform CapturedMeshRelativeTransform;
+
+	// Current held/blending world transform, updated every tick while HitStopPhase != Inactive.
+	FTransform HitStopBlendCurrentTransform;
+
+	// Elapsed real time (seconds) since BlendingOut started. The blend target (the mesh's natural,
+	// Capsule-following transform) keeps moving every tick, so interpolation toward it alone never
+	// converges to zero distance (exponential decay toward a moving target settles at a nonzero
+	// steady-state lag) — this elapsed-time cap against HitStopBlendOutDuration is what guarantees
+	// the blend actually finishes.
+	float HitStopBlendElapsed = 0.0f;
+
 	// Airborne substate (TR-mov-003): derived once per frame in Tick(), after Super::Tick(), from
 	// GetCharacterMovement()->Velocity.Z's sign. Not a stored transition table.
 	EMoonAirborneSubState AirborneSubState = EMoonAirborneSubState::Falling;
@@ -315,5 +366,12 @@ private:
 	void OnJumpRecoveryAnimFinished();
 	void OnOneShotAnimFinished();
 	void EndHitStop();
+
+	// Per-tick presentation step for the active hitstop phase (Freezing: force the mesh back to
+	// FreezeStartMeshTransform; BlendingOut: InterpTo the mesh from its held transform toward its
+	// natural, Capsule-following transform). No-op while Inactive. Called once per Tick(), after
+	// Super::Tick() and the existing locomotion/anim logic (TR-mov-008).
+	void UpdateHitStopPresentation(float DeltaTime);
+
 	void UpdateOverdriveState(double CurrentTime);
 };

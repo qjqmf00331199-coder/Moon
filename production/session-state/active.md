@@ -932,3 +932,13 @@ from "**This IS the exact resume point**" above.
 - Deviation: proceeded with Story 001 dependency still In Progress (PIE pending) — user explicitly accepted this risk.
 - Blockers: PIE runtime verification still not possible this session (no Unreal MCP/Editor control tool exposed).
 - Next: /code-review Moon/Source/Moon/Character/MoonCharacterBase.h Moon/Source/Moon/Character/MoonCharacterBase.cpp, then /story-done production/epics/player-movement-foundation-fixes/story-003-airborne-substate-jump-buffer-and-coyote-runtime.md
+
+## Session Extract — /dev-story 2026-07-27 (Story 004)
+- Story: production/epics/player-movement-foundation-fixes/story-004-presentation-only-hitstop-rewrite.md — Presentation-Only Hitstop Rewrite
+- Files changed: Moon/Source/Moon/Character/MoonCharacterBase.h, Moon/Source/Moon/Character/MoonCharacterBase.cpp, tests/static/hitstop_no_time_dilation_check.ps1 (new), production/qa/evidence/presentation-only-hitstop-rewrite-evidence.md (new)
+- Removed CustomTimeDilation entirely (V-1 fixed); replaced with capture-and-blend mesh-only freeze + InterpTo/Slerp blend-out. Capsule/CMC untouched, 100% normal tick throughout.
+- Test/evidence: static test PASS. Regression (Story 001/003 tests) all PASS. UBT build Succeeded after one retry (first attempt failed on machine-side low-memory PCH error, not code — 7.1GB free of 32GB at the time).
+- AC-2 (no Time Dilation) verified automated. AC-1/AC-3/AC-4 explicitly DEFERRED to human PIE playtest (Visual/Feel story type, advisory gate) — reviewer checklist written into the evidence doc, no fabricated playtest result.
+- Deviation: proceeded with Story 001 dependency still In Progress (PIE pending) — user explicitly accepted this risk (same acceptance carried from Story 003).
+- Blockers: PIE runtime verification still not possible this session (no Unreal MCP/Editor control tool exposed).
+- Next: /code-review Moon/Source/Moon/Character/MoonCharacterBase.h Moon/Source/Moon/Character/MoonCharacterBase.cpp, then /story-done for Story 003 and Story 004 (Story 004's Visual/Feel ACs need a human PIE pass first).

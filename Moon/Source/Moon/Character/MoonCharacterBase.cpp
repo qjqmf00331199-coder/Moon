@@ -189,6 +189,12 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 			}
 		}
 	}
+
+	// Hitstop presentation freeze (TR-mov-008 / ADR-0009 Decision 5): mesh-only, no Time
+	// Dilation. Placed last, matching the ADR's Tick() ordering — Capsule/CMC have already moved
+	// normally via Super::Tick() above, and this step is the one that overrides the mesh's visual
+	// presentation on top of that, purely for presentation.
+	UpdateHitStopPresentation(DeltaTime);
 }
 
 void AMoonCharacterBase::Landed(const FHitResult& Hit)
@@ -207,10 +213,6 @@ void AMoonCharacterBase::Landed(const FHitResult& Hit)
 		Jump();
 	}
 
-	// Landing impact: pause only this character very briefly. CustomTimeDilation leaves
-	// the world clock untouched, so enemies and projectiles continue to update normally.
-	TriggerHitStop(0.055f);
-
 	if (JumpLandAnim)
 	{
 		if (USkeletalMeshComponent* MeshComp = GetMesh())
@@ -225,6 +227,13 @@ void AMoonCharacterBase::Landed(const FHitResult& Hit)
 		bPlayingOneShotAnim = false;
 		RefreshLocomotionAnim();
 	}
+
+	// Landing impact hitstop (TR-mov-008 / ADR-0009 Decision 5): triggered AFTER the landing pose
+	// is set above (moved from before it — see the Story 004 evidence doc) so the pose the mesh's
+	// presentation freezes on is the landing impact pose itself, not the pre-landing airborne
+	// pose. Capsule/CMC are never touched and keep moving at 100% normal tick rate for the whole
+	// freeze window; see TriggerHitStop() below for the capture-and-blend mechanism.
+	TriggerHitStop(0.055f);
 }
 
 void AMoonCharacterBase::RefreshLocomotionAnim()
@@ -322,7 +331,7 @@ void AMoonCharacterBase::OnOneShotAnimFinished()
 	RefreshLocomotionAnim();
 }
 
-void AMoonCharacterBase::TriggerHitStop(float RealDuration, float DilationScale)
+void AMoonCharacterBase::TriggerHitStop(float RealDuration)
 {
 	if (RealDuration <= 0.0f)
 	{
@@ -330,13 +339,44 @@ void AMoonCharacterBase::TriggerHitStop(float RealDuration, float DilationScale)
 		return;
 	}
 
-	CustomTimeDilation = FMath::Clamp(DilationScale, 0.001f, 1.0f);
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		// Capture-and-blend presentation freeze (TR-mov-008 / ADR-0009 Decision 5): the Capsule
+		// and CharacterMovementComponent are never touched here and keep ticking at 100% normal
+		// rate for the whole freeze window — only the mesh's visual presentation freezes. No form
+		// of Time Dilation (actor-level or global) is used anywhere in this path.
+		FreezeStartMeshTransform = MeshComp->GetComponentTransform();
+		HitStopBlendCurrentTransform = FreezeStartMeshTransform;
+
+		// Only (re)capture the true original relative offset when starting fresh from a fully
+		// natural, non-frozen state. If a hitstop is already active (this call is a re-trigger —
+		// e.g. dash-cancelling mid-freeze), the mesh's CURRENT relative transform has already been
+		// overwritten by this system's own SetWorldTransform() calls below; capturing it here
+		// would bake that transient value in as "the original" and permanently corrupt the
+		// eventual restore.
+		if (HitStopPhase == EMoonHitStopPhase::Inactive)
+		{
+			CapturedMeshRelativeTransform = MeshComp->GetRelativeTransform();
+		}
+
+		// Hold the mesh's anim playback position for the freeze duration. bPauseAnims is a
+		// long-stable USkeletalMeshComponent property (predates this project's pinned engine
+		// version by several years) but is not documented in this project's curated UE5.8
+		// engine-reference library, so treat it as unverified-against-5.8-headers, low risk —
+		// the same caveat this codebase already applies to bUseCameraLagSubstepping in ADR-0005.
+		// Fallback if this ever needs re-verifying: GetSingleNodeInstance()->SetPlaying(false),
+		// since this character's locomotion already goes through the single-node anim path.
+		MeshComp->bPauseAnims = true;
+	}
+
+	HitStopPhase = EMoonHitStopPhase::Freezing;
+	HitStopBlendElapsed = 0.0f;
 
 	if (UWorld* World = GetWorld())
 	{
-		// Timers advance on the world's clock, rather than this actor's dilated tick.
-		// Reapplying hitstop refreshes the short window instead of allowing an older
-		// timer to restore time in the middle of a newer impact.
+		// This timer runs on the world's real clock — nothing in this path ever dilates it.
+		// Reapplying hitstop refreshes the freeze window instead of an older timer restoring
+		// presentation in the middle of a newer impact.
 		World->GetTimerManager().ClearTimer(HitStopTimerHandle);
 		World->GetTimerManager().SetTimer(HitStopTimerHandle, this, &AMoonCharacterBase::EndHitStop, RealDuration, false);
 	}
@@ -344,7 +384,78 @@ void AMoonCharacterBase::TriggerHitStop(float RealDuration, float DilationScale)
 
 void AMoonCharacterBase::EndHitStop()
 {
-	CustomTimeDilation = 1.0f;
+	// Freeze window elapsed: resume anim playback and start the short blend from the held freeze
+	// pose back to the mesh's real, Capsule-following transform. Never an instant snap (Core
+	// Rule 9) — UpdateHitStopPresentation() does the actual blending, called every Tick().
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->bPauseAnims = false;
+	}
+
+	if (HitStopPhase == EMoonHitStopPhase::Freezing)
+	{
+		HitStopPhase = EMoonHitStopPhase::BlendingOut;
+		HitStopBlendElapsed = 0.0f;
+	}
+}
+
+void AMoonCharacterBase::UpdateHitStopPresentation(float DeltaTime)
+{
+	USkeletalMeshComponent* MeshComp = GetMesh();
+	if (!MeshComp || HitStopPhase == EMoonHitStopPhase::Inactive)
+	{
+		return;
+	}
+
+	if (HitStopPhase == EMoonHitStopPhase::Freezing)
+	{
+		// Super::Tick() (called earlier this frame) already moved the Capsule — and, via normal
+		// attachment, would have moved the mesh right along with it — so force the mesh back to
+		// the captured freeze transform every tick. This is what makes the freeze visual-only
+		// instead of a "frozen pose sliding along the real position" artifact (Core Rule 9).
+		HitStopBlendCurrentTransform = FreezeStartMeshTransform;
+		MeshComp->SetWorldTransform(HitStopBlendCurrentTransform, false, nullptr, ETeleportType::TeleportPhysics);
+		return;
+	}
+
+	// BlendingOut: interpolate from the held freeze pose toward the mesh's natural, Capsule-
+	// following transform — computed from the captured relative offset composed with the attach
+	// parent's CURRENT world transform, NOT MeshComp->GetComponentTransform(). After a Freezing
+	// tick, the component's stored relative transform has already been overwritten by the forced
+	// SetWorldTransform() above, so GetComponentTransform() would report the frozen position, not
+	// the natural one.
+	const USceneComponent* AttachParent = MeshComp->GetAttachParent();
+	const FTransform NaturalWorldTransform = AttachParent
+		? CapturedMeshRelativeTransform * AttachParent->GetComponentTransform()
+		: MeshComp->GetComponentTransform();
+
+	HitStopBlendElapsed += DeltaTime;
+
+	const FVector NewLocation = FMath::VInterpTo(HitStopBlendCurrentTransform.GetLocation(), NaturalWorldTransform.GetLocation(), DeltaTime, HitStopBlendOutInterpSpeed);
+	const FQuat NewRotation = FQuat::Slerp(HitStopBlendCurrentTransform.GetRotation(), NaturalWorldTransform.GetRotation(), FMath::Clamp(DeltaTime * HitStopBlendOutInterpSpeed, 0.0f, 1.0f));
+	HitStopBlendCurrentTransform = FTransform(NewRotation, NewLocation, NaturalWorldTransform.GetScale3D());
+
+	// A plain "distance below epsilon" convergence check alone would not be reliable here: the
+	// blend target (NaturalWorldTransform) keeps moving every tick because the Capsule keeps
+	// moving, so exponential decay toward it settles at a nonzero steady-state lag rather than
+	// ever reaching exactly zero. HitStopBlendOutDuration is the hard stop that actually ends the
+	// blend ("1-2 frames" per the ADR/GDD); the distance check remains as an early-out for the
+	// (common) case where the blend closes the gap before the cap is reached.
+	const bool bLocationConverged = FVector::DistSquared(NewLocation, NaturalWorldTransform.GetLocation()) < KINDA_SMALL_NUMBER;
+	const bool bElapsedCapReached = HitStopBlendElapsed >= HitStopBlendOutDuration;
+
+	if (bLocationConverged || bElapsedCapReached)
+	{
+		// Restore the EXACT original relative offset rather than trusting the last blended world
+		// transform — repeated SetWorldTransform() calls during Freezing/BlendingOut overwrite the
+		// component's stored relative transform every tick, so this is what guarantees zero
+		// residual drift across many hitstops in a row instead of it silently accumulating.
+		MeshComp->SetRelativeTransform(CapturedMeshRelativeTransform);
+		HitStopPhase = EMoonHitStopPhase::Inactive;
+		return;
+	}
+
+	MeshComp->SetWorldTransform(HitStopBlendCurrentTransform, false, nullptr, ETeleportType::TeleportPhysics);
 }
 
 void AMoonCharacterBase::BeginPlay()
