@@ -74,9 +74,13 @@ it on death without any disk I/O or loading screen.
 3. **Restore**: `AMoonCharacterBase`'s death handling (already gated through the
    `UGameplayEffectExecutionCalculation` damage pipeline per ADR-0001) calls
    `UMoonCheckpointSubsystem::RestoreCheckpoint(APawn* Player)` instead of
-   triggering a level reload. Restore re-applies Transform and re-initializes
-   `UMoonAttributeSet` from the snapshot via `GameplayEffect` (never a direct
-   attribute set-value, per GAS convention).
+   triggering a level reload. Restore first calls
+   `UMoonAttributeSet::ResetDeathState()` (clears `bIsDead`, removes
+   `State.Dead`), immediately before the Health-restore `GameplayEffect`
+   application — required per ADR-0008's death/respawn contract, since
+   `bIsDead` guards `OnDeath` from firing again. Restore then re-applies
+   Transform and re-initializes `UMoonAttributeSet` from the snapshot via
+   `GameplayEffect` (never a direct attribute set-value, per GAS convention).
 
 4. **Subsystem lifetime**: `UGameInstanceSubsystem` persists across level travel
    within the same game instance, which covers Arena Morphing's boss-arena
@@ -102,6 +106,7 @@ Player respawned in-place, no level reload, no disk I/O
 - `UMoonCheckpointSubsystem::CaptureCheckpoint(APawn* Player)` — void, called by CheckpointTrigger / Boss Phase transition
 - `UMoonCheckpointSubsystem::RestoreCheckpoint(APawn* Player)` — void, called by death handling in `AMoonCharacterBase`
 - `UMoonCheckpointSubsystem::HasActiveCheckpoint()` — bool, guards restore calls before any checkpoint has fired
+- `UMoonAttributeSet::ResetDeathState()` — called by `RestoreCheckpoint` before attribute restore, per ADR-0008
 
 ## Alternatives Considered
 
@@ -156,7 +161,7 @@ Player respawned in-place, no level reload, no disk I/O
 - **Network**: N/A (single-player scope per current GDDs; if co-op/multiplayer is added later, this ADR would need revisiting for replication)
 
 ## Migration Plan
-New system, no existing code to migrate. Implementation replaces whatever placeholder "restart level on death" behavior currently exists (if any) in the Health/Damage Core prototype.
+New system, no existing code to migrate. Implementation replaces whatever placeholder "restart level on death" behavior currently exists (if any) in the Health/Damage Core prototype. Implementation must call `ResetDeathState()` in `RestoreCheckpoint` per ADR-0008 Migration Plan item 5 — omission leaves `OnDeath` permanently dead after first death.
 
 ## Validation Criteria
 - Death during normal combat restores player to last checkpoint transform + attribute values within one frame (no loading screen observed)
@@ -165,5 +170,6 @@ New system, no existing code to migrate. Implementation replaces whatever placeh
 
 ## Related Decisions
 - ADR-0001 (Player Movement and GAS Core Foundation) — dependency
+- ADR-0008 (Health/Damage Core Death Event Contract) — mandates this `ResetDeathState()` integration point
 - `design/gdd/health-damage-core.md` — source requirement
 - `design/gdd/systems-index.md` — scope boundary (Persistence category excluded from current index)
