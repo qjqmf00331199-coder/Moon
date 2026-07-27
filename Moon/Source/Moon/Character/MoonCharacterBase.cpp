@@ -14,6 +14,11 @@
 #include "Animation/AnimSingleNodeInstance.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
+// Movement Insights trace scopes (TR-mov-009 / ADR-0009 Decision 6). Header lives in Core/Public
+// (Core is already a PublicDependencyModuleName in Moon.Build.cs), so no Build.cs change is
+// needed. Verified against this project's actual UE5.8 install
+// (Engine/Source/Runtime/Core/Public/ProfilingDebugging/CpuProfilerTrace.h) — not assumed.
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 AMoonCharacterBase::AMoonCharacterBase()
 {
@@ -62,16 +67,27 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	// Airborne substate (TR-mov-003): derived purely from Velocity.Z's sign, sampled here
-	// because Super::Tick() above has already run CMC's own movement tick this frame — reading
-	// Velocity.Z before Super::Tick() would see last frame's stale value. Ascending/Falling both
-	// map to the single native MOVE_Falling mode; there is no stored transition table and no
-	// custom movement mode (ADR-0009 Decision 2). External Z-impulse re-entry (Dash/Launch
-	// pushing Velocity.Z positive while Falling) and ceiling-bump deceleration back to Falling
-	// both fall out of this one-line sign check with no special-casing.
-	if (const UCharacterMovementComponent* MoveCompForSubState = GetCharacterMovement())
+	// Movement Insights trace (TR-mov-009 / ADR-0009 Decision 6): marks the first post-CMC-tick
+	// point this frame where Velocity is available at its updated value (Super::Tick() above has
+	// already run CharacterMovementComponent::TickComponent). Scoped narrowly around the substate
+	// read below rather than the rest of Tick() — later per-frame work in this function (mana
+	// regen, tension decay, hitstop presentation, locomotion swap) is unrelated to movement and
+	// should not be folded into this scope's measured duration. Name kept exactly as ADR-0009
+	// specifies: "MovementInputTrace.VelocityUpdated".
 	{
-		AirborneSubState = (MoveCompForSubState->Velocity.Z > 0.0f) ? EMoonAirborneSubState::Ascending : EMoonAirborneSubState::Falling;
+		TRACE_CPUPROFILER_EVENT_SCOPE(MovementInputTrace.VelocityUpdated);
+
+		// Airborne substate (TR-mov-003): derived purely from Velocity.Z's sign, sampled here
+		// because Super::Tick() above has already run CMC's own movement tick this frame — reading
+		// Velocity.Z before Super::Tick() would see last frame's stale value. Ascending/Falling both
+		// map to the single native MOVE_Falling mode; there is no stored transition table and no
+		// custom movement mode (ADR-0009 Decision 2). External Z-impulse re-entry (Dash/Launch
+		// pushing Velocity.Z positive while Falling) and ceiling-bump deceleration back to Falling
+		// both fall out of this one-line sign check with no special-casing.
+		if (const UCharacterMovementComponent* MoveCompForSubState = GetCharacterMovement())
+		{
+			AirborneSubState = (MoveCompForSubState->Velocity.Z > 0.0f) ? EMoonAirborneSubState::Ascending : EMoonAirborneSubState::Falling;
+		}
 	}
 
 	// Jump input buffer / coyote time (TR-mov-007): plain delta-time countdowns, never a fixed
@@ -704,6 +720,13 @@ void AMoonCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 void AMoonCharacterBase::Move(const FInputActionValue& Value)
 {
+	// Movement Insights trace (TR-mov-009 / ADR-0009 Decision 6): the very first statement in the
+	// Enhanced Input Triggered callback for IA_Move, before the MovementLocked gate below — this
+	// measures Enhanced Input's delegate dispatch latency itself, so it must fire unconditionally
+	// regardless of whether the input is subsequently gated. Name kept exactly as ADR-0009
+	// specifies: "MovementInputTrace.InputTriggered".
+	TRACE_CPUPROFILER_EVENT_SCOPE(MovementInputTrace.InputTriggered);
+
 	// MovementLocked (TR-mov-006): access-control gate for the not-yet-designed Status Effect
 	// system. bMovementLocked has no writer yet (SetMovementLocked() is private and uncalled) —
 	// this check exists now so the gate is already correct once that system is designed.

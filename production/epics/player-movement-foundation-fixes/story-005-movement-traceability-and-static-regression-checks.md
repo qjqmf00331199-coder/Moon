@@ -1,12 +1,12 @@
 # Story 005: Movement Traceability and Static Regression Checks
 
 > **Epic**: Player Movement Foundation Fixes
-> **Status**: Ready
+> **Status**: In Progress
 > **Layer**: Foundation
 > **Type**: Integration
 > **Estimate**: 2-4 hours
 > **Manifest Version**: 2026-07-27
-> **Last Updated**:
+> **Last Updated**: 2026-07-27
 
 ## Context
 
@@ -28,10 +28,10 @@
 
 ## Acceptance Criteria
 
-- [ ] GIVEN movement input is processed, WHEN Insights tracing is enabled, THEN `MovementInputTrace.InputTriggered` is emitted at the Enhanced Input Triggered callback start.
-- [ ] GIVEN CMC has updated velocity toward the requested movement, WHEN tracing is enabled, THEN `MovementInputTrace.VelocityUpdated` is emitted at the first post-CMC frame.
-- [ ] GIVEN static movement checks run, THEN Spell Casting references, montage input-lock patterns, Time Dilation calls, and root-motion locomotion violations are reported as failures.
-- [ ] GIVEN N>=100 actor provisional benchmark is run on the development reference machine, THEN results are recorded as baseline evidence before Production gate.
+- [x] (source-level, not live-captured) GIVEN movement input is processed, WHEN Insights tracing is enabled, THEN `MovementInputTrace.InputTriggered` is emitted at the Enhanced Input Triggered callback start. — `TRACE_CPUPROFILER_EVENT_SCOPE(MovementInputTrace.InputTriggered)` as the first statement in `Move()`, before the `bMovementLocked` gate; macro syntax verified against the real UE5.8 header. Live Insights capture DEFERRED (no Editor session this pass).
+- [x] (source-level, not live-captured) GIVEN CMC has updated velocity toward the requested movement, WHEN tracing is enabled, THEN `MovementInputTrace.VelocityUpdated` is emitted at the first post-CMC frame. — same macro, in `Tick()` immediately after `Super::Tick()`. Live Insights capture DEFERRED.
+- [x] GIVEN static movement checks run, THEN Spell Casting references, montage input-lock patterns, Time Dilation calls, and root-motion locomotion violations are reported as failures. — `tests/static/movement_regression_checks.ps1`; each detector self-tested against a known-bad fixture before trusting its "clean" verdict on real source (including a caught-and-fixed false-positive risk on benign "montage/slot system" prose).
+- [ ] DEFERRED (requires Editor/PIE session with a reference machine, not available this session) — GIVEN N>=100 actor provisional benchmark is run on the development reference machine, THEN results are recorded as baseline evidence before Production gate. Pickup recipe recorded in the evidence doc — no numbers fabricated.
 
 ---
 
@@ -87,11 +87,22 @@
 - `tests/static/movement_regression_checks.*`
 - `production/qa/evidence/movement-traceability-and-static-regression-checks-evidence.md`
 
-**Status**: [ ] Not yet created
+**Status**: [x] Created — all three present
+
+**Verification (2026-07-27)**:
+- `tests/integration/movement/movement_traceability_test.ps1` — PASS (source-level; explicitly documented as not a live Insights capture)
+- `tests/static/movement_regression_checks.ps1` — PASS (consolidates/delegates to `movement_foundation_contract.ps1`, adds new whole-file Time Dilation, montage input-lock, and root-motion checks, all self-tested against known-bad fixtures first)
+- `production/qa/evidence/movement-traceability-and-static-regression-checks-evidence.md` — created, documents macro-syntax verification (real UE5.8 header read, cited Epic precedent), placement rationale, and deferred items with pickup checklists
+- Regression re-run: `camera_yaw_facing_test.ps1`, `movement_foundation_contract.ps1`, `movement_independence_check.ps1`, `airborne_and_grace_windows_test.ps1`, `movement_lock_contract_test.ps1`, `hitstop_no_time_dilation_check.ps1`, `tuning_clamp_and_joint_bound_test.ps1` — all PASS
+- UBT full build (`MoonEditor Win64 Development`) — **Succeeded**, 4/4 actions
+
+**Trace macro syntax resolved (not left open)**: bare-token `TRACE_CPUPROFILER_EVENT_SCOPE(MovementInputTrace.X)` confirmed correct against the real installed UE5.8 header (`ProfilingDebugging/CpuProfilerTrace.h`) — using it with a quoted string literal instead (which ADR-0009's own diagram text shows) would double-stringify and silently break the scope name; flagged as an ADR documentation discrepancy to correct separately, not touched here (out of this story's write boundary).
+
+**Deferred (explicitly, not silently skipped)**: AC-4's live benchmark and the actual `.uasset`-level `bEnableRootMotion` import-setting verification (TR-mov-010) both require an Editor/PIE session not available this session. Pickup recipes recorded in the evidence doc.
 
 ---
 
 ## Dependencies
 
-- Depends on: Stories 001, 003, and 004
+- Depends on: Stories 001, 003, and 004 (Story 001 status: In Progress — PIE verification still pending; user accepted this risk earlier in this session and it carries forward)
 - Unlocks: Production gate movement evidence and repeatable playtest instrumentation

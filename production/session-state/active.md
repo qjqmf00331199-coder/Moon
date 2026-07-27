@@ -953,3 +953,14 @@ from "**This IS the exact resume point**" above.
 - Deviation: proceeded with Story 001 dependency still In Progress (PIE pending) — user-accepted risk, carried from Story 003/004.
 - Blockers: PIE runtime verification still not possible this session (no Unreal MCP/Editor control tool exposed).
 - Next: /code-review Moon/Source/Moon/Character/MoonCharacterBase.h Moon/Source/Moon/Character/MoonCharacterBase.cpp, then /story-done for Stories 002/003/004 (004's Visual/Feel ACs need a human PIE pass first), then Story 005.
+
+## Session Extract — /dev-story 2026-07-27 (Story 005)
+- Story: production/epics/player-movement-foundation-fixes/story-005-movement-traceability-and-static-regression-checks.md — Movement Traceability and Static Regression Checks (last story in the player-movement-foundation-fixes epic)
+- Files changed: Moon/Source/Moon/Character/MoonCharacterBase.cpp (added ProfilingDebugging/CpuProfilerTrace.h include + two TRACE_CPUPROFILER_EVENT_SCOPE scopes), tests/static/movement_regression_checks.ps1 (new), tests/integration/movement/movement_traceability_test.ps1 (new), production/qa/evidence/movement-traceability-and-static-regression-checks-evidence.md (new)
+- Trace scopes: MovementInputTrace.InputTriggered (first statement in Move(), before bMovementLocked gate) and MovementInputTrace.VelocityUpdated (in Tick(), right after Super::Tick()). Bare-token macro syntax verified correct against the actual installed UE5.8 header (quoted-string form, which ADR-0009's own diagram shows, would double-stringify — flagged as an ADR doc discrepancy, not fixed here).
+- Static checks consolidated: Spell Casting independence (delegates to existing movement_foundation_contract.ps1), whole-file Time Dilation, montage input-lock, source-level root-motion — all self-tested against known-bad fixtures before trusting a "clean" verdict on real source.
+- Test/build: all 9 movement test scripts PASS. UBT build Succeeded (4/4).
+- Deferred (explicit, documented, not faked): AC-4 N>=100 actor benchmark (needs Editor/PIE + reference machine) and TR-mov-010's actual .uasset bEnableRootMotion import-setting verification (needs Editor/MCP access) — pickup recipes in the evidence doc.
+- Blockers: PIE runtime verification still not possible this session (no Unreal MCP/Editor control tool exposed) — affects Story 001 (PIE pending), Story 004 (AC-1/3/4 deferred), and Story 005 (AC-4, live Insights capture, TR-mov-010 asset check) alike.
+- Epic status after this session: Stories 002/003/004/005 have code+tests implemented, verified, committed, and pushed. Story 001 has code+tests but is still In Progress pending PIE. No story in this epic has had a full human PIE playtest pass yet.
+- Next: /code-review across all 5 stories' changed files, then /story-done per story (004/005 need a human PIE pass first to fully close their deferred ACs), then move to Camera System or Dash/Evasion epics per production/epics/index.md ordering.
