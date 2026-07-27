@@ -2,7 +2,8 @@
 
 > **Status**: Draft
 > **Created**: 2026-07-16
-> **Last Updated**: 2026-07-20
+> **Last Updated**: 2026-07-27 (Progress Tracker corrected — the 3 Overdrive-sync GDDs were
+> re-reviewed and re-approved 2026-07-23, commit `afe5e3e`; tracker still read 6 Approved)
 > **Source Concept**: design/gdd/game-concept.md
 
 ---
@@ -156,8 +157,8 @@
 | Total systems identified | 20 |
 | Design docs started | 9 |
 | Design docs reviewed | 9 |
-| Design docs approved | 6 |
-| MVP systems designed | 9/9 (6 Approved, 3 Needs Revision Review after 2026-07-21 fixed-window Overdrive change) |
+| Design docs approved | 9 |
+| MVP systems designed | 9/9 (9 Approved) |
 | Vertical Slice systems designed | 0/7 |
 
 ---

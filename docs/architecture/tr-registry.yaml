@@ -24,8 +24,20 @@
 #
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
-version: 2
-last_updated: "2026-07-18"
+version: 3
+last_updated: "2026-07-27"
+
+# v3 changes (/architecture-review 2026-07-27):
+#   - Superseded 2 entries whose behavioural contract was INVERTED by the 2026-07-23 GDD
+#     re-reviews (TR-overdrive-005 -> 009, TR-tension-006 -> 008). Per the rules above these
+#     are replacements, not rewordings. Story-impact check: no story/epic files exist in the
+#     repo and no file outside this registry + traceability-index + review reports cites them.
+#   - Revised 3 entries in place (same intent, corrected detail): TR-spell-004, TR-dash-002,
+#     TR-cam-004.
+#   - Added 4 new entries: TR-overdrive-008/009, TR-tension-008, TR-spell-010.
+#   - TR-dash-002 and TR-cam-004 are revised against GDDs that are themselves internally
+#     inconsistent (see architecture-review-2026-07-27.md C-2 and C-3). The text below follows
+#     the ADR-ratified reading; the GDDs still need their own fix.
 
 requirements:
 
@@ -191,9 +203,10 @@ requirements:
   - id: TR-cam-004
     system: cam
     gdd: design/gdd/camera-system-base.md
-    requirement: "Spring-arm position/rotation lag with hard CameraLagMaxDistance=200uu cap forcing hard-follow beyond threshold (off-screen prevention up to 3000uu/s Z)"
+    requirement: "Spring-arm position/rotation lag with hard CameraLagMaxDistance=60.0uu cap forcing hard-follow beyond threshold (off-screen prevention up to 3000uu/s Z)"
     created: 2026-07-18
-    revised: ""
+    revised: 2026-07-27
+    revision_note: "200uu corrected to 60.0uu. camera-system-base.md states 60.0uu in Rule (:69), Edge Case 4 (:183), Tuning Knobs (:221, safe range 40-120) and AC (:256); 200uu appears only in Formula 3 (:138) and the Arena Morphing dependency row (:204) and is outside the GDD's own safe range. ADR-0005 preserves 60.0. GDD still needs its own fix — architecture-review-2026-07-27.md C-3."
     status: active
   - id: TR-cam-005
     system: cam
@@ -314,9 +327,10 @@ requirements:
   - id: TR-spell-004
     system: spell
     gdd: design/gdd/spell-casting-base.md
-    requirement: "Cost/cooldown bypass via CostBypass.Active tag checked in BOTH CanActivateAbility() and ActivateAbility(); when present skip CommitAbility entirely so no cooldown GE enters (single tag, no partial bypass)"
+    requirement: "Cost/cooldown bypass requires CostBypass.Active tag AND CurrentTime < OverdriveEndTime, evaluated identically at BOTH CanActivateAbility() and CommitAbility(); when both hold skip CommitAbility entirely so no cooldown GE enters (single tag, no partial bypass). Tag presence alone on the expiry frame does NOT bypass."
     created: 2026-07-18
-    revised: ""
+    revised: 2026-07-27
+    revision_note: "Same intent, added the temporal conjunct. spell-casting-base.md Core Rule 10 rewritten 2026-07-23 to require the lazy time comparison alongside the tag (ADR-0004 decision 6)."
     status: active
   - id: TR-spell-005
     system: spell
@@ -346,6 +360,14 @@ requirements:
     created: 2026-07-18
     revised: ""
     status: active
+  - id: TR-spell-010
+    system: spell
+    gdd: design/gdd/spell-casting-base.md
+    requirement: "Passive Mana Regen pauses ONLY while Luna Overdrive is Active (entry Mana preserved, no retroactive drain or forced cost on exit); regen resumes immediately on Recovery entry. Regen formula gates on OverdriveActive, not on the CostBypass.Active tag."
+    created: 2026-07-27
+    revised: ""
+    source_note: "spell-casting-base.md Core Rule 7 + Mana Regen Tick formula (revised 2026-07-23); luna-overdrive.md Rule 9. Registered by /architecture-review 2026-07-27 — this contract did not exist at the v2 population."
+    status: active
   - id: TR-spell-009
     system: spell
     gdd: design/gdd/spell-casting-base.md
@@ -365,9 +387,10 @@ requirements:
   - id: TR-dash-002
     system: dash
     gdd: design/gdd/dash-evasion.md
-    requirement: "Apply dash as full velocity Override (horizontal+vertical overwritten, not additive) via Player Movement impulse/Velocity API; air-dash adjusts Z for hang-time respecting CMC gravity"
+    requirement: "Apply dash as an instant collision-swept SetActorLocation position step with Override semantics (prior horizontal+vertical momentum does not add to or subtract from the step, so every dash covers the same distance); NOT a CMC velocity override or LaunchCharacter impulse. Air-dash additionally applies a Z impulse (AirDashZImpulse) before the horizontal step to extend hang-time, respecting CMC gravity thereafter."
     created: 2026-07-18
-    revised: ""
+    revised: 2026-07-27
+    revision_note: "Corrected mechanism, same Override intent. Original text captured dash-evasion.md Rule 4's 'velocity 덮어쓰기' wording, which commit 7f7e2e3 superseded and ADR-0007 Decision 1 / Alternative 1 explicitly rejects. dash-evasion.md Rule 2 already describes the position step — Rule 4 still contradicts it and needs its own fix (architecture-review-2026-07-27.md C-2)."
     status: active
   - id: TR-dash-003
     system: dash
@@ -454,13 +477,23 @@ requirements:
     requirement: "Read CostBypass.Active gameplay tag at gain-evaluation time to gate the overdrive gain multiplier"
     created: 2026-07-18
     revised: ""
-    status: active
+    status: "superseded-by: TR-tension-008"
+    superseded_note: "REPLACED, not reworded — the contract inverted. combo-tension-gauge.md Core Rule 7 (2026-07-23 full-lock rewrite) now forbids reading the tag (query Luna Overdrive's time state instead) and removes the multiplier entirely; the GDD header records overdrive_tension_gain_multiplier as deprecated in the constant registry. Superseded by /architecture-review 2026-07-27."
   - id: TR-tension-007
     system: tension
     gdd: design/gdd/combo-tension-gauge.md
     requirement: "Expose read-only gauge value (0-Max) and Building/Decaying state to downstream (Combat HUD) without those consumers being required for correct logic"
     created: 2026-07-18
     revised: ""
+    status: active
+  - id: TR-tension-008
+    system: tension
+    gdd: design/gdd/combo-tension-gauge.md
+    requirement: "Gate ALL tension gain sources to zero while Luna Overdrive is Active or in Recovery, by querying Luna Overdrive's time state (NOT the CostBypass.Active tag, which is already cleared on the expiry frame). No partial multiplier exists — the lock is absolute. Suppressed gain events must not update LastTensionGainTime."
+    created: 2026-07-27
+    revised: ""
+    supersedes: TR-tension-006
+    source_note: "combo-tension-gauge.md Core Rule 7 + AC10 (2026-07-23 full-lock rewrite). Registered by /architecture-review 2026-07-27."
     status: active
 
   # --- Luna Overdrive (luna-overdrive.md) ---
@@ -498,7 +531,8 @@ requirements:
     requirement: "Same-frame race determinism: expiry finalized at frame-end, re-trigger refreshes OverdriveEndTime (no Started/Ended re-emission), player Death takes eager priority"
     created: 2026-07-18
     revised: ""
-    status: active
+    status: "superseded-by: TR-overdrive-009"
+    superseded_note: "REPLACED, not reworded — the re-trigger clause inverted. luna-overdrive.md Rule 5 + AC5 (2026-07-21 fixed-window rewrite, re-approved 2026-07-23) make the 10s window fixed: a re-trigger during Active or Recovery is ignored and never refreshes EndTime. ADR-0004 decision 2 agrees. The expiry-at-frame-end and Death-eager-priority clauses carry forward into TR-overdrive-009. Superseded by /architecture-review 2026-07-27."
   - id: TR-overdrive-006
     system: overdrive
     gdd: design/gdd/luna-overdrive.md
@@ -512,6 +546,23 @@ requirements:
     requirement: "Expose OnOverdriveStarted, OnOverdriveEnded(EndReason in {Expired, PlayerDeath}) exactly once per transition, and OverdriveTimeRemaining to downstream"
     created: 2026-07-18
     revised: ""
+    status: active
+  - id: TR-overdrive-008
+    system: overdrive
+    gdd: design/gdd/luna-overdrive.md
+    requirement: "Three-state boundary Inactive/Active/Recovery. Recovery is entered on Active expiry and lasts OverdriveRecoveryDuration (default 1.5s, safe range 1.0-2.0). Recovery locks tension gain ONLY — mana regen, paid casts with normal cost/cooldown, movement and dash all resume immediately on Recovery entry. Recovery exit returns to Inactive."
+    created: 2026-07-27
+    revised: ""
+    source_note: "luna-overdrive.md Core Rule 8 + States and Transitions table + Recovery End Time formula (2026-07-21 fixed-window rewrite, re-approved 2026-07-23). Registered by /architecture-review 2026-07-27 — the Recovery state did not exist at the v2 population."
+    status: active
+  - id: TR-overdrive-009
+    system: overdrive
+    gdd: design/gdd/luna-overdrive.md
+    requirement: "Fixed-window race determinism: a re-trigger received during Active or Recovery is ignored — it never refreshes OverdriveEndTime/RecoveryEndTime, never re-grants the tag, and emits no Started/Ended event. When expiry and re-trigger land on the same frame, expiry wins. Player Death takes eager priority over both (a same-frame trigger+Death emits no Started and grants no tag)."
+    created: 2026-07-27
+    revised: ""
+    supersedes: TR-overdrive-005
+    source_note: "luna-overdrive.md Core Rule 5 + Edge Cases (만료/재트리거 동일 프레임, 트리거/Death 동일 프레임) + AC5/AC7/AC9. Registered by /architecture-review 2026-07-27."
     status: active
 
   # --- Combat HUD (combat-hud.md) ---

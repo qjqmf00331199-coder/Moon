@@ -7,6 +7,12 @@ Task: **Signature Combat Chain Spike — CLOSED (2026-07-21, commit 8753883)**. 
    - Camera/Enemy AI both also need net-new data-asset classes (`UMoonCameraSettings`, `UMoonEnemyArchetypeData`) per the ADRs' data-driven-tuning decisions — Enemy AI is fully greenfield (only `BP_Enemy_Base` stub exists, confirmed via `plan.md` + source grep).
    - **Next required step (per ADR authoring protocol): run `/architecture-review` in a FRESH session** — must not run in the same session that authored these ADRs (biased reviewer). Re-run to check the 59/74 gap is now closed and no cross-ADR conflicts introduced.
 (4) /create-epics once `/architecture-review` passes. Open risk: 632 untracked files (marketplace packs, ToImport leftovers) not yet swept in — confirm scope before next mass commit.
+**UPDATE 2026-07-27**: `/architecture-review` RAN (independent session) — verdict **FAIL**, gaps
+59→23 of 76. The 4 new ADRs closed 34 gaps and Camera/Enemy AI/Dash/Overdrive are now fully
+addressed, but the review found a **blocking** issue: `OnDeath` is consumed by ADR-0002/0004/0006
+and defined by no ADR (the 2026-07-18 conflict, recurred 3× wider). `/create-epics` still gated.
+Next: write the Health/Damage Core death+event contract ADR in a fresh session, and Accept ADR-0005
+(no unresolved deps). Report: `docs/architecture/architecture-review-2026-07-27.md`.
 <!-- /STATUS -->
 
 ## Completed Spike — Signature Combat Chain + Overdrive Crash (Codex, 2026-07-21)
@@ -739,3 +745,53 @@ from "**This IS the exact resume point**" above.
   that did this implementation work — the editor wasn't running yet when that session started. User is
   opening a new conversation now that the editor + MCP server are up, to continue with the in-editor
   steps above.
+
+## Session Extract — /architecture-review 2026-07-27 (Claude Code, independent reviewer session)
+- **Verdict: FAIL** (was FAIL on 2026-07-18). Report: `docs/architecture/architecture-review-2026-07-27.md`
+- Requirements: **76 active** — 38 ✅ Covered / 15 ⚠️ Partial / 23 ❌ Gap. Previous: 74 — 9/6/59.
+  Gaps 59→23. Of the 36 closed, **34 by ADR-0004/0005/0006/0007**; 2 were scoring errors in the
+  2026-07-18 review (`TR-spell-008`, `TR-tension-001` were already covered by ADR-0003/ADR-0001).
+- Systems now fully addressed: Camera 9/9, Enemy AI 8/8, Luna Overdrive 8/8, Spell Casting 10/10,
+  Dash 7/8. Still uncovered: **Combat HUD 0/7**, Player Movement 1/10, Combo/Tension 2/7, HDC 6/9.
+- **BLOCKING (C-1)**: `OnDeath` consumed by ADR-0002 (Accepted), ADR-0004 and ADR-0006 (Proposed),
+  **defined by no ADR**. ADR-0001 cites only the damage ExecCalc. This is the 2026-07-18
+  ADR-0002→ADR-0001 conflict, unresolved, and two new ADRs were written on top of it since.
+  TR-hp-006/007 ❌ across both reviews. → next ADR must be the HDC death + event contract.
+- Other conflicts: **C-2** `dash-evasion.md` Rule 2 (position step) vs Rule 4 (velocity override) —
+  internal GDD contradiction, ADR-0007 sides with Rule 2. **C-3** `camera-system-base.md`
+  `CameraLagMaxDistance` = 60.0uu in 4 places, 200uu in 2 (Formula 3, Arena Morphing dep row);
+  200 is outside the GDD's own safe range. **C-4 (concern)** `AMoonCharacterBase` accretion —
+  4 ADRs independently put state there, nobody owns the component-decomposition boundary.
+- **Implementation violations found**: **V-1 (blocking-grade)** `MoonCharacterBase.cpp:282`
+  `TriggerHitStop` sets `CustomTimeDilation`, which `player-movement.md` Core Rule 9 forbids in any
+  form — the rule's own AC (`:273`) specifies a grep for exactly this API. Unlike the rotation-flag
+  bug this was written deliberately (2026-07-20, with a justifying comment) so it needs an explicit
+  decision, not a silent fix. **V-2** camera rotation flags (`:43-44`) still unfixed
+  (`task_0964acf9`) — any strafe-aim playtest before that fix tests the wrong build.
+- **Engine (E-1)**: `MoonGameplayAbility_Dash.cpp:187` uses `SetMovementMode()` legacy overload,
+  deprecated in 5.8 / removed in 5.9 per this project's own `deprecated-apis.md:183`. ADR-0007
+  ratifies that code while claiming "Post-Cutoff APIs Used: None" — its Engine Compatibility table
+  needs amending. **E-2**: code correctly uses `SetAssetTags()`/`UTargetTagsGameplayEffectComponent`
+  but neither deprecation is in `deprecated-apis.md` — confirm background task `task_a3fdf7fc` landed.
+  **E-3**: `docs/engine-reference/unreal/modules/ai.md` does not exist; ADR-0006's Hearing-Loudness
+  1:1 mapping claim has zero documentary backing.
+- Engine-specialist consultation **SKIPPED** (session standing instruction: no subagents unless
+  requested) — E-1/E-2/E-3 are audit-only, not domain-expert confirmed.
+- New TR-IDs registered (4): `TR-overdrive-008` (Recovery state), `TR-overdrive-009`
+  (fixed window, supersedes 005), `TR-tension-008` (full gain lock, supersedes 006),
+  `TR-spell-010` (mana regen pause). Registry now v3.
+- Superseded (2, contract inverted by the 2026-07-23 GDD re-reviews): `TR-overdrive-005`,
+  `TR-tension-006`. Revised in place (3, same intent): `TR-spell-004`, `TR-dash-002`, `TR-cam-004`.
+  Safe because `production/epics/` does not exist — no story cites any TR-ID yet.
+- `docs/registry/architecture.yaml` checked for the same drift — **clean**, no changes needed.
+- GDD revision flags: `dash-evasion.md` (Rule 4 + 2 new Tuning Knobs + re-review),
+  `camera-system-base.md` (Formula 3 / Arena Morphing row), `enemy-ai-base.md` (`MeleeAttackRange` knob).
+- Fixed this session: `systems-index.md` Progress Tracker (6 Approved → 9, MVP 9/9 all Approved),
+  `consistency-failures.md` (numbering entry → Resolved, 3 new entries appended).
+- `docs/architecture/architecture.md` is **stale at v1.0/2026-07-18** — its ADR Audit, Traceability
+  Coverage, Required ADRs and 2 Open Questions are all outdated by 6 ADRs. Layer map / module
+  ownership / data flow / principles are still correct. Refresh after the ★ ADR lands.
+- **Left untouched deliberately**: `docs/registry/architecture.yaml.tmp.13448.bc1ec0e0fd01` (stale
+  interrupted-write leftover; canonical file is newer and complete — deletion needs authorisation)
+  and all 633 untracked files. Also noted: `.claude/worktrees/cranky-shamir-f0f913/` holds an old
+  copy of the registry and will produce false hits in repo-wide TR-ID greps.
