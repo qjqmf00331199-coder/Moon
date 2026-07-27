@@ -30,7 +30,7 @@
 #   Superseded entries:     Grep pattern="status: superseded"
 
 version: 1
-last_updated: "2026-07-23"
+last_updated: "2026-07-27"
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -68,6 +68,31 @@ state_ownership:
     revised: "2026-07-23"
     # MeleeAttackRange field added by ADR-0007 (Dash/Evasion Just-Dodge IsInAttackRange check) —
     # ADR-0006 remains the owning ADR, ADR-0007 is an additive consumer/extender.
+
+  - state: death_state
+    status: active
+    owner_system: health-damage-core (UMoonAttributeSet death-detection branch)
+    adr: docs/architecture/0008-health-damage-core-death-event-contract.md
+    interface: "IMoonHealthEventInterface::HandleDeath() (called once by UMoonAttributeSet::PostGameplayEffectExecute) + State.Dead GameplayTag + per-class FOnMoonDeath OnDeath multicast delegate on AMoonCharacterBase/AMoonEnemyCharacterBase"
+    write_access: health-damage-core-only (bIsDead guard + State.Dead grant/clear live in UMoonAttributeSet / HandleDeath_Implementation)
+    referenced_by:
+      - docs/architecture/0002-checkpoint-persistence.md
+      - docs/architecture/0004-luna-overdrive-fixed-window.md
+      - docs/architecture/0006-enemy-ai-behavior-tree.md
+      - docs/architecture/0008-health-damage-core-death-event-contract.md
+    added: 2026-07-27
+    revised: ""
+
+  - state: movement_lock
+    status: active
+    owner_system: player-movement (AMoonCharacterBase — write access reserved for the not-yet-designed Status Effect system)
+    adr: docs/architecture/0009-player-movement-runtime-contract.md
+    interface: "AMoonCharacterBase::IsMovementLocked() const (public read) / SetMovementLocked(bool) (private — no caller exists yet; Status Effect's future ADR must be the one to expose write access)"
+    write_access: status-effect-only (reserved, not yet callable by any system — Spell Casting is explicitly denied access per player-movement.md Core Rule 7)
+    referenced_by:
+      - docs/architecture/0009-player-movement-runtime-contract.md
+    added: 2026-07-27
+    revised: ""
 
 # Example:
 #
@@ -165,6 +190,51 @@ interfaces:
     added: 2026-07-23
     revised: ""
 
+  - contract: death_event
+    status: active
+    pattern: signal
+    producer: health-damage-core (UMoonAttributeSet::PostGameplayEffectExecute → IMoonHealthEventInterface::HandleDeath → per-class OnDeath broadcast)
+    consumers:
+      - checkpoint-subsystem (ADR-0002 — AMoonCharacterBase::OnDeath triggers RestoreCheckpoint)
+      - luna-overdrive (ADR-0004 — subscribes for PlayerDeath end-reason)
+      - enemy-ai (ADR-0006 — AMoonEnemyCharacterBase::OnDeath triggers StopLogic/ragdoll/despawn)
+    adr: docs/architecture/0008-health-damage-core-death-event-contract.md
+    signal_signature: "FOnMoonDeath OnDeath (multicast, no payload) — declared independently on AMoonCharacterBase and AMoonEnemyCharacterBase, both broadcast from their own IMoonHealthEventInterface::HandleDeath_Implementation(), guaranteed exactly-once per instance via UMoonAttributeSet::bIsDead"
+    referenced_by:
+      - docs/architecture/0002-checkpoint-persistence.md
+      - docs/architecture/0004-luna-overdrive-fixed-window.md
+      - docs/architecture/0006-enemy-ai-behavior-tree.md
+      - docs/architecture/0008-health-damage-core-death-event-contract.md
+    added: 2026-07-27
+    revised: ""
+
+  - contract: execution_event
+    status: active
+    pattern: signal
+    producer: health-damage-core (AMoonCharacterBase::TryExecute, after confirming the target's Override-to-0 GameplayEffect applied)
+    consumers:
+      - spell-casting/mana (not yet implemented — 100% mana refund on OnExecuted per spell-casting-base.md, health-damage-core.md Rule 9)
+    adr: docs/architecture/0008-health-damage-core-death-event-contract.md
+    signal_signature: "FOnMoonExecuted OnExecuted(AActor* Target) — broadcast only on the TryExecute success path, distinct from OnDeath (which fires for any death, not only executions)"
+    referenced_by:
+      - docs/architecture/0008-health-damage-core-death-event-contract.md
+    added: 2026-07-27
+    revised: ""
+
+  - contract: element_cooldown_query
+    status: active
+    pattern: direct_call
+    producer: spell-casting (UMoonAbilitySystemComponent)
+    consumers:
+      - combat-hud (W4 cooldown overlay — subscribes via RegisterGameplayTagEvent on the returned tag, reads Remaining/Duration for the fraction)
+    adr: docs/architecture/0003-spell-casting-gas-implementation.md
+    signal_signature: "GetElementCooldownTag(Element): FGameplayTag / GetElementCooldownRemaining(Element): float / GetElementCooldownDuration(Element): float — additive query accessors on UMoonAbilitySystemComponent over the existing Cooldown GameplayEffect+tag ADR-0003 already applies. Owning ADR is 0003; added by ADR-0010 (same enemy_telegraph_query-style additive-extension pattern as ADR-0007 on ADR-0006)."
+    referenced_by:
+      - docs/architecture/0003-spell-casting-gas-implementation.md
+      - docs/architecture/0010-combat-hud-widget-architecture.md
+    added: 2026-07-27
+    revised: ""
+
 # Example:
 #
 # interfaces:
@@ -257,6 +327,50 @@ api_decisions:
     added: 2026-07-23
     revised: ""
 
+  - purpose: death_detection_mechanism
+    status: active
+    api: "UMoonAttributeSet::PostGameplayEffectExecute — synchronous post-modifier check on the Health attribute, guarded by a bIsDead bool for exactly-once firing"
+    not: "UMoonDamageExecCalc (ExecutionCalculation) — runs before the AttributeSet's own clamp, would duplicate clamp math and not cover TryExecute's direct Health-Override path; tick-based/polling HealthComponent — explicitly forbidden by health-damage-core.md Rule 5 (no delayed death judgment)"
+    adr: docs/architecture/0008-health-damage-core-death-event-contract.md
+    reason: "PostGameplayEffectExecute is the one seam every Health-modifying path (normal damage GE and TryExecute's Override-to-0 GE) passes through after the value is final — single point of truth for OnDeath/OnHealthPercentCrossed/State.Dead regardless of what caused the change"
+    referenced_by:
+      - docs/architecture/0008-health-damage-core-death-event-contract.md
+    added: 2026-07-27
+    revised: ""
+
+  - purpose: hitstop_presentation_technique
+    status: active
+    api: "Capture mesh transform at freeze start, force mesh (not Capsule) to that transform for the freeze duration, blend back to real transform over 1-2 frames on unfreeze — Capsule/CMC never touched, gameplay tick unaffected"
+    not: "CustomTimeDilation / SetGlobalTimeDilation (any form of Time Dilation) — explicitly forbidden by player-movement.md Core Rule 9 regardless of scope (per-actor or global); superseded the shipped 2026-07-20 implementation which used CustomTimeDilation"
+    adr: docs/architecture/0009-player-movement-runtime-contract.md
+    reason: "player-movement.md Core Rules 8/9/11 and health-damage-core.md Rule 5 all independently mandate that judgment/gameplay-tick and presentation are separate pipelines — Time Dilation of any kind violates this even when scoped to one actor, since it still dilates that actor's own Tick/AnimInstance update rate"
+    referenced_by:
+      - docs/architecture/0009-player-movement-runtime-contract.md
+    added: 2026-07-27
+    revised: ""
+
+  - purpose: airborne_substate_representation
+    status: active
+    api: "Derived value — Velocity.Z sign, sampled every tick after Super::Tick() (post-CMC-tick) — no stored state, no transition table"
+    not: "SetMovementModeWithCustomMode() / custom EMovementMode for Ascending vs Falling — both stay native MOVE_Falling; a stored custom mode would desync from external Z-impulse re-entry (Dash/Launch) the same way a fixed AirTime/2 timer already does not track real apex time"
+    adr: docs/architecture/0009-player-movement-runtime-contract.md
+    reason: "player-movement.md's own 구현 노트 explicitly warns against promoting these to custom movement modes, and doing so would introduce the exact deprecated-API risk (SetMovementModeWithCustomMode, unverified against real 5.8 headers) the GDD flags as its highest-risk Open Question — avoided entirely by not needing the API"
+    referenced_by:
+      - docs/architecture/0009-player-movement-runtime-contract.md
+    added: 2026-07-27
+    revised: ""
+
+  - purpose: combat_hud_widget_base
+    status: active
+    api: "Plain UUserWidget (UMoonCombatHUDWidget), C++ owns all upstream data binding; BlueprintImplementableEvent hooks expose state to BP-driven visuals"
+    not: "UCommonActivatableWidget / CommonUI's activation-focus-stack — that machinery exists for screens that participate in pad focus navigation (menus, inventory); Combat HUD is 100% non-focusable and explicitly excluded from the pad focus graph (combat-hud.md Rule 1), so adopting it would mean actively suppressing behavior CommonUI turns on by default, for no benefit"
+    adr: docs/architecture/0010-combat-hud-widget-architecture.md
+    reason: "A non-focusable, 100%-read-only HUD has no use for CommonUI's screen/activation-stack pattern. CommonUI is still used, but scoped narrowly to its input-method-detection utility for glyph swapping (TR-hud-007) — not as the widget's inheritance base. Future UI ADRs for genuinely focusable/navigable screens (menus, inventory) should default to CommonActivatableWidget instead — this decision applies to passive HUD-class widgets only, not project-wide."
+    referenced_by:
+      - docs/architecture/0010-combat-hud-widget-architecture.md
+    added: 2026-07-27
+    revised: ""
+
 # Example:
 #
 # api_decisions:
@@ -302,6 +416,32 @@ forbidden_patterns:
       hardcoding all values directly in MoonCharacterBase.cpp's constructor."
     adr: docs/architecture/0005-camera-system-springarm.md
     added: 2026-07-23
+
+  - pattern: time_dilation_for_presentation
+    status: active
+    description: "No form of Time Dilation (SetGlobalTimeDilation, per-actor CustomTimeDilation, or
+      any equivalent) may be used to implement hitstop, execution presentation, or any other
+      visual-freeze moment. Gameplay tick (movement input, cast-state processing) must run at
+      100% normal rate at all times; freezes are presentation-layer only (capture-and-blend on
+      the mesh/camera, never on the Capsule/CMC)."
+    why: "player-movement.md Core Rules 8/9/11 and health-damage-core.md Rule 5 all independently
+      state the same judgment/presentation separation principle. The pre-ADR-0009 hitstop
+      implementation used CustomTimeDilation, violating Rule 9 (flagged as V-1 in
+      architecture-review-2026-07-27.md) — this pattern exists so the next presentation-freeze
+      feature (e.g. a future execution/impact moment) doesn't reach for the same shortcut."
+    adr: docs/architecture/0009-player-movement-runtime-contract.md
+    added: 2026-07-27
+
+  - pattern: montage_based_input_lock
+    status: active
+    description: "Locomotion animations (jump, land, etc.) must never block AddMovementInput via
+      montage-driven input lock (e.g. bStopAllMontages-style patterns). All locomotion anims must
+      be non-root-motion; pose is presentation only and never gates movement processing."
+    why: "player-movement.md Core Rule 8 generalizes Core Rule 7's 'movement never blocks casting'
+      guarantee to all locomotion animation — a montage lock would silently reintroduce the exact
+      class of judgment/presentation coupling Rule 9's hitstop fix (ADR-0009) removes elsewhere."
+    adr: docs/architecture/0009-player-movement-runtime-contract.md
+    added: 2026-07-27
 
 # Example:
 #
