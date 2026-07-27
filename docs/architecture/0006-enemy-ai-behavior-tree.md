@@ -1,7 +1,14 @@
 # ADR-0006: Enemy AI (base) — AIController + Shared Behavior Tree + AIPerception
 
 ## Status
-Proposed
+Accepted
+
+**Accepted:** 2026-07-27 (per `/architecture-review` — no unresolved blocking dependency: sole
+dependency ADR-0008 now Accepted; Enemy AI (base) TRs 8/8 addressed per
+`architecture-review-2026-07-27.md` coverage table (6 ✅ / 2 ⚠️, no gaps); `Blocks` field states
+None. Verification Required items (`UAIPerceptionComponent`/`UAISenseConfig_Sight`/`Hearing`
+signatures, no `ai.md` engine-reference doc yet) remain open as implementation-time risks,
+non-blocking, same treatment as ADR-0005/0008/0004.)
 
 ## Date
 2026-07-23

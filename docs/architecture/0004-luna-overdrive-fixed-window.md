@@ -1,6 +1,14 @@
 # ADR 0004: Luna Overdrive Fixed Window and Recovery Boundary
 
-**Status:** Proposed
+**Status:** Accepted
+
+**Accepted:** 2026-07-27 (per `/architecture-review` — no unresolved blocking dependency: ADR-0001,
+ADR-0003, ADR-0008 all Accepted; Luna Overdrive TRs 7/7 addressed per `architecture-review-2026-07-27.md`
+coverage table (6 ✅ / 1 ⚠️, no gaps); the Blocks-field condition — Luna Overdrive/Combo-Tension/Spell
+Casting GDD revisions passing independent review — satisfied by the 2026-07-23 re-review, commit
+`afe5e3e`. Verification Required item (`SetLooseGameplayTagCount` signature) remains an
+implementation-time risk, non-blocking, same treatment as ADR-0005/0008.)
+
 **Date:** 2026-07-21
 **Context:** Moon Fragment Hunt (UE 5.8)
 
