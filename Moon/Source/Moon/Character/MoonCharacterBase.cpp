@@ -127,11 +127,14 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 	}
 
 	// Jump feel: fall faster than we rise (asymmetric gravity) for a snappier arc instead of
-	// UE's default floaty symmetric one. Only touches GravityScale while actually descending.
+	// UE's default floaty symmetric one. Multiplies BaseGravityScale (the TR-mov-004-validated
+	// tuning knob, see ValidateAndClampMovementTuning()) rather than overwriting it outright —
+	// the previous flat-assignment version silently discarded the validated base value every
+	// frame, undermining the AirTime joint-bound guarantee for the entire falling phase.
 	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
 	{
 		const bool bDescending = MoveComp->IsFalling() && GetVelocity().Z < 0.0f;
-		MoveComp->GravityScale = bDescending ? FallingGravityScaleMultiplier : 1.0f;
+		MoveComp->GravityScale = BaseGravityScale * (bDescending ? FallingGravityScaleMultiplier : 1.0f);
 	}
 
 	// Jump motion: detect the moment we start falling (jump or walking off a ledge) and play
@@ -462,6 +465,12 @@ void AMoonCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Movement tuning clamp + AirTime joint bound enforcement (TR-mov-004) — load-time validation
+	// pass. See ValidateAndClampMovementTuning()'s header comment for the runtime-write-time caveat
+	// (no runtime setter exists yet, so this is the only call site today) and the known Tick()/
+	// GravityScale gap this does not close.
+	ValidateAndClampMovementTuning();
+
 	// Initialize the Ability System Component
 	if (AbilitySystemComponent)
 	{
@@ -471,6 +480,114 @@ void AMoonCharacterBase::BeginPlay()
 		InitializeAttributes();
 		InitializeAbilities();
 	}
+}
+
+float AMoonCharacterBase::ComputeAirTime(float JumpZVelocity, float GravityScale) const
+{
+	// player-movement.md Formulas section, Jump Air Time: AirTime = (2 * JumpZVelocity) /
+	// (GravityScale * abs(WorldGravityZ)). WorldGravityZ is UWorld::GetGravityZ() (the world's
+	// unscaled gravity, e.g. -980) — deliberately not UCharacterMovementComponent::GetGravityZ(),
+	// which already bakes GravityScale in and would silently square it here (the GDD explicitly
+	// warns against this — the discrepancy only shows up away from the default GravityScale=1.0).
+	const float WorldGravityZ = GetWorld() ? GetWorld()->GetGravityZ() : DefaultWorldGravityZ;
+	return (2.0f * JumpZVelocity) / (GravityScale * FMath::Abs(WorldGravityZ));
+}
+
+void AMoonCharacterBase::ValidateAndClampMovementTuning()
+{
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	if (!MoveComp)
+	{
+		return;
+	}
+
+	// --- Individual hard clamps (TR-mov-004) — must run before the AirTime joint bound check below,
+	// so that check never divides by an unclamped (zero/negative) GravityScale.
+	if (MoveComp->MaxWalkSpeed < MinMaxWalkSpeed)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MoonMovementTuning] MaxWalkSpeed %.3f is below the hard clamp minimum %.3f — clamping."), MoveComp->MaxWalkSpeed, MinMaxWalkSpeed);
+		MoveComp->MaxWalkSpeed = MinMaxWalkSpeed;
+	}
+	if (MoveComp->JumpZVelocity < MinJumpZVelocity)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MoonMovementTuning] JumpZVelocity %.3f is below the hard clamp minimum %.3f — clamping."), MoveComp->JumpZVelocity, MinJumpZVelocity);
+		MoveComp->JumpZVelocity = MinJumpZVelocity;
+	}
+	if (MoveComp->GravityScale < MinGravityScale)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MoonMovementTuning] GravityScale %.3f is below the hard clamp minimum %.3f — clamping."), MoveComp->GravityScale, MinGravityScale);
+		MoveComp->GravityScale = MinGravityScale;
+	}
+	if (MoveComp->MaxAcceleration < MinMaxAcceleration)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MoonMovementTuning] MaxAcceleration %.3f is below the hard clamp minimum %.3f — clamping."), MoveComp->MaxAcceleration, MinMaxAcceleration);
+		MoveComp->MaxAcceleration = MinMaxAcceleration;
+	}
+	if (MoveComp->BrakingDecelerationWalking < MinBrakingDecelerationWalking)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MoonMovementTuning] BrakingDecelerationWalking %.3f is below the hard clamp minimum %.3f — clamping."), MoveComp->BrakingDecelerationWalking, MinBrakingDecelerationWalking);
+		MoveComp->BrakingDecelerationWalking = MinBrakingDecelerationWalking;
+	}
+	if (MoveComp->GroundFriction < MinGroundFriction)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MoonMovementTuning] GroundFriction %.3f is below the hard clamp minimum %.3f — clamping."), MoveComp->GroundFriction, MinGroundFriction);
+		MoveComp->GroundFriction = MinGroundFriction;
+	}
+	if (FallingGravityScaleMultiplier < MinGravityScale)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MoonMovementTuning] FallingGravityScaleMultiplier %.3f is below the hard clamp minimum %.3f — clamping."), FallingGravityScaleMultiplier, MinGravityScale);
+		FallingGravityScaleMultiplier = MinGravityScale;
+	}
+
+	// --- AirTime joint bound (TR-mov-004) — only evaluated AFTER the individual clamps above, using
+	// the now-guaranteed-safe (non-zero, non-negative) clamped values. BaseGravityScale (not
+	// MoveComp->GravityScale) is the value being validated here and is what Tick()'s asymmetric
+	// jump-feel multiply reads as its base going forward — see BaseGravityScale's header comment.
+	const float ClampedJumpZVelocity = MoveComp->JumpZVelocity;
+	const float ClampedGravityScale = MoveComp->GravityScale;
+	const float CandidateAirTime = ComputeAirTime(ClampedJumpZVelocity, ClampedGravityScale);
+	const bool bCandidateValid = CandidateAirTime >= AirTimeJointBoundMinSeconds && CandidateAirTime <= AirTimeJointBoundMaxSeconds;
+
+	if (!bHasValidatedMovementTuning)
+	{
+		// Bootstrap: no previous valid pair exists yet — this is the very first validation pass.
+		if (!bCandidateValid)
+		{
+			// No previous value to revert to — this is a content/config error. Fall back to the
+			// GDD's own documented safe defaults as the last resort (player-movement.md Tuning
+			// Knobs table "Current Value" column), not to whatever was configured.
+			UE_LOG(LogTemp, Error, TEXT("[MoonMovementTuning] Initial JumpZVelocity=%.3f/GravityScale=%.3f produce AirTime=%.3fs, outside the joint bound [%.2fs, %.2fs], and no previous valid tuning exists yet — falling back to GDD defaults JumpZVelocity=%.1f/GravityScale=%.1f."),
+				ClampedJumpZVelocity, ClampedGravityScale, CandidateAirTime, AirTimeJointBoundMinSeconds, AirTimeJointBoundMaxSeconds, DefaultJumpZVelocity, DefaultGravityScale);
+			MoveComp->JumpZVelocity = DefaultJumpZVelocity;
+			MoveComp->GravityScale = DefaultGravityScale;
+		}
+		LastValidJumpZVelocity = MoveComp->JumpZVelocity;
+		LastValidGravityScale = MoveComp->GravityScale;
+		bHasValidatedMovementTuning = true;
+	}
+	else if (!bCandidateValid)
+	{
+		// A previously-validated pair exists — revert to it rather than falling back to engine/GDD
+		// defaults (story-mandated revert policy). The rejected combination is intentionally NOT
+		// written into LastValidJumpZVelocity/LastValidGravityScale below — it must not become the
+		// new baseline for future reverts.
+		UE_LOG(LogTemp, Warning, TEXT("[MoonMovementTuning] JumpZVelocity=%.3f/GravityScale=%.3f produce AirTime=%.3fs, outside the joint bound [%.2fs, %.2fs] — reverting to the last known-valid pair JumpZVelocity=%.3f/GravityScale=%.3f."),
+			ClampedJumpZVelocity, ClampedGravityScale, CandidateAirTime, AirTimeJointBoundMinSeconds, AirTimeJointBoundMaxSeconds, LastValidJumpZVelocity, LastValidGravityScale);
+		MoveComp->JumpZVelocity = LastValidJumpZVelocity;
+		MoveComp->GravityScale = LastValidGravityScale;
+	}
+	else
+	{
+		// Joint bound passed — this combination becomes the new last-known-valid pair.
+		LastValidJumpZVelocity = ClampedJumpZVelocity;
+		LastValidGravityScale = ClampedGravityScale;
+	}
+
+	// BaseGravityScale is the final word on "what GravityScale actually is" from here on — Tick()
+	// reads this every frame instead of GetCharacterMovement()->GravityScale, which it overwrites
+	// with BaseGravityScale * feel-multiplier and would otherwise be misread as the base on any
+	// later re-validation pass.
+	BaseGravityScale = MoveComp->GravityScale;
 }
 
 void AMoonCharacterBase::PossessedBy(AController* NewController)
@@ -718,6 +835,14 @@ void AMoonCharacterBase::Input_StopJumping()
 {
 	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Input_StopJumping fired"));
 	StopJumping();
+}
+
+void AMoonCharacterBase::InjectZImpulse(float ZVelocity)
+{
+	// TR-mov-005 safe hook — SETS Velocity.Z via LaunchCharacter's bZOverride=true (does not add to
+	// any existing Z velocity). See the header declaration's comment for composition/override-scope
+	// caveats. No caller is wired up yet (Dash/Evasion, Arena Morphing) — this only exposes the hook.
+	LaunchCharacter(FVector(0.0f, 0.0f, ZVelocity), false, true);
 }
 
 void AMoonCharacterBase::TryActivateAbilityByTag(FGameplayTag AbilityTag)

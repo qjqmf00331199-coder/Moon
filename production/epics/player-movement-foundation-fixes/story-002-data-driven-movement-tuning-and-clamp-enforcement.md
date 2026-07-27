@@ -1,12 +1,13 @@
 # Story 002: Data-Driven Movement Tuning and Clamp Enforcement
 
 > **Epic**: Player Movement Foundation Fixes
-> **Status**: Ready
+> **Status**: In Progress
 > **Layer**: Foundation
-> **Type**: Config/Data
+> **Type**: Logic
 > **Estimate**: 2-4 hours
 > **Manifest Version**: 2026-07-27
-> **Last Updated**:
+> **Last Updated**: 2026-07-27
+> **Type-Note**: Reclassified Config/Data → Logic on 2026-07-27 — acceptance criteria require real clamp-enforcement code, an AirTime joint-bound validator, and a new Movement-owned Z-impulse injection API, none of which are data-file edits. ADR-0001's actual Decision text for TR-mov-004 only says tuning is "exposed as UPROPERTY with Safe Range comments" — no clamp/joint-bound/API design is specified there, so this story also carries new-design risk beyond normal implementation.
 
 ## Context
 
@@ -28,10 +29,10 @@
 
 ## Acceptance Criteria
 
-- [ ] GIVEN movement data has invalid zero/negative `MaxWalkSpeed`, `JumpZVelocity`, `GravityScale`, `MaxAcceleration`, `BrakingDecelerationWalking`, or `GroundFriction`, WHEN loaded or written at runtime, THEN values are clamped and warning logs are emitted.
-- [ ] GIVEN `JumpZVelocity` and `GravityScale` produce AirTime outside 0.5s-3.0s, WHEN validation runs, THEN the combination is rejected or reverted to the previous valid combination.
-- [ ] GIVEN movement source files, WHEN static checks run, THEN GDD tuning numbers are not hardcoded as runtime source of truth.
-- [ ] GIVEN a downstream system needs Z impulse, WHEN using the Movement-owned API, THEN it can inject the impulse without directly owning movement state.
+- [x] GIVEN movement data has invalid zero/negative `MaxWalkSpeed`, `JumpZVelocity`, `GravityScale`, `MaxAcceleration`, `BrakingDecelerationWalking`, or `GroundFriction`, WHEN loaded or written at runtime, THEN values are clamped and warning logs are emitted. — `ValidateAndClampMovementTuning()`, called from `BeginPlay()`; exact GDD minimums (100/100/0.1/1000/1000/1); covered by `tuning_clamp_and_joint_bound_test.ps1`.
+- [x] GIVEN `JumpZVelocity` and `GravityScale` produce AirTime outside 0.5s-3.0s, WHEN validation runs, THEN the combination is rejected or reverted to the previous valid combination. — revert-to-last-valid-pair policy (user decision); `ComputeAirTime()` matches GDD formula exactly (verified non-squaring); covered by the GDD's own boundary examples in the test.
+- [x] GIVEN movement source files, WHEN static checks run, THEN GDD tuning numbers are not hardcoded as runtime source of truth. — clamp minimums are named `static constexpr` constants, not bare literals; covered by static grep check.
+- [x] GIVEN a downstream system needs Z impulse, WHEN using the Movement-owned API, THEN it can inject the impulse without directly owning movement state. — `InjectZImpulse(float ZVelocity)`, public/`BlueprintCallable`, no caller wired up yet (correctly out of scope); covered by the test.
 
 ---
 
@@ -81,11 +82,21 @@
 - Config/Data: smoke check pass (`production/qa/smoke-movement-tuning.md`)
 - Static check or unit test under `tests/`
 
-**Status**: [ ] Not yet created
+**Status**: [x] Created — both present
+
+**Verification (2026-07-27)**:
+- `tests/unit/movement/tuning_clamp_and_joint_bound_test.ps1` — PASS (includes 3 regression tests for the GravityScale fix below)
+- `production/qa/smoke-movement-tuning.md` — PASS
+- Regression re-run: `camera_yaw_facing_test.ps1`, `movement_foundation_contract.ps1`, `movement_independence_check.ps1`, `airborne_and_grace_windows_test.ps1`, `movement_lock_contract_test.ps1`, `hitstop_no_time_dilation_check.ps1` — all PASS
+- UBT full build (`MoonEditor Win64 Development`) — **Succeeded**, 5/5 actions
+
+**Type reclassified Config/Data → Logic (2026-07-27)**: see header `Type-Note`. Required real clamp/joint-bound/API code, not a data edit.
+
+**Bug found and fixed during implementation review (user-approved scope extension)**: `Tick()`'s pre-existing (Story 003/004-era) asymmetric jump-feel code overwrote `GravityScale` every frame instead of multiplying the validated base value (its own comment said "multiplies," the code assigned) — silently defeating the AirTime joint-bound guarantee for the entire falling phase. Fixed with a new `BaseGravityScale` member + multiply in `Tick()` + clamping `FallingGravityScaleMultiplier` too. Default-tuning numeric output is unchanged. See `production/qa/smoke-movement-tuning.md` for full detail.
 
 ---
 
 ## Dependencies
 
-- Depends on: Story 001 should be complete or in review
+- Depends on: Story 001 (status: In Progress — PIE verification still pending; user accepted this risk to proceed with Story 002/003/004)
 - Unlocks: Story 003 and Dash/Evasion air-dash work

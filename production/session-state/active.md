@@ -942,3 +942,14 @@ from "**This IS the exact resume point**" above.
 - Deviation: proceeded with Story 001 dependency still In Progress (PIE pending) — user explicitly accepted this risk (same acceptance carried from Story 003).
 - Blockers: PIE runtime verification still not possible this session (no Unreal MCP/Editor control tool exposed).
 - Next: /code-review Moon/Source/Moon/Character/MoonCharacterBase.h Moon/Source/Moon/Character/MoonCharacterBase.cpp, then /story-done for Story 003 and Story 004 (Story 004's Visual/Feel ACs need a human PIE pass first).
+
+## Session Extract — /dev-story 2026-07-27 (Story 002)
+- Story: production/epics/player-movement-foundation-fixes/story-002-data-driven-movement-tuning-and-clamp-enforcement.md — Data-Driven Movement Tuning and Clamp Enforcement
+- Reclassified Type: Config/Data -> Logic before implementing — ACs required real clamp/joint-bound/Z-impulse-API code, not a data edit; user confirmed this call.
+- Files changed: Moon/Source/Moon/Character/MoonCharacterBase.h, Moon/Source/Moon/Character/MoonCharacterBase.cpp, tests/unit/movement/tuning_clamp_and_joint_bound_test.ps1 (new), production/qa/smoke-movement-tuning.md (new)
+- Implemented: 6 exact GDD hard clamps (100/100/0.1/1000/1000/1), AirTime joint bound [0.5s,3.0s] via GetWorld()->GetGravityZ() formula, revert-to-last-valid-pair policy (user decision, not reject-to-default), InjectZImpulse(float) safe Z-hook (TR-mov-005, no caller wired).
+- Bug found + fixed same session (user-approved scope extension): Tick()'s pre-existing asymmetric jump-feel code overwrote GravityScale every frame instead of multiplying the validated base (comment said "multiplies", code assigned) — defeated the joint-bound guarantee while falling. Fixed via new BaseGravityScale member + Tick() multiply + clamping FallingGravityScaleMultiplier too. Default numeric output unchanged. 3 new regression tests added.
+- Test/build: all unit/static tests PASS (incl. 3 new regression tests). UBT build Succeeded (5/5).
+- Deviation: proceeded with Story 001 dependency still In Progress (PIE pending) — user-accepted risk, carried from Story 003/004.
+- Blockers: PIE runtime verification still not possible this session (no Unreal MCP/Editor control tool exposed).
+- Next: /code-review Moon/Source/Moon/Character/MoonCharacterBase.h Moon/Source/Moon/Character/MoonCharacterBase.cpp, then /story-done for Stories 002/003/004 (004's Visual/Feel ACs need a human PIE pass first), then Story 005.

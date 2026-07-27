@@ -130,6 +130,34 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Moon|Movement")
 	bool IsMovementLocked() const { return bMovementLocked; }
 
+	// Z-axis impulse injection hook (TR-mov-005 / player-movement.md "Interactions with Other
+	// Systems" — Dash/Evasion). The safe path for external systems (Dash/Evasion, Arena Morphing —
+	// neither has a caller wired up yet) to apply a vertical velocity impulse without reaching into
+	// GetCharacterMovement()->Velocity directly. Thin wrapper around LaunchCharacter using the same
+	// bXYOverride=false/bZOverride=true pattern Input_Jump() already uses for its coyote-time
+	// launch — see that function for the established precedent.
+	//
+	// SETS Velocity.Z to ZVelocity — this does NOT add to any existing Z velocity (LaunchCharacter's
+	// bZOverride=true semantics). Composition with momentum already present on Z is the caller's
+	// responsibility; player-movement.md's Dash/Evasion Open Questions section explicitly leaves
+	// additive-vs-override impulse composition unresolved pending that epic's own design pass — this
+	// hook makes no assumption either way, it only exposes the override primitive.
+	//
+	// This does not conflict with the control-manifest's "never reintroduce LaunchCharacter... for
+	// the dash's horizontal motion" rule (ADR-0007) — that prohibition is scoped to Dash's
+	// *horizontal* displacement (which must stay an instant swept SetActorLocation step per
+	// ADR-0007). This is the separate Z-axis launch/impulse interface player-movement.md's
+	// Interactions section explicitly asks the Movement layer to expose.
+	//
+	// Deliberately narrow: does not implement Dash's temporary MaxWalkSpeed override (the other half
+	// of TR-mov-005) or any generic velocity-injection system — both out of scope for this story
+	// (Dash/Evasion epic's job; see Story 002's Out of Scope section).
+	//
+	// Example usage (future caller, e.g. an air-dash ability):
+	//   MoonCharacter->InjectZImpulse(800.0f); // launches straight up at 800uu/s, overriding Velocity.Z
+	UFUNCTION(BlueprintCallable, Category = "Moon|Movement")
+	void InjectZImpulse(float ZVelocity);
+
 	// Plays a one-shot animation on the mesh (e.g. Dash/spell cast), suppressing the idle/jog
 	// locomotion swap in Tick until it finishes. Used by abilities that don't have their own
 	// montage/slot system yet (no AnimBlueprint exists for this character). PlayRate scales
@@ -265,7 +293,10 @@ public:
 
 	// Jump feel: asymmetric gravity so the descent is snappier than the rise (standard
 	// platformer "juice" — e.g. Celeste/Mario) instead of UE's default floaty symmetric arc.
-	// Multiplies CharacterMovement's base GravityScale while falling; back to 1x otherwise.
+	// Multiplies BaseGravityScale (the TR-mov-004-validated tuning knob) while falling; 1x
+	// otherwise — see Tick(). Hard-clamped to the same MinGravityScale (0.1) minimum as
+	// BaseGravityScale by ValidateAndClampMovementTuning(), since a zero/negative multiplier here
+	// would silently break the descent-gravity feel the same way an unclamped GravityScale would.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Animation|Jump Feel")
 	float FallingGravityScaleMultiplier = 1.6f;
 
@@ -359,6 +390,83 @@ private:
 	// <= JumpGraceWindowSeconds upper bound is the ADR-mandated boundary operator (not a bare
 	// > 0.f check) so that any value beyond the 150ms window — however it got there — is rejected.
 	static bool IsWithinGraceWindow(float TimerSeconds) { return TimerSeconds >= 0.0f && TimerSeconds <= JumpGraceWindowSeconds; }
+
+	// Movement tuning clamp enforcement (TR-mov-004, player-movement.md Tuning Knobs table — these
+	// are the GDD's own hard-clamp minimums, not this file's invention). Applied to
+	// GetCharacterMovement()'s properties — the actual runtime source of truth today, configured via
+	// the BP_MoonCharacter CDO with zero enforcement before this story — by
+	// ValidateAndClampMovementTuning(), called once from BeginPlay(). Individual clamps below run
+	// BEFORE the AirTime joint bound check (see ComputeAirTime()/ValidateAndClampMovementTuning()) —
+	// player-movement.md Formulas section "검증 순서" mandates this order, since running the joint
+	// check first would divide by a potentially-unclamped (zero/negative) GravityScale.
+	//
+	// GravityScale / jump-feel interaction (fixed 2026-07-27, was a KNOWN GAP): the pre-existing
+	// asymmetric jump-feel effect in Tick() used to overwrite GetCharacterMovement()->GravityScale
+	// outright every frame (MoveComp->GravityScale = bDescending ? FallingGravityScaleMultiplier :
+	// 1.0f), silently discarding whatever base GravityScale this validation had just clamped/
+	// joint-bound-checked — its own doc comment said "multiplies" but the code assigned, not
+	// multiplied. Tick() now computes MoveComp->GravityScale = BaseGravityScale * (bDescending ?
+	// FallingGravityScaleMultiplier : 1.0f), so the validated base value is never discarded, and
+	// FallingGravityScaleMultiplier itself is now clamped to MinGravityScale below. BaseGravityScale
+	// (declared near LastValidGravityScale below) is the actual source of truth for the AirTime
+	// formula/joint-bound/revert-policy from here on — GetCharacterMovement()->GravityScale is a
+	// derived, per-tick value once Tick() has run at least once.
+	static constexpr float MinMaxWalkSpeed = 100.0f;
+	static constexpr float MinJumpZVelocity = 100.0f;
+	static constexpr float MinGravityScale = 0.1f;
+	static constexpr float MinMaxAcceleration = 1000.0f;
+	static constexpr float MinBrakingDecelerationWalking = 1000.0f;
+	static constexpr float MinGroundFriction = 1.0f;
+
+	// AirTime joint bound (TR-mov-004): individually-clamped JumpZVelocity/GravityScale can still
+	// combine into a physically unplayable AirTime (GDD Formulas section, Jump Air Time). Declared as
+	// a closed [Min, Max] range in seconds, checked AFTER the individual clamps above.
+	static constexpr float AirTimeJointBoundMinSeconds = 0.5f;
+	static constexpr float AirTimeJointBoundMaxSeconds = 3.0f;
+
+	// UE's documented default world gravity Z magnitude (-980uu/s^2, unscaled) — used only as a
+	// defensive fallback if GetWorld() is somehow null when ComputeAirTime() runs (should not happen
+	// from BeginPlay, but avoids an unguarded divide against an uninitialized value).
+	static constexpr float DefaultWorldGravityZ = -980.0f;
+
+	// GDD-documented safe fallback defaults (player-movement.md Tuning Knobs table "Current Value"
+	// column) — used ONLY when BeginPlay's very first validation pass already fails the joint bound
+	// and there is no previous valid pair to revert to yet (bootstrap case, see
+	// ValidateAndClampMovementTuning()). Every subsequent rejection reverts to
+	// LastValidJumpZVelocity/LastValidGravityScale instead of these.
+	static constexpr float DefaultJumpZVelocity = 600.0f;
+	static constexpr float DefaultGravityScale = 1.0f;
+
+	// Last known-valid (JumpZVelocity, GravityScale) pair (TR-mov-004 revert policy). Set once
+	// BeginPlay's validation pass confirms a joint-bound-valid combination exists (either the
+	// as-configured values, or — bootstrap-only — the GDD defaults above). A future runtime setter
+	// that changes either value should call ValidateAndClampMovementTuning() again afterward rather
+	// than duplicating this revert logic.
+	bool bHasValidatedMovementTuning = false;
+	float LastValidJumpZVelocity = DefaultJumpZVelocity;
+	float LastValidGravityScale = DefaultGravityScale;
+
+	// The TR-mov-004-validated GravityScale value — the actual source of truth for the AirTime
+	// formula/joint-bound/revert-policy, and what Tick()'s asymmetric jump-feel multiply reads as
+	// its base. Kept distinct from GetCharacterMovement()->GravityScale because that CMC property
+	// becomes a derived, per-tick value (BaseGravityScale * feel multiplier) once Tick() has run —
+	// reading it back as if it were still the configured base would corrupt this validation the
+	// same way naively re-capturing a transform mid-freeze corrupted Story 004's hitstop rewrite.
+	float BaseGravityScale = DefaultGravityScale;
+
+	// Computes AirTime per the GDD Formulas section EXACTLY: AirTime = (2 * JumpZVelocity) /
+	// (GravityScale * abs(WorldGravityZ)). WorldGravityZ comes from GetWorld()->GetGravityZ() (the
+	// world's UNSCALED gravity, e.g. -980) — NOT GetCharacterMovement()->GetGravityZ(), which already
+	// has GravityScale multiplied in and would square GravityScale if reused here (GDD Formulas
+	// section WorldGravityZ warning).
+	float ComputeAirTime(float JumpZVelocity, float GravityScale) const;
+
+	// Applies the six individual hard clamps, then validates the AirTime joint bound and applies the
+	// revert-to-last-known-valid-pair policy (TR-mov-004). Called once from BeginPlay() today;
+	// structured to take no parameters (reads/writes GetCharacterMovement() directly) so a future
+	// runtime setter can call it again after changing GravityScale/JumpZVelocity instead of
+	// duplicating this validation.
+	void ValidateAndClampMovementTuning();
 
 	void RefreshLocomotionAnim();
 	void OnJumpStartAnimFinished();
