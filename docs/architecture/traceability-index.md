@@ -40,7 +40,7 @@
 | ADR-0002 Checkpoint Persistence | Accepted | ⚠️ impl blocked — cites an `OnDeath` no ADR defines |
 | ADR-0003 Spell Casting GAS | Accepted | — |
 | ADR-0004 Luna Overdrive Fixed Window | **Proposed** | ⚠️ `PlayerDeath` path needs the death contract |
-| ADR-0005 Camera System (SpringArm) | **Proposed** | — **no unresolved dependency, ready to Accept** |
+| ADR-0005 Camera System (SpringArm) | **Accepted** (2026-07-27) | — |
 | ADR-0006 Enemy AI Behavior Tree | **Proposed** | ⚠️ `Depends On` names an ADR that does not exist |
 | ADR-0007 Dash/Evasion Just-Dodge | **Proposed** | ⚠️ ADR-0006 (Proposed) → ★ (missing) |
 

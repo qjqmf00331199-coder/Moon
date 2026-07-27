@@ -795,3 +795,12 @@ from "**This IS the exact resume point**" above.
   interrupted-write leftover; canonical file is newer and complete — deletion needs authorisation)
   and all 633 untracked files. Also noted: `.claude/worktrees/cranky-shamir-f0f913/` holds an old
   copy of the registry and will produce false hits in repo-wide TR-ID greps.
+
+## Session Extract — ADR-0005 Accepted (Claude Code, 2026-07-27)
+- `docs/architecture/0005-camera-system-springarm.md` status Proposed → **Accepted** (2026-07-27),
+  per the same-day `/architecture-review` finding: 9/9 TR-cam addressed, no unresolved `Depends On`,
+  only ADR in the 0004-0007 batch with zero blocking dependency. TR-cam-003/004 stay ⚠️ Partial —
+  open follow-ups (independent-rotation-read wording, CameraLagMaxDistance GDD fix), not blockers.
+- Stories may now reference ADR-0005 without being auto-blocked (per docs/CLAUDE.md status lifecycle).
+- ADR-0004/0006/0007 remain Proposed — still blocked on the HDC death+event contract (C-1) and,
+  for 0007, on ADR-0006 also being Proposed.

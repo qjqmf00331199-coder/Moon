@@ -1,10 +1,15 @@
 # ADR-0005: Camera System (base) — SpringArm + Data-Driven Config
 
 ## Status
-Proposed
+Accepted
 
 ## Date
 2026-07-23
+
+**Accepted:** 2026-07-27 (per `/architecture-review 2026-07-27` — 9/9 TR-cam requirements
+addressed, no unresolved `Depends On`, only Foundation ADR in the 0004-0007 batch with zero
+blocking dependency. TR-cam-003/004 remain ⚠️ Partial — tracked as open follow-ups, not blockers
+to Accepted status; see that review's Note on TR-cam-003 and Conflict C-3 for TR-cam-004.)
 
 ## Engine Compatibility
 
