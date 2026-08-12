@@ -1,12 +1,12 @@
 # Story 004: Presentation-Only Hitstop Rewrite
 
 > **Epic**: Player Movement Foundation Fixes
-> **Status**: In Progress
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Visual/Feel
 > **Estimate**: 2-4 hours
 > **Manifest Version**: 2026-07-27
-> **Last Updated**: 2026-07-27
+> **Last Updated**: 2026-08-12
 
 ## Context
 
@@ -98,5 +98,12 @@
 
 ## Dependencies
 
-- Depends on: Story 001 (status: In Progress — PIE verification still pending; user accepted this risk to proceed with Story 003/004)
+- Depends on: Story 001 (status: Complete with notes — AC-4 non-root-motion locomotion deferred, PIE verification still pending; user accepted this risk to proceed with Story 003/004)
 - Unlocks: playtest build validation and Dash/Evasion feel validation
+
+## Completion Notes
+**Completed**: 2026-08-12
+**Criteria**: 1/4 passing (AC-1, AC-3, AC-4 DEFERRED — require human PIE playtest; advisory per Visual/Feel story type, AC-4 explicitly advisory in story text)
+**Deviations**: None blocking. Advisory: 40ms vs 55ms GDD tuning-table mismatch (pre-existing, out of scope); Blueprint `TriggerHitStop` reference grep timed out on full `Moon/Content` sweep, low risk not exhaustively confirmed
+**Test Evidence**: `tests/static/hitstop_no_time_dilation_check.ps1` (re-run live, PASS) + `production/qa/evidence/presentation-only-hitstop-rewrite-evidence.md`
+**Code Review**: Skipped — Solo mode

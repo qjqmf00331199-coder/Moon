@@ -1,12 +1,12 @@
 # Story 003: Airborne Substate, Jump Buffer, and Coyote Runtime
 
 > **Epic**: Player Movement Foundation Fixes
-> **Status**: In Progress
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: 2-4 hours
 > **Manifest Version**: 2026-07-27
-> **Last Updated**: 2026-07-27
+> **Last Updated**: 2026-08-12
 
 ## Context
 
@@ -102,5 +102,12 @@
 
 ## Dependencies
 
-- Depends on: Story 001 (status: In Progress — PIE verification still pending; user accepted this risk to proceed with Story 003)
+- Depends on: Story 001 (status: Complete with notes — AC-4 non-root-motion locomotion deferred, PIE verification still pending; user accepted this risk to proceed with Story 003)
 - Unlocks: Dash/Evasion air-dash and MovementLocked dash gating work
+
+## Completion Notes
+**Completed**: 2026-08-12
+**Criteria**: 4/4 passing
+**Deviations**: None
+**Test Evidence**: Logic — `tests/unit/movement/airborne_and_grace_windows_test.ps1`, `tests/unit/movement/movement_lock_contract_test.ps1`, both re-verified PASS
+**Code Review**: Complete (combined Stories 001-005 review, commit `1561ecf`)

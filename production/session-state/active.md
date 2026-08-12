@@ -988,3 +988,19 @@ from "**This IS the exact resume point**" above.
 - 3/4 AC passing (AC-4 N>=100 benchmark DEFERRED, needs reference-machine PIE). Live re-run: movement_traceability_test.ps1 PASS, movement_regression_checks.ps1 PASS. Trace scopes verified at MoonCharacterBase.cpp:78/722, bMovementLocked at line 727/753 — match ADR-0009's Decision 6/3 exactly. Manifest version match (2026-07-27).
 - Tech debt logged: None (ADR-0009 diagram quoted-string vs code bare-token macro discrepancy already documented in story body, not a new item)
 - Next recommended: All 5 Player Movement Foundation Fixes stories now Complete/Complete-with-notes. Stories 001/004 still have deferred PIE-dependent ACs. Run /smoke-check sprint then /team-qa before /gate-check to Production, or move to Camera System / Dash-Evasion epics per production/epics/index.md.
+
+## Session Extract — /story-done 2026-08-12 (Story 001)
+- Verdict: COMPLETE WITH NOTES
+- Story: production/epics/player-movement-foundation-fixes/story-001-camera-yaw-facing-and-movement-independence.md — Camera-Yaw Facing and Movement Independence
+- 3/4 AC passing (AC-4 non-root-motion locomotion DEFERRED — needs uasset/editor root-motion flag inspection, not statically checkable). Live re-run: camera_yaw_facing_test.ps1 PASS, movement_independence_check.ps1 PASS. Constructor flags confirmed at MoonCharacterBase.cpp:49-52. Solo mode — LP-CODE-REVIEW/QL-TEST-COVERAGE gates skipped.
+- Tech debt logged: None (AC-4 gap documented in Completion Notes, user chose plain close)
+- Next recommended: All 5 Player Movement Foundation Fixes stories now Complete/Complete-with-notes. Stories 001/004 still have deferred PIE-dependent ACs. Run /smoke-check sprint then /team-qa before /gate-check to Production, or move to Camera System / Dash-Evasion epics per production/epics/index.md.
+
+## Session Extract — /story-done 2026-08-12 (Story 004)
+- Verdict: COMPLETE WITH NOTES
+- Story: production/epics/player-movement-foundation-fixes/story-004-presentation-only-hitstop-rewrite.md — Presentation-Only Hitstop Rewrite
+- 1/4 AC passing (AC-1/AC-3/AC-4 DEFERRED — Visual/Feel type, need human PIE playtest; AC-4 explicitly advisory in story text). Live re-run: hitstop_no_time_dilation_check.ps1 PASS, movement_foundation_contract.ps1 PASS, camera_yaw_facing_test.ps1 PASS. Traced TriggerHitStop()/EndHitStop()/UpdateHitStopPresentation() in MoonCharacterBase.cpp:364-429 directly — matches evidence doc's capture-and-blend description, zero CustomTimeDilation/SetGlobalTimeDilation refs confirmed by grep. Manifest version match (2026-07-27).
+- Tech debt logged: None (advisories documented in story Completion Notes: 40ms/55ms tuning mismatch, Blueprint grep timeout — both pre-existing/low-risk)
+- Next recommended: All 5 Player Movement Foundation Fixes stories now Complete/Complete-with-notes. Stories 001/004 still have deferred PIE-dependent ACs. Run /smoke-check sprint then /team-qa before /gate-check to Production, or move to Camera System / Dash-Evasion epics per production/epics/index.md.
+
+<!-- QA RUN: 2026-08-12 | Sprint: player-movement-foundation-fixes | Verdict: APPROVED WITH CONDITIONS | Report: production/qa/qa-signoff-player-movement-foundation-fixes-2026-08-12.md -->

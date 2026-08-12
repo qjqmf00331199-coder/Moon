@@ -184,7 +184,9 @@ void UMoonGameplayAbility_Dash::RestoreCharacterMovement(ACharacter* Character)
 
 	if (UCharacterMovementComponent* MoveComp = Character->GetCharacterMovement())
 	{
-		MoveComp->SetMovementMode(bRestoreFallingMovement ? MOVE_Falling : MOVE_Walking);
+		// Legacy SetMovementMode() overload deprecated in 5.8 (removed in 5.9) — see
+		// docs/engine-reference/unreal/deprecated-apis.md, ADR-0007 Migration Plan item 6.
+		MoveComp->SetMovementModeWithCustomMode(bRestoreFallingMovement ? MOVE_Falling : MOVE_Walking, 0);
 	}
 
 	bMovementLockedByDash = false;

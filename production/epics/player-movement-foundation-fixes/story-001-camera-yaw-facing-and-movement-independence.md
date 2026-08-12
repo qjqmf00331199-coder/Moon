@@ -1,12 +1,12 @@
 # Story 001: Camera-Yaw Facing and Movement Independence
 
 > **Epic**: Player Movement Foundation Fixes
-> **Status**: In Progress
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: 2-4 hours
 > **Manifest Version**: 2026-07-27
-> **Last Updated**: 2026-07-27
+> **Last Updated**: 2026-08-12
 
 ## Context
 
@@ -101,3 +101,10 @@
 
 - Depends on: None
 - Unlocks: Story 003, Story 004, Camera System Foundation Fixes, Dash/Evasion Foundation Fixes
+
+## Completion Notes
+**Completed**: 2026-08-12
+**Criteria**: 3/4 passing (AC-4 non-root-motion locomotion DEFERRED — requires uasset/editor root-motion flag inspection, not statically checkable; no PIE/editor access this session)
+**Deviations**: None blocking. ADVISORY: AC-4 untested (25% of criteria) — recommend adding an editor-side check or PIE evidence doc in a follow-up.
+**Test Evidence**: Logic — `tests/unit/movement/camera_yaw_facing_test.ps1` and `tests/static/movement_independence_check.ps1`, both live-re-run PASS.
+**Code Review**: Skipped — Solo mode.
