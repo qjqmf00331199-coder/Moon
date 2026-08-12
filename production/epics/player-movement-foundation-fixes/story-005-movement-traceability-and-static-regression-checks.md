@@ -1,12 +1,12 @@
 # Story 005: Movement Traceability and Static Regression Checks
 
 > **Epic**: Player Movement Foundation Fixes
-> **Status**: In Progress
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Integration
 > **Estimate**: 2-4 hours
 > **Manifest Version**: 2026-07-27
-> **Last Updated**: 2026-07-27
+> **Last Updated**: 2026-08-12
 
 ## Context
 
@@ -106,3 +106,10 @@
 
 - Depends on: Stories 001, 003, and 004 (Story 001 status: In Progress — PIE verification still pending; user accepted this risk earlier in this session and it carries forward)
 - Unlocks: Production gate movement evidence and repeatable playtest instrumentation
+
+## Completion Notes
+**Completed**: 2026-08-12
+**Criteria**: 3/4 passing (AC-4 DEFERRED — needs reference-machine PIE session, not available this session)
+**Deviations**: ADVISORY — ADR-0009 diagram shows quoted-string trace macro form; code correctly uses bare-token form per real UE5.8 header. Already documented in story body, tracked as separate ADR-doc fix, not this story's scope.
+**Test Evidence**: Integration — `tests/integration/movement/movement_traceability_test.ps1` + `tests/static/movement_regression_checks.ps1`, both live-verified PASS this session; evidence doc at `production/qa/evidence/movement-traceability-and-static-regression-checks-evidence.md`
+**Code Review**: Skipped — solo mode; movement code already covered by code review in commit 1561ecf

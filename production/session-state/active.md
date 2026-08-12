@@ -974,3 +974,17 @@ from "**This IS the exact resume point**" above.
 - Story: production/epics/player-movement-foundation-fixes/story-002-data-driven-movement-tuning-and-clamp-enforcement.md — Data-Driven Movement Tuning and Clamp Enforcement
 - Tech debt logged: None (deviations documented in Completion Notes instead, user chose plain close)
 - Next recommended: /story-done for Story 003 (production/epics/player-movement-foundation-fixes/story-003-...), then Story 005 — Story 004's Visual/Feel ACs still need a human PIE pass before closing.
+
+## Session Extract — /story-done 2026-08-12 (Story 003)
+- Verdict: COMPLETE
+- Story: production/epics/player-movement-foundation-fixes/story-003-airborne-substate-jump-buffer-and-coyote-runtime.md — Airborne Substate, Jump Buffer, and Coyote Runtime
+- 4/4 AC passing, no deviations. TR-mov-003/006/007 registry text matches. Manifest version match (2026-07-27). Live re-run of airborne_and_grace_windows_test.ps1 and movement_lock_contract_test.ps1 — both PASS. Confirmed no SetMovementModeWithCustomMode/MOVE_Custom usage, SetMovementLocked() still private/uncalled. Code review already covered (commit 1561ecf).
+- Tech debt logged: None
+- Next recommended: /story-done for Story 005 (Story 004's Visual/Feel ACs still need a human PIE pass before closing).
+
+## Session Extract — /story-done 2026-08-12 (Story 005)
+- Verdict: COMPLETE WITH NOTES
+- Story: production/epics/player-movement-foundation-fixes/story-005-movement-traceability-and-static-regression-checks.md — Movement Traceability and Static Regression Checks
+- 3/4 AC passing (AC-4 N>=100 benchmark DEFERRED, needs reference-machine PIE). Live re-run: movement_traceability_test.ps1 PASS, movement_regression_checks.ps1 PASS. Trace scopes verified at MoonCharacterBase.cpp:78/722, bMovementLocked at line 727/753 — match ADR-0009's Decision 6/3 exactly. Manifest version match (2026-07-27).
+- Tech debt logged: None (ADR-0009 diagram quoted-string vs code bare-token macro discrepancy already documented in story body, not a new item)
+- Next recommended: All 5 Player Movement Foundation Fixes stories now Complete/Complete-with-notes. Stories 001/004 still have deferred PIE-dependent ACs. Run /smoke-check sprint then /team-qa before /gate-check to Production, or move to Camera System / Dash-Evasion epics per production/epics/index.md.
