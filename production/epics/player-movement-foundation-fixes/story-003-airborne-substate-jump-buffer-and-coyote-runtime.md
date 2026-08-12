@@ -102,7 +102,7 @@
 
 ## Dependencies
 
-- Depends on: Story 001 (status: Complete with notes — AC-4 non-root-motion locomotion deferred, PIE verification still pending; user accepted this risk to proceed with Story 003)
+- Depends on: Story 001 (status: Complete, 4/4 AC passing as of 2026-08-12)
 - Unlocks: Dash/Evasion air-dash and MovementLocked dash gating work
 
 ## Completion Notes

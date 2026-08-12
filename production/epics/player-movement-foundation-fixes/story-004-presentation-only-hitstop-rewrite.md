@@ -98,7 +98,7 @@
 
 ## Dependencies
 
-- Depends on: Story 001 (status: Complete with notes — AC-4 non-root-motion locomotion deferred, PIE verification still pending; user accepted this risk to proceed with Story 003/004)
+- Depends on: Story 001 (status: Complete, 4/4 AC passing as of 2026-08-12)
 - Unlocks: playtest build validation and Dash/Evasion feel validation
 
 ## Completion Notes

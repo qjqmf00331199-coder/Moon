@@ -104,7 +104,7 @@
 
 ## Completion Notes
 **Completed**: 2026-08-12
-**Criteria**: 3/4 passing (AC-4 non-root-motion locomotion DEFERRED — requires uasset/editor root-motion flag inspection, not statically checkable; no PIE/editor access this session)
-**Deviations**: None blocking. ADVISORY: AC-4 untested (25% of criteria) — recommend adding an editor-side check or PIE evidence doc in a follow-up.
-**Test Evidence**: Logic — `tests/unit/movement/camera_yaw_facing_test.ps1` and `tests/static/movement_independence_check.ps1`, both live-re-run PASS.
+**Criteria**: 4/4 passing. AC-4 closed 2026-08-12 without editor access: `BP_MoonCharacter.uasset` uses `EAnimationMode::AnimationSingleNode` over 6 raw ParagonAurora AnimSequences (`Idle`, `Jog_Fwd`, `Jump_Apex`, `Jump_Land`, `Jump_Recovery`, `Jump_Start` — no AnimBP in the chain). Each `.uasset`'s asset-registry tag block contains a plaintext `bEnableRootMotion` / `False` pair, readable directly from the binary without loading the editor — confirmed for all 6 via byte-offset scan.
+**Deviations**: None blocking.
+**Test Evidence**: Logic — `tests/unit/movement/camera_yaw_facing_test.ps1` and `tests/static/movement_independence_check.ps1`, both live-re-run PASS. AC-4: direct binary inspection of the 6 locomotion AnimSequence assets (see Criteria above) — no PIE required, asset-registry tags are stable regardless of editor session.
 **Code Review**: Skipped — Solo mode.
