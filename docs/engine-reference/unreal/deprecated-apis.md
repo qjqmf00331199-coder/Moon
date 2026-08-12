@@ -180,7 +180,6 @@ Will be removed in 5.9 — project compiles with deprecation warnings in 5.8, ad
 
 | Deprecated | Replacement | Notes |
 |------------|-------------|-------|
-| `UCharacterMovementComponent::SetMovementMode()` (legacy overload) | `SetMovementModeWithCustomMode()` | Movement system |
 | `FText::FromStringTable()` (legacy overload) | Overload taking `FStringTable&` reference | Localization |
 | Legacy GAS attribute set initialization functions | Updated GAS attribute init pattern (see UE 5.8 GAS docs) | Gameplay Ability System — relevant to this project's combat/ability systems |
 | MetaSound `FVertexInterface` in `FNodeClassMetadata::DefaultInterface` | `FClassInterface` (exits experimental in 5.8) | Audio/MetaSound |
@@ -192,3 +191,21 @@ Will be removed in 5.9 — project compiles with deprecation warnings in 5.8, ad
 new project, prefer Iris over the legacy Replication Graph mentioned in the Networking section above.
 
 **Source:** https://dev.epicgames.com/documentation/unreal-engine/unreal-engine-5-8-release-notes
+
+## Correction (2026-08-12)
+
+This table previously claimed `UCharacterMovementComponent::SetMovementMode()` was deprecated in
+5.8 in favor of a `SetMovementModeWithCustomMode()` replacement. **This was wrong.** A real UBT
+compile against this project's installed UE 5.8 engine failed with
+`error C2039: 'SetMovementModeWithCustomMode': is not a member of 'UCharacterMovementComponent'`.
+The installed engine's actual header
+(`Engine/Source/Runtime/Engine/Classes/GameFramework/CharacterMovementComponent.h:1276`) declares
+only `SetMovementMode(EMovementMode NewMovementMode, uint8 NewCustomMode = 0)` — the "legacy"
+overload this table said to migrate away from is in fact the only one that exists, and it is not
+deprecated. The row has been removed. `MoonGameplayAbility_Dash.cpp`'s `RestoreCharacterMovement()`
+was reverted to call `SetMovementMode()` after this project's own `/code-review` incorrectly
+"fixed" it to call the nonexistent function based on this doc's false claim (see ADR-0007
+Migration Plan item 6, now corrected) — a compile error is what actually caught it, not doc
+review. Lesson: this doc's entries are unverified claims until cross-checked against a real
+compile or a genuine header read of the pinned engine install, not just cross-referenced against
+each other.

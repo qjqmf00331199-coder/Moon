@@ -174,6 +174,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Moon|Animation")
 	void TriggerHitStop(float RealDuration);
 
+	// Story 005 AC-4 provisional benchmark evidence: spawns Count uncontrolled copies of this
+	// character's own class in a grid near the player, purely to put Count movement-ticking
+	// CharacterMovementComponents into the world so `stat unit`/`stat game` can capture aggregate
+	// movement tick cost over ~300 frames. Evidence-only per the story's own edge case ("benchmark
+	// is evidence-only until target minimum hardware is final") — not a perf gate, not used
+	// anywhere else. Console-usable via Exec while possessing this pawn: `Moon.BenchmarkSpawnMovers 100`.
+	UFUNCTION(Exec)
+	void Moon_BenchmarkSpawnMovers(int32 Count = 100);
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USpringArmComponent> CameraBoom;

@@ -25,8 +25,8 @@ open as implementation/playtest-time risks, non-blocking, same treatment as ADR-
 | **Domain** | Physics / GAS |
 | **Knowledge Risk** | LOW-MEDIUM — `SetActorLocation` (swept), `GameplayAbility`/`ActivationOwnedTags`, and sphere-overlap queries are all stable pre-cutoff APIs. No dedicated physics-module coverage of overlap queries in this project's engine-reference beyond `docs/engine-reference/unreal/modules/physics.md`'s general collision-channel material, which was consulted. |
 | **References Consulted** | `docs/engine-reference/unreal/VERSION.md`, `docs/engine-reference/unreal/breaking-changes.md`, `docs/engine-reference/unreal/deprecated-apis.md`, `docs/engine-reference/unreal/modules/physics.md` |
-| **Post-Cutoff APIs Used** | None new — but the already-shipped dash code this ADR ratifies (`MoonGameplayAbility_Dash.cpp:187`) calls the legacy `UCharacterMovementComponent::SetMovementMode()` overload, flagged deprecated-in-5.8 by `deprecated-apis.md:183` (replacement: `SetMovementModeWithCustomMode()`). Corrected per architecture-review E-1 finding (2026-07-27) — this table previously claimed "None" for both fields, which was inaccurate for the code being ratified. |
-| **Verification Required** | Migrate `MoonGameplayAbility_Dash.cpp:187`'s legacy `SetMovementMode()` call to `SetMovementModeWithCustomMode()` before this ships (see Migration Plan item 6), beyond standard collision-query correctness at implementation time. |
+| **Post-Cutoff APIs Used** | None. **Correction (2026-08-12)**: this row previously claimed the dash code's `SetMovementMode()` call was a deprecated legacy overload needing migration to `SetMovementModeWithCustomMode()`. A real UBT compile against the installed UE 5.8 engine proved that function does not exist (`error C2039`); `SetMovementMode(EMovementMode, uint8 NewCustomMode = 0)` is the only overload and is not deprecated. `deprecated-apis.md`'s prior entry (removed, see its own Correction note) was the source of this false claim — no post-cutoff API is actually used here. |
+| **Verification Required** | None outstanding for this item — closed by the 2026-08-12 correction above. Other Verification Required items (`JustDodgeQueryRadius` placeholder, Ranged Just-Dodge simplification) remain open per the Status section. |
 
 ## ADR Dependencies
 
@@ -150,7 +150,7 @@ UMoonGameplayAbility_Dash::ActivateAbility()
 3. Implement `UMoonGameplayAbility_Dash::CheckJustDodge()` per the Decision section's overlap-query algorithm.
 4. Add `AirDashZImpulse` Tuning Knob + apply it in `ApplyDashImpulse` when `MoveComp->IsFalling()`.
 5. Add `JustDodgeQueryRadius` and `AirDashZImpulse` to `dash-evasion.md`'s Tuning Knobs table (GDD addendum — this ADR introduces two values the GDD doesn't currently have).
-6. Migrate `MoonGameplayAbility_Dash.cpp:187`'s legacy `SetMovementMode()` call to `SetMovementModeWithCustomMode()` (architecture-review E-1 finding, 2026-07-27) — same behavior, non-deprecated overload.
+6. ~~Migrate `MoonGameplayAbility_Dash.cpp`'s `SetMovementMode()` call to `SetMovementModeWithCustomMode()`~~ — **RETRACTED 2026-08-12**: `SetMovementModeWithCustomMode()` does not exist on this project's installed UE 5.8 engine (confirmed by a real UBT compile error, not just a header grep). `SetMovementMode()` was, and remains, the correct call — no migration needed. See Engine Compatibility table's 2026-08-12 correction.
 
 ## Validation Criteria
 - `dash-evasion.md` AC3/AC4/AC5/AC8 (the Just-Dodge-specific criteria) — currently **cannot pass** since `CheckJustDodge` is a no-op; this ADR's implementation is what makes them testable at all.

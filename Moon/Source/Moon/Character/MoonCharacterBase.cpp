@@ -14,6 +14,7 @@
 #include "Animation/AnimSingleNodeInstance.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
+#include "Engine/World.h"
 // Movement Insights trace scopes (TR-mov-009 / ADR-0009 Decision 6). Header lives in Core/Public
 // (Core is already a PublicDependencyModuleName in Moon.Build.cs), so no Build.cs change is
 // needed. Verified against this project's actual UE5.8 install
@@ -407,6 +408,37 @@ void AMoonCharacterBase::TriggerHitStop(float RealDuration)
 		World->GetTimerManager().ClearTimer(HitStopTimerHandle);
 		World->GetTimerManager().SetTimer(HitStopTimerHandle, this, &AMoonCharacterBase::EndHitStop, RealDuration, false);
 	}
+}
+
+void AMoonCharacterBase::Moon_BenchmarkSpawnMovers(int32 Count)
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	Count = FMath::Max(Count, 0);
+	const int32 GridWidth = FMath::Max(FMath::CeilToInt(FMath::Sqrt(static_cast<float>(FMath::Max(Count, 1)))), 1);
+	constexpr float Spacing = 300.0f;
+	const FVector Origin = GetActorLocation() + FVector(1000.0f, 0.0f, 0.0f);
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	int32 SpawnedCount = 0;
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		const int32 Row = Index / GridWidth;
+		const int32 Col = Index % GridWidth;
+		const FVector SpawnLocation = Origin + FVector(Col * Spacing, Row * Spacing, 0.0f);
+		if (World->SpawnActor<AMoonCharacterBase>(GetClass(), SpawnLocation, FRotator::ZeroRotator, SpawnParams))
+		{
+			++SpawnedCount;
+		}
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("Moon_BenchmarkSpawnMovers: spawned %d/%d movement actors for Story 005 AC-4 benchmark evidence"), SpawnedCount, Count);
 }
 
 void AMoonCharacterBase::EndHitStop()
