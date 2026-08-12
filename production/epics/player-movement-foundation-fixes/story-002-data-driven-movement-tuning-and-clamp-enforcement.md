@@ -1,12 +1,12 @@
 # Story 002: Data-Driven Movement Tuning and Clamp Enforcement
 
 > **Epic**: Player Movement Foundation Fixes
-> **Status**: In Progress
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: 2-4 hours
 > **Manifest Version**: 2026-07-27
-> **Last Updated**: 2026-07-27
+> **Last Updated**: 2026-08-12
 > **Type-Note**: Reclassified Config/Data → Logic on 2026-07-27 — acceptance criteria require real clamp-enforcement code, an AirTime joint-bound validator, and a new Movement-owned Z-impulse injection API, none of which are data-file edits. ADR-0001's actual Decision text for TR-mov-004 only says tuning is "exposed as UPROPERTY with Safe Range comments" — no clamp/joint-bound/API design is specified there, so this story also carries new-design risk beyond normal implementation.
 
 ## Context
@@ -100,3 +100,10 @@
 
 - Depends on: Story 001 (status: In Progress — PIE verification still pending; user accepted this risk to proceed with Story 002/003/004)
 - Unlocks: Story 003 and Dash/Evasion air-dash work
+
+## Completion Notes
+**Completed**: 2026-08-12
+**Criteria**: 4/4 passing
+**Deviations**: ADVISORY — TR-mov-005's MaxWalkSpeed-override half is intentionally out of scope (Dash/Evasion epic); ADVISORY — `Tick()` refactored (split into UpdateJumpTimers/UpdateResourceRegen/UpdateJumpFeelGravity/UpdateJumpAnimState) and debug-log noise removed during `/code-review`, spanning code from Stories 002-005 (commit `1561ecf`)
+**Test Evidence**: Logic — `tests/unit/movement/tuning_clamp_and_joint_bound_test.ps1` PASS (re-verified after Tick() refactor)
+**Code Review**: Complete (solo mode, `/code-review` run 2026-08-12, verdict APPROVED after fixes)
