@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "skills": {
+    "unreal-behavior-trees": {
+      "source": "gamedev-skills/awesome-gamedev-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/unreal/unreal-behavior-trees/SKILL.md",
+      "computedHash": "a8063c4f770d62f1ca5d2c810539b963d1b92851003b5e6c132059861d007d01"
+    },
+    "unreal-best-practices": {
+      "source": "maystudios/claude-skills",
+      "sourceType": "github",
+      "skillPath": "unreal-best-practices/SKILL.md",
+      "computedHash": "750af3b3a5d99803671d37494bede2e4a2c2346ea2abfb48b15a53caa47acc91"
+    },
+    "unreal-blueprint-codegen": {
+      "source": "maystudios/claude-skills",
+      "sourceType": "github",
+      "skillPath": "unreal-blueprint-codegen/SKILL.md",
+      "computedHash": "349d9c84489af15d219aa3bff8b6591c4d4a609af8aa20d6a081e2526e12f46c"
+    },
+    "unreal-blueprints": {
+      "source": "gamedev-skills/awesome-gamedev-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/unreal/unreal-blueprints/SKILL.md",
+      "computedHash": "cde95ab52e459dc628a551db8559215cfcf62abac7222dfdd458ebec4afcb00a"
+    },
+    "unreal-cpp-gameplay": {
+      "source": "gamedev-skills/awesome-gamedev-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/unreal/unreal-cpp-gameplay/SKILL.md",
+      "computedHash": "3f711e8b8d5bd53a0ece5a959f763de4c643dc2c7db110869eed477821be5b7c"
+    },
+    "unreal-enhanced-input": {
+      "source": "gamedev-skills/awesome-gamedev-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/unreal/unreal-enhanced-input/SKILL.md",
+      "computedHash": "49733ad50d04c34ccef6dc858acd419a62c8c71c59dd52a90a6a234799352ebe"
+    },
+    "unreal-gas": {
+      "source": "maystudios/claude-skills",
+      "sourceType": "github",
+      "skillPath": "unreal-gas/SKILL.md",
+      "computedHash": "e5bafd23cc7009fe8a0bed105e19fa930897f202226d680995b0d2b2a62cbbdb"
+    },
+    "unreal-niagara": {
+      "source": "gamedev-skills/awesome-gamedev-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/unreal/unreal-niagara/SKILL.md",
+      "computedHash": "97ad19bbfe1e20b80e9d3b2a92241ad8ecf35dd98f0e328fcebdd137136757a3"
+    },
+    "unreal-packaging": {
+      "source": "gamedev-skills/awesome-gamedev-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/unreal/unreal-packaging/SKILL.md",
+      "computedHash": "6b47730fec5dc8762eba325ffc7ce73fa07cdb3c96b7b3fbd245779d385d9ef0"
+    },
+    "unreal-pcg-python": {
+      "source": "maystudios/claude-skills",
+      "sourceType": "github",
+      "skillPath": "unreal-pcg-python/SKILL.md",
+      "computedHash": "588c425dcb37df9d573aefece0753da790452c7ba4d53865cdf76e710f39fe56"
+    },
+    "unreal-thirdparty": {
+      "source": "maystudios/claude-skills",
+      "sourceType": "github",
+      "skillPath": "unreal-thirdparty/SKILL.md",
+      "computedHash": "0ff4eb2f56f216b8a84909d9131f27e798e1678731b8a22f6b0c1b9b583c9c8e"
+    }
+  }
+}
