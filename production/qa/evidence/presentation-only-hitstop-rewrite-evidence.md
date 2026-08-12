@@ -101,10 +101,18 @@ positive finding, and is reported as an open item rather than a false "confirmed
 project-specific gameplay function, risk is assessed as low, but this was not exhaustively
 confirmed.
 
-## Deferred to human reviewer (cannot be automated)
+## Human PIE playtest result (2026-08-12)
 
-Per `.claude/docs/coding-standards.md`, this story is Type: Visual/Feel — the following require an
-actual PIE/build playtest and are **not** faked here:
+User ran the build in `UnrealEditor.exe` (UE 5.8, this session) and played through the three
+deferred checks below directly. Reported result: **AC-1 PASS, AC-3 PASS, AC-4 PASS** — no
+artifacts, no velocity discontinuity, no SFX slip observed. This was a direct pass/fail report
+from the playtest, not a recorded clip; no further per-scenario detail (e.g. rapid-landing repeat
+count, specific dash-cancel timing) was captured beyond what each checklist item below asks for.
+
+## Deferred to human reviewer (cannot be automated) — now closed, checklist kept for reference
+
+Per `.claude/docs/coding-standards.md`, this story is Type: Visual/Feel — the following required an
+actual PIE/build playtest and were **not** faked in the earlier static-only pass:
 
 - **AC-1 / Velocity continuity**: automated static check confirms `Tick()` calls
   `UpdateHitStopPresentation()` and that the function never writes
