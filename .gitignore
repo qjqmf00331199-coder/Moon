@@ -140,6 +140,14 @@ Moon/Content/ParagonYin/
 Moon/Content/Armored_Ghoul/
 Moon/Content/Ghoul/
 Moon/Content/GoodSky/
+Moon/Content/Free_Magic/
+Moon/Content/Free_Spells/
+# World Partition per-actor/object files generated for the packs above (only packs
+# actually placed in a level produce these — add more as needed if that changes)
+Moon/Content/__ExternalActors__/Free_Magic/
+Moon/Content/__ExternalActors__/Free_Spells/
+Moon/Content/__ExternalObjects__/Free_Magic/
+Moon/Content/__ExternalObjects__/Free_Spells/
 
 # === OS Generated ===
 ehthumbs.db
