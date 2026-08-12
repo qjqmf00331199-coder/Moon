@@ -190,22 +190,30 @@ function test_timers_default_to_the_unarmed_sentinel_not_zero {
 function test_timers_only_count_down_while_positive {
     param([string]$Cpp)
 
-    # Arrange
-    $tickBody = Get-FunctionBody $Cpp "void\s+AMoonCharacterBase::Tick\s*\(\s*float\s+DeltaTime\s*\)"
+    # Arrange — extracted from Tick() into UpdateJumpTimers() during the 2026-08-12 /code-review
+    # pass (same call-per-frame contract, verified by the Tick()-calls-it check below).
+    $timersBody = Get-FunctionBody $Cpp "void\s+AMoonCharacterBase::UpdateJumpTimers\s*\(\s*float\s+DeltaTime\s*\)"
 
     # Assert
-    Assert-Matches $tickBody "if\s*\(\s*JumpInputBufferTimer\s*>\s*0\.0f\s*\)\s*\{\s*JumpInputBufferTimer\s*=\s*FMath::Max\s*\(\s*JumpInputBufferTimer\s*-\s*DeltaTime\s*,\s*UnarmedTimerSentinel\s*\)\s*;" "JumpInputBufferTimer must count down via -= DeltaTime only while > 0, clamped at UnarmedTimerSentinel."
-    Assert-Matches $tickBody "if\s*\(\s*CoyoteTimeTimer\s*>\s*0\.0f\s*\)\s*\{\s*CoyoteTimeTimer\s*=\s*FMath::Max\s*\(\s*CoyoteTimeTimer\s*-\s*DeltaTime\s*,\s*UnarmedTimerSentinel\s*\)\s*;" "CoyoteTimeTimer must count down via -= DeltaTime only while > 0, clamped at UnarmedTimerSentinel."
+    Assert-Matches $timersBody "if\s*\(\s*JumpInputBufferTimer\s*>\s*0\.0f\s*\)\s*\{\s*JumpInputBufferTimer\s*=\s*FMath::Max\s*\(\s*JumpInputBufferTimer\s*-\s*DeltaTime\s*,\s*UnarmedTimerSentinel\s*\)\s*;" "JumpInputBufferTimer must count down via -= DeltaTime only while > 0, clamped at UnarmedTimerSentinel."
+    Assert-Matches $timersBody "if\s*\(\s*CoyoteTimeTimer\s*>\s*0\.0f\s*\)\s*\{\s*CoyoteTimeTimer\s*=\s*FMath::Max\s*\(\s*CoyoteTimeTimer\s*-\s*DeltaTime\s*,\s*UnarmedTimerSentinel\s*\)\s*;" "CoyoteTimeTimer must count down via -= DeltaTime only while > 0, clamped at UnarmedTimerSentinel."
+
+    $tickBody = Get-FunctionBody $Cpp "void\s+AMoonCharacterBase::Tick\s*\(\s*float\s+DeltaTime\s*\)"
+    Assert-Matches $tickBody "UpdateJumpTimers\s*\(\s*DeltaTime\s*\)\s*;" "Tick() must call UpdateJumpTimers(DeltaTime) once per frame."
 }
 
 function test_coyote_time_is_armed_only_when_leaving_ground_without_jumping {
     param([string]$Cpp)
 
-    # Arrange
-    $tickBody = Get-FunctionBody $Cpp "void\s+AMoonCharacterBase::Tick\s*\(\s*float\s+DeltaTime\s*\)"
+    # Arrange — extracted from Tick() into UpdateJumpAnimState() during the 2026-08-12 /code-review
+    # pass (same call-per-frame contract, verified by the Tick()-calls-it check below).
+    $jumpAnimBody = Get-FunctionBody $Cpp "void\s+AMoonCharacterBase::UpdateJumpAnimState\s*\(\s*float\s+DeltaTime\s*\)"
 
     # Assert
-    Assert-Matches $tickBody "JumpCurrentCount\s*==\s*0\s*\)\s*\{\s*CoyoteTimeTimer\s*=\s*JumpGraceWindowSeconds\s*;" "CoyoteTimeTimer must only be armed (to JumpGraceWindowSeconds) when JumpCurrentCount==0 (left ground without jumping)."
+    Assert-Matches $jumpAnimBody "JumpCurrentCount\s*==\s*0\s*\)\s*\{\s*CoyoteTimeTimer\s*=\s*JumpGraceWindowSeconds\s*;" "CoyoteTimeTimer must only be armed (to JumpGraceWindowSeconds) when JumpCurrentCount==0 (left ground without jumping)."
+
+    $tickBody = Get-FunctionBody $Cpp "void\s+AMoonCharacterBase::Tick\s*\(\s*float\s+DeltaTime\s*\)"
+    Assert-Matches $tickBody "UpdateJumpAnimState\s*\(\s*DeltaTime\s*\)\s*;" "Tick() must call UpdateJumpAnimState(DeltaTime) once per frame."
 }
 
 function test_jump_input_buffer_armed_while_airborne_and_consumed_on_landing {

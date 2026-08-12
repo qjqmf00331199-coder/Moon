@@ -342,22 +342,26 @@ function test_dash_maxwalkspeed_distance_read_left_untouched {
     Assert-Matches $DashCppText "MoveComp->MaxWalkSpeed\s*\*\s*DashSpeedMultiplier\s*\*\s*DashDuration" "Story 002 must not modify Dash's existing MaxWalkSpeed distance-calc read (explicitly out of scope)."
 }
 
-# --- Regression: Tick()'s asymmetric jump-feel effect must MULTIPLY the validated BaseGravityScale,
-# not overwrite it. The original code (predating this story) did
-# `MoveComp->GravityScale = bDescending ? FallingGravityScaleMultiplier : 1.0f;` — a flat
+# --- Regression: the asymmetric jump-feel effect (Tick() -> UpdateJumpFeelGravity(), extracted
+# from Tick() during the 2026-08-12 /code-review pass — same logic, same call-per-frame contract)
+# must MULTIPLY the validated BaseGravityScale, not overwrite it. The original code (predating this
+# story) did `MoveComp->GravityScale = bDescending ? FallingGravityScaleMultiplier : 1.0f;` — a flat
 # assignment that silently discarded whatever GravityScale ValidateAndClampMovementTuning() had
 # just clamped/joint-bound-validated, meaning the joint-bound guarantee only held for the instant
 # between BeginPlay() and the first Tick(). Found and fixed during Story 002 implementation review.
 function test_tick_multiplies_base_gravity_scale_instead_of_overwriting_it {
     param([string]$Cpp)
 
-    $tickBody = Get-FunctionBody $Cpp "void\s+AMoonCharacterBase::Tick\s*\(\s*float\s+DeltaTime\s*\)"
+    $gravityBody = Get-FunctionBody $Cpp "void\s+AMoonCharacterBase::UpdateJumpFeelGravity\s*\(\s*\)"
 
-    Assert-Matches $tickBody "MoveComp->GravityScale\s*=\s*BaseGravityScale\s*\*\s*\(\s*bDescending\s*\?\s*FallingGravityScaleMultiplier\s*:\s*1\.0f\s*\)\s*;" "Tick() must compute GravityScale = BaseGravityScale * (bDescending ? FallingGravityScaleMultiplier : 1.0f) — a flat overwrite (GravityScale = FallingGravityScaleMultiplier : 1.0f, without the BaseGravityScale factor) would silently discard the TR-mov-004-validated base value every frame."
+    Assert-Matches $gravityBody "MoveComp->GravityScale\s*=\s*BaseGravityScale\s*\*\s*\(\s*bDescending\s*\?\s*FallingGravityScaleMultiplier\s*:\s*1\.0f\s*\)\s*;" "UpdateJumpFeelGravity() must compute GravityScale = BaseGravityScale * (bDescending ? FallingGravityScaleMultiplier : 1.0f) — a flat overwrite (GravityScale = FallingGravityScaleMultiplier : 1.0f, without the BaseGravityScale factor) would silently discard the TR-mov-004-validated base value every frame."
 
-    if ($tickBody -match "MoveComp->GravityScale\s*=\s*bDescending\s*\?\s*FallingGravityScaleMultiplier\s*:\s*1\.0f\s*;") {
-        throw "Tick() must NOT use the old flat-overwrite form (GravityScale = bDescending ? FallingGravityScaleMultiplier : 1.0f) — this discards BaseGravityScale and defeats the AirTime joint-bound guarantee for the entire falling phase."
+    if ($gravityBody -match "MoveComp->GravityScale\s*=\s*bDescending\s*\?\s*FallingGravityScaleMultiplier\s*:\s*1\.0f\s*;") {
+        throw "UpdateJumpFeelGravity() must NOT use the old flat-overwrite form (GravityScale = bDescending ? FallingGravityScaleMultiplier : 1.0f) — this discards BaseGravityScale and defeats the AirTime joint-bound guarantee for the entire falling phase."
     }
+
+    $tickBody = Get-FunctionBody $Cpp "void\s+AMoonCharacterBase::Tick\s*\(\s*float\s+DeltaTime\s*\)"
+    Assert-Matches $tickBody "UpdateJumpFeelGravity\s*\(\s*\)\s*;" "Tick() must call UpdateJumpFeelGravity() once per frame."
 }
 
 # --- Regression: FallingGravityScaleMultiplier must be clamped too — an unclamped multiplier

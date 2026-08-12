@@ -90,6 +90,45 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 		}
 	}
 
+	UpdateJumpTimers(DeltaTime);
+
+	const double CurrentWorldTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	UpdateOverdriveState(CurrentWorldTime);
+	UpdateResourceRegen(DeltaTime, CurrentWorldTime);
+	UpdateJumpFeelGravity();
+	UpdateJumpAnimState(DeltaTime);
+
+	// Basic locomotion: swap the single-node playing animation between idle and jog by speed.
+	// No AnimBlueprint/blendspace yet, so this is a hard switch rather than a blend.
+	// Suppressed while a one-shot anim (jump start/land, dash, spell cast) controls the mesh.
+	if (!bPlayingOneShotAnim)
+	{
+		if (USkeletalMeshComponent* MeshComp = GetMesh())
+		{
+			const float Speed = GetVelocity().Size();
+			const bool bShouldJog = Speed > JogSpeedThreshold;
+			if (bShouldJog && !bIsPlayingJogAnim && JogAnim)
+			{
+				MeshComp->PlayAnimation(JogAnim, true);
+				bIsPlayingJogAnim = true;
+			}
+			else if (!bShouldJog && bIsPlayingJogAnim && IdleAnim)
+			{
+				MeshComp->PlayAnimation(IdleAnim, true);
+				bIsPlayingJogAnim = false;
+			}
+		}
+	}
+
+	// Hitstop presentation freeze (TR-mov-008 / ADR-0009 Decision 5): mesh-only, no Time
+	// Dilation. Placed last, matching the ADR's Tick() ordering — Capsule/CMC have already moved
+	// normally via Super::Tick() above, and this step is the one that overrides the mesh's visual
+	// presentation on top of that, purely for presentation.
+	UpdateHitStopPresentation(DeltaTime);
+}
+
+void AMoonCharacterBase::UpdateJumpTimers(float DeltaTime)
+{
 	// Jump input buffer / coyote time (TR-mov-007): plain delta-time countdowns, never a fixed
 	// frame count. Each stops decrementing once armed reaches (or crosses) zero elapsed-time —
 	// clamped at UnarmedTimerSentinel so an expired/unarmed timer settles at a single well-known
@@ -102,46 +141,51 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 	{
 		CoyoteTimeTimer = FMath::Max(CoyoteTimeTimer - DeltaTime, UnarmedTimerSentinel);
 	}
+}
 
-	const double CurrentWorldTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
-	UpdateOverdriveState(CurrentWorldTime);
-
-	if (AttributeSet)
+void AMoonCharacterBase::UpdateResourceRegen(float DeltaTime, double CurrentWorldTime)
+{
+	if (!AttributeSet)
 	{
-		// Mana Regen pauses during the free-cast Overdrive window. Recovery restores normal
-		// regeneration immediately while keeping tension locked for its short downbeat.
-		float CurrentMana = AttributeSet->GetMana();
-		float MaxMana = AttributeSet->GetMaxMana();
-		float ManaRegen = AttributeSet->GetManaRegenRate();
-		if (!OverdriveState.IsActive(CurrentWorldTime) && CurrentMana < MaxMana && ManaRegen > 0.0f)
-		{
-			float NewMana = FMath::Clamp(CurrentMana + (ManaRegen * DeltaTime), 0.0f, MaxMana);
-			AttributeSet->SetMana(NewMana);
-		}
-
-		// Dash Charge Regen
-		float CurrentCharges = AttributeSet->GetDashCharges();
-		float MaxCharges = AttributeSet->GetMaxDashCharges();
-		float DashRechargeRate = AttributeSet->GetDashRechargeRate();
-		if (CurrentCharges < MaxCharges && DashRechargeRate > 0.0f)
-		{
-			float NewCharges = FMath::Clamp(CurrentCharges + (DeltaTime / DashRechargeRate), 0.0f, MaxCharges);
-			AttributeSet->SetDashCharges(NewCharges);
-		}
-
-		// Tension Decay (Rule 3)
-		float CurrentTension = AttributeSet->GetTensionGauge();
-		if (CurrentTension > 0.0f)
-		{
-			float CurrentTime = GetWorld()->GetTimeSeconds();
-			if (CurrentTime - LastTensionGainTime > TensionDecayGracePeriod)
-			{
-				float NewTension = FMath::Max(0.0f, CurrentTension - (TensionDecayRatePerSec * DeltaTime));
-				AttributeSet->SetTensionGauge(NewTension);
-			}
-		}
+		return;
 	}
 
+	// Mana Regen pauses during the free-cast Overdrive window. Recovery restores normal
+	// regeneration immediately while keeping tension locked for its short downbeat.
+	float CurrentMana = AttributeSet->GetMana();
+	float MaxMana = AttributeSet->GetMaxMana();
+	float ManaRegen = AttributeSet->GetManaRegenRate();
+	if (!OverdriveState.IsActive(CurrentWorldTime) && CurrentMana < MaxMana && ManaRegen > 0.0f)
+	{
+		float NewMana = FMath::Clamp(CurrentMana + (ManaRegen * DeltaTime), 0.0f, MaxMana);
+		AttributeSet->SetMana(NewMana);
+	}
+
+	// Dash Charge Regen
+	float CurrentCharges = AttributeSet->GetDashCharges();
+	float MaxCharges = AttributeSet->GetMaxDashCharges();
+	float DashRechargeRate = AttributeSet->GetDashRechargeRate();
+	if (CurrentCharges < MaxCharges && DashRechargeRate > 0.0f)
+	{
+		float NewCharges = FMath::Clamp(CurrentCharges + (DeltaTime / DashRechargeRate), 0.0f, MaxCharges);
+		AttributeSet->SetDashCharges(NewCharges);
+	}
+
+	// Tension Decay (Rule 3)
+	float CurrentTension = AttributeSet->GetTensionGauge();
+	if (CurrentTension > 0.0f)
+	{
+		float CurrentTime = GetWorld()->GetTimeSeconds();
+		if (CurrentTime - LastTensionGainTime > TensionDecayGracePeriod)
+		{
+			float NewTension = FMath::Max(0.0f, CurrentTension - (TensionDecayRatePerSec * DeltaTime));
+			AttributeSet->SetTensionGauge(NewTension);
+		}
+	}
+}
+
+void AMoonCharacterBase::UpdateJumpFeelGravity()
+{
 	// Jump feel: fall faster than we rise (asymmetric gravity) for a snappier arc instead of
 	// UE's default floaty symmetric one. Multiplies BaseGravityScale (the TR-mov-004-validated
 	// tuning knob, see ValidateAndClampMovementTuning()) rather than overwriting it outright —
@@ -152,7 +196,10 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 		const bool bDescending = MoveComp->IsFalling() && GetVelocity().Z < 0.0f;
 		MoveComp->GravityScale = BaseGravityScale * (bDescending ? FallingGravityScaleMultiplier : 1.0f);
 	}
+}
 
+void AMoonCharacterBase::UpdateJumpAnimState(float DeltaTime)
+{
 	// Jump motion: detect the moment we start falling (jump or walking off a ledge) and play
 	// Jump_Start once. OnJumpStartAnimFinished() hands off to a looping Jump_Apex if still
 	// airborne once Jump_Start finishes; Landed() plays Jump_Land on touchdown.
@@ -178,42 +225,6 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 		}
 	}
 	bWasFalling = bIsFalling;
-
-	// Basic locomotion: swap the single-node playing animation between idle and jog by speed.
-	// No AnimBlueprint/blendspace yet, so this is a hard switch rather than a blend.
-	// Suppressed while a one-shot anim (jump start/land, dash, spell cast) controls the mesh.
-	if (!bPlayingOneShotAnim)
-	{
-		if (USkeletalMeshComponent* MeshComp = GetMesh())
-		{
-			const float Speed = GetVelocity().Size();
-			const bool bShouldJog = Speed > JogSpeedThreshold;
-			static float DebugLogAccum = 0.0f;
-			DebugLogAccum += DeltaTime;
-			if (DebugLogAccum > 0.5f)
-			{
-				DebugLogAccum = 0.0f;
-				UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Tick locomotion: Speed=%.1f bShouldJog=%d bIsPlayingJogAnim=%d JogAnim=%s IdleAnim=%s"),
-					Speed, bShouldJog, bIsPlayingJogAnim, *GetNameSafe(JogAnim.Get()), *GetNameSafe(IdleAnim.Get()));
-			}
-			if (bShouldJog && !bIsPlayingJogAnim && JogAnim)
-			{
-				MeshComp->PlayAnimation(JogAnim, true);
-				bIsPlayingJogAnim = true;
-			}
-			else if (!bShouldJog && bIsPlayingJogAnim && IdleAnim)
-			{
-				MeshComp->PlayAnimation(IdleAnim, true);
-				bIsPlayingJogAnim = false;
-			}
-		}
-	}
-
-	// Hitstop presentation freeze (TR-mov-008 / ADR-0009 Decision 5): mesh-only, no Time
-	// Dilation. Placed last, matching the ADR's Tick() ordering — Capsule/CMC have already moved
-	// normally via Super::Tick() above, and this step is the one that overrides the mesh's visual
-	// presentation on top of that, purely for presentation.
-	UpdateHitStopPresentation(DeltaTime);
 }
 
 void AMoonCharacterBase::Landed(const FHitResult& Hit)
@@ -378,13 +389,10 @@ void AMoonCharacterBase::TriggerHitStop(float RealDuration)
 			CapturedMeshRelativeTransform = MeshComp->GetRelativeTransform();
 		}
 
-		// Hold the mesh's anim playback position for the freeze duration. bPauseAnims is a
-		// long-stable USkeletalMeshComponent property (predates this project's pinned engine
-		// version by several years) but is not documented in this project's curated UE5.8
-		// engine-reference library, so treat it as unverified-against-5.8-headers, low risk —
-		// the same caveat this codebase already applies to bUseCameraLagSubstepping in ADR-0005.
-		// Fallback if this ever needs re-verifying: GetSingleNodeInstance()->SetPlaying(false),
-		// since this character's locomotion already goes through the single-node anim path.
+		// Hold the mesh's anim playback position for the freeze duration. bPauseAnims confirmed
+		// present and correct against the installed UE5.8 engine headers (SkeletalMeshComponent.h)
+		// via /code-review engine-specialist verification, 2026-08-12 — no longer a hallucination
+		// risk. Pauses anim tick/playback advance without disabling bone refresh.
 		MeshComp->bPauseAnims = true;
 	}
 
@@ -628,50 +636,38 @@ void AMoonCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] SetupPlayerInputComponent called. Controller=%s DefaultMappingContext=%s"),
-		*GetNameSafe(Controller), *GetNameSafe(DefaultMappingContext.Get()));
-
 	// Add Input Mapping Context here rather than BeginPlay/PossessedBy: this is called from
 	// PawnClientRestart, client-side, guaranteed after possession, with GetLocalPlayer() valid.
 	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
 		ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer();
-		UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Controller cast OK. LocalPlayer=%s"), *GetNameSafe(LocalPlayer));
 
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(LocalPlayer))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Subsystem OK."));
 			if (DefaultMappingContext)
 			{
 				Subsystem->AddMappingContext(DefaultMappingContext, 0);
-				UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] AddMappingContext called for %s. HasMappingContext=%s"),
-					*GetNameSafe(DefaultMappingContext.Get()), Subsystem->HasMappingContext(DefaultMappingContext) ? TEXT("true") : TEXT("false"));
 			}
 			else
 			{
-				UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] DefaultMappingContext is NULL on this instance!"));
+				UE_LOG(LogTemp, Warning, TEXT("DefaultMappingContext is not set on %s."), *GetNameSafe(this));
 			}
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Subsystem is NULL!"));
+			UE_LOG(LogTemp, Warning, TEXT("EnhancedInputLocalPlayerSubsystem not found for %s."), *GetNameSafe(this));
 		}
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Controller cast FAILED. Controller class=%s"), Controller ? *Controller->GetClass()->GetName() : TEXT("None"));
+		UE_LOG(LogTemp, Warning, TEXT("SetupPlayerInputComponent: Controller is not a PlayerController (%s)."), Controller ? *Controller->GetClass()->GetName() : TEXT("None"));
 	}
-
-	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] PlayerInputComponent class=%s, EnhancedInputComponent cast=%s"),
-		PlayerInputComponent ? *PlayerInputComponent->GetClass()->GetName() : TEXT("None"),
-		Cast<UEnhancedInputComponent>(PlayerInputComponent) ? TEXT("OK") : TEXT("FAILED"));
 
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
 		if (MoveAction)
 		{
 			EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AMoonCharacterBase::Move);
-			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Bound MoveAction %s"), *GetNameSafe(MoveAction.Get()));
 		}
 
 		if (LookAction)
@@ -682,7 +678,6 @@ void AMoonCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		if (DashAction)
 		{
 			EnhancedInputComponent->BindAction(DashAction, ETriggerEvent::Triggered, this, &AMoonCharacterBase::Input_Dash);
-			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Bound DashAction %s"), *GetNameSafe(DashAction.Get()));
 		}
 
 		if (SpellBlackholeAction)
@@ -709,11 +704,10 @@ void AMoonCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 		{
 			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &AMoonCharacterBase::Input_Jump);
 			EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &AMoonCharacterBase::Input_StopJumping);
-			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Bound JumpAction %s"), *GetNameSafe(JumpAction.Get()));
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] JumpAction is NULL — not bound!"));
+			UE_LOG(LogTemp, Warning, TEXT("JumpAction is not set on %s — jump input will not be bound."), *GetNameSafe(this));
 		}
 	}
 }
@@ -736,8 +730,6 @@ void AMoonCharacterBase::Move(const FInputActionValue& Value)
 	}
 
 	FVector2D MovementVector = Value.Get<FVector2D>();
-
-	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Move fired: %s"), *MovementVector.ToString());
 
 	if (Controller != nullptr)
 	{
@@ -774,7 +766,6 @@ void AMoonCharacterBase::Look(const FInputActionValue& Value)
 
 void AMoonCharacterBase::Input_Dash(const FInputActionValue& Value)
 {
-	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Input_Dash fired"));
 	TryActivateAbilityByTag(FGameplayTag::RequestGameplayTag(FName("Ability.Dash")));
 }
 
@@ -825,9 +816,6 @@ void AMoonCharacterBase::Input_Execute(const FInputActionValue& Value)
 
 void AMoonCharacterBase::Input_Jump()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Input_Jump fired. CanJump=%d IsFalling=%d JumpCurrentCount=%d/%d MovementMode=%d"),
-		CanJump(), GetCharacterMovement()->IsFalling(), JumpCurrentCount, JumpMaxCount, (int32)GetCharacterMovement()->MovementMode.GetValue());
-
 	const bool bIsFalling = GetCharacterMovement()->IsFalling();
 
 	// Coyote time (TR-mov-007): native ACharacter::CanJump() unconditionally refuses a jump when
@@ -856,7 +844,6 @@ void AMoonCharacterBase::Input_Jump()
 
 void AMoonCharacterBase::Input_StopJumping()
 {
-	UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] Input_StopJumping fired"));
 	StopJumping();
 }
 
@@ -876,8 +863,7 @@ void AMoonCharacterBase::TryActivateAbilityByTag(FGameplayTag AbilityTag)
 		// The ability itself will be granted with this tag as an AbilityTag.
 		FGameplayTagContainer TagContainer;
 		TagContainer.AddTag(AbilityTag);
-		const bool bActivated = AbilitySystemComponent->TryActivateAbilitiesByTag(TagContainer);
-		UE_LOG(LogTemp, Warning, TEXT("[MoonDebug] TryActivateAbilityByTag %s -> %s"), *AbilityTag.ToString(), bActivated ? TEXT("true") : TEXT("false"));
+		AbilitySystemComponent->TryActivateAbilitiesByTag(TagContainer);
 	}
 }
 

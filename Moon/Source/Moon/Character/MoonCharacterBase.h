@@ -468,6 +468,13 @@ private:
 	// duplicating this validation.
 	void ValidateAndClampMovementTuning();
 
+	// Tick() sub-steps (split out of the former ~150-line monolith for testability/readability —
+	// each owns exactly one of Tick()'s per-frame concerns; call order in Tick() is unchanged).
+	void UpdateJumpTimers(float DeltaTime);
+	void UpdateResourceRegen(float DeltaTime, double CurrentWorldTime);
+	void UpdateJumpFeelGravity();
+	void UpdateJumpAnimState(float DeltaTime);
+
 	void RefreshLocomotionAnim();
 	void OnJumpStartAnimFinished();
 	void OnLandAnimFinished();
