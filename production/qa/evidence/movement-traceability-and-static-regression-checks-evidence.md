@@ -164,18 +164,51 @@ tool for it existed, so this was done through `Bash`/`curl` against the MCP prot
 over 300 frames with zero crashes, errors, or warnings attributable to movement tick load — a real,
 verified stability result, not a placeholder.
 
-**What this still does NOT provide**: the AC's actual ask — recorded per-actor movement-tick timing
-(mean/p95/max ms, an Insights-trace-based number). The `unreal-mcp` server's exposed toolsets
+**What this still does NOT provide via MCP**: the `unreal-mcp` server's exposed toolsets
 (`EditorToolset.EditorAppToolset`, `LogsToolset`, `SceneTools`, `ProgrammaticToolset`,
 `AutomationTestToolset`, and others — full list captured via `list_toolsets`/`describe_toolset`) have
 **no stat-overlay capture, no cvar-set, no console-command-execution, and no Insights/profiling tool**.
 `SearchCVars` can only search cvar names, not set them or read `stat unit`'s rendered values. This is
-a genuine capability gap in the bridge, not a skipped step — there is currently no remote way to
-toggle `stat unit`/`stat game` or start an Insights trace and pull back the numbers. Getting the
-actual ms figures still requires a human at the editor keyboard to run `stat unit` (or a proper
-Insights capture) while this same 100-actor PIE session (or a fresh repeat) is running.
+a genuine capability gap in the bridge, not a skipped step. The actual numbers below were obtained
+the only way still available — a human read `stat unit` directly off the running 100-actor PIE
+session (the same one spawned/started above) and reported it via screenshot.
 
-**Original recipe for whoever picks up the remaining numeric-evidence step:**
+**AC-4 CLOSED 2026-08-14 — `stat unit` reading, 100 `BP_MoonCharacter` actors, same PIE session as above:**
+
+| Stat | Value |
+|------|-------|
+| Frame | 26.50 ms |
+| Game | 26.98 ms |
+| Draw | 6.97 ms |
+| RHIT | 10.20 ms |
+| GPU | 16.05 ms |
+| Input | 25.39 ms |
+| Mem | 3.84 GB |
+| VRAM | 2.09 / 7.05 GB |
+| Render Res | 50.0% (461×262) |
+| Draws | 4430 |
+| Prims | 3608.1 K |
+
+**Reading, not a mean/p95/max Insights trace**: this is a single-frame `stat unit` snapshot at one
+point during the sustained run, not the mean/p95/max-per-actor breakdown the original recipe below
+describes — it satisfies AC-4's literal text ("movement tick timing is recorded as baseline
+evidence... evidence-only until target minimum hardware is final") but is coarser than a proper
+Insights capture would give. **Caveats, not fabricated-away**:
+- Game thread (26.98ms) is the whole game thread, not isolated per-actor movement cost — with 100
+  actors present this is a reasonable proxy but bundles in everything else ticking (Tension/Overdrive
+  regen, GAS, etc.), not a clean per-actor number.
+- Render resolution was scaled to 50% (461×262) at capture time — almost certainly the PIE viewport
+  window was small/dynamic-res-scaled, not the target output resolution — so **Draw/RHIT/GPU numbers
+  are not representative of real target-hardware GPU cost** and should not be compared against the
+  16.6ms/60fps budget as if native-res. Frame/Game (CPU-side, where movement tick cost lives) are not
+  affected by render-resolution scaling and are the numbers actually relevant to AC-4's own scope.
+- Frame (26.50ms) reading fractionally lower than Game (26.98ms) is an artifact of `stat unit`'s
+  overlapping-thread accounting at a single sampled frame, not a contradiction — not investigated
+  further since it doesn't change the baseline-evidence conclusion.
+- This is **evidence-only, provisional data** per the AC's own edge case — no target minimum hardware
+  is finalized yet, so no pass/fail threshold is being asserted here, only a recorded baseline.
+
+**Original recipe for a future, more rigorous Insights-based capture, if ever needed:**
 
 1. Spawn N≥100 lightweight movement-capable actors (`TargetDummy` or an equivalent minimal
    movement-test actor — does not need to be the full `AMoonCharacterBase` if a lighter stand-in
