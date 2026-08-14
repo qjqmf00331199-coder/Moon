@@ -138,9 +138,44 @@ Story 001/003/004 scripts still pass unmodified against the new file contents.
 
 ### 1. AC-4 — N≥100 actor provisional movement-tick benchmark
 
-**Not attempted, no placeholder numbers fabricated.** This requires a running Editor/PIE session
-on the development reference machine, which was not available in this automation session (no
-Unreal MCP/Editor control tool). Recipe for whoever picks this up:
+**Partially closed 2026-08-14 — stability proven, exact timing numbers still missing.** A real
+`unreal-mcp` server (`http://127.0.0.1:8000/mcp`, live in the running `UnrealEditor.exe` this
+session) was reachable this time and driven directly via raw HTTP JSON-RPC (no wired Claude Code
+tool for it existed, so this was done through `Bash`/`curl` against the MCP protocol directly):
+
+1. `editor_toolset.toolsets.programmatic.ProgrammaticToolset.execute_tool_script` looped 100 calls
+   to `editor_toolset.toolsets.scene.SceneTools.add_to_scene_from_asset`, spawning 100
+   `/Game/Moon/BP_MoonCharacter` instances (the actual player movement class, not a lighter stand-in)
+   in a 10×10 grid, `snap_to_ground: true`. Confirmed: `{"spawned": 100}`.
+2. `EditorToolset.EditorAppToolset.StartPIE` (level `L_CombatTest`) — confirmed clean start via log:
+   `PIE: Server logged in`, `Play in editor total start time 0.478 seconds`, and exactly 100
+   `LogSkeletalMesh: Recreating Clothing Actors for 'CharacterMesh0' with 'Aurora'` lines (one per
+   spawned actor, correct count).
+3. `IsPIERunning` re-checked ~80 seconds later (far past the AC's 300-frame / ~5s window at any
+   plausible framerate) — still `true`.
+4. `EditorToolset.LogsToolset.GetLogEntries` filtered for `Error|Fatal|Assert|Crash` and separately
+   for all recent entries — **zero errors or warnings from the spawn/PIE window itself**. The only
+   `Error`-tagged lines in the whole log are pre-existing, unrelated noise (a `LogTemp` unified-error-
+   handling self-test from an earlier engine session, and one earlier `LogModelContextProtocol` error
+   from this same session calling a nested tool without the `call_tool` wrapper — a tool-usage mistake
+   on my part, not an engine/gameplay error).
+
+**What this proves**: 100 real player-movement-class actors can be spawned and sustain PIE for well
+over 300 frames with zero crashes, errors, or warnings attributable to movement tick load — a real,
+verified stability result, not a placeholder.
+
+**What this still does NOT provide**: the AC's actual ask — recorded per-actor movement-tick timing
+(mean/p95/max ms, an Insights-trace-based number). The `unreal-mcp` server's exposed toolsets
+(`EditorToolset.EditorAppToolset`, `LogsToolset`, `SceneTools`, `ProgrammaticToolset`,
+`AutomationTestToolset`, and others — full list captured via `list_toolsets`/`describe_toolset`) have
+**no stat-overlay capture, no cvar-set, no console-command-execution, and no Insights/profiling tool**.
+`SearchCVars` can only search cvar names, not set them or read `stat unit`'s rendered values. This is
+a genuine capability gap in the bridge, not a skipped step — there is currently no remote way to
+toggle `stat unit`/`stat game` or start an Insights trace and pull back the numbers. Getting the
+actual ms figures still requires a human at the editor keyboard to run `stat unit` (or a proper
+Insights capture) while this same 100-actor PIE session (or a fresh repeat) is running.
+
+**Original recipe for whoever picks up the remaining numeric-evidence step:**
 
 1. Spawn N≥100 lightweight movement-capable actors (`TargetDummy` or an equivalent minimal
    movement-test actor — does not need to be the full `AMoonCharacterBase` if a lighter stand-in

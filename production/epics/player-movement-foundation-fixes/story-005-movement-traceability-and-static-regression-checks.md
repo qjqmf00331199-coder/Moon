@@ -71,11 +71,18 @@
   - Then: each forbidden pattern is detected and real source remains clean.
   - Edge cases: comments, tests, generated files.
 
-- **AC-4**: Provisional movement benchmark evidence
+- [~] **AC-4**: Provisional movement benchmark evidence — PARTIALLY CLOSED 2026-08-14
   - Given: N>=100 actors on the development reference machine.
   - When: 300 frames are captured.
   - Then: movement tick timing is recorded as baseline evidence.
   - Edge cases: benchmark is evidence-only until target minimum hardware is final.
+  - **Done via real `unreal-mcp`**: 100 `BP_MoonCharacter` actors spawned, PIE sustained 80+s
+    (2000+ frames at any plausible framerate, well past the 300-frame ask) with zero errors/
+    warnings attributable to movement load. **Still missing**: the actual per-actor tick timing
+    number (ms) — the MCP bridge has no stat-overlay/cvar-set/console-exec/Insights tool, so a
+    human at the editor still needs to run `stat unit` (or a real Insights capture) to get that
+    figure. See `production/qa/evidence/movement-traceability-and-static-regression-checks-evidence.md`
+    Deferred Item 1 for full detail.
 
 ---
 
@@ -98,18 +105,18 @@
 
 **Trace macro syntax resolved (not left open)**: bare-token `TRACE_CPUPROFILER_EVENT_SCOPE(MovementInputTrace.X)` confirmed correct against the real installed UE5.8 header (`ProfilingDebugging/CpuProfilerTrace.h`) — using it with a quoted string literal instead (which ADR-0009's own diagram text shows) would double-stringify and silently break the scope name; flagged as an ADR documentation discrepancy to correct separately, not touched here (out of this story's write boundary).
 
-**Deferred (explicitly, not silently skipped)**: AC-4's live benchmark and the actual `.uasset`-level `bEnableRootMotion` import-setting verification (TR-mov-010) both require an Editor/PIE session not available this session. Pickup recipes recorded in the evidence doc.
+**Deferred (explicitly, not silently skipped)**: AC-4's live benchmark and the actual `.uasset`-level `bEnableRootMotion` import-setting verification (TR-mov-010) both required an Editor/PIE session not available in the 2026-08-12 session. **AC-4 update 2026-08-14**: stability half now closed via real `unreal-mcp` (100 actors, 80+s clean PIE run, zero errors) — the actual per-actor ms timing figure remains open, blocked on the MCP bridge having no stat/cvar/console/Insights tool. TR-mov-010's `.uasset` import-setting question remains fully open (different from Story 001 AC-4's separate root-motion finding, which was about locomotion `AnimSequence` assets specifically and was closed via binary asset-registry tag inspection, not this TR).
 
 ---
 
 ## Dependencies
 
-- Depends on: Stories 001, 003, and 004 (Story 001 status: In Progress — PIE verification still pending; user accepted this risk earlier in this session and it carries forward)
+- Depends on: Stories 001, 003, and 004 (Story 001 status: Complete, 4/4 AC passing as of 2026-08-12)
 - Unlocks: Production gate movement evidence and repeatable playtest instrumentation
 
 ## Completion Notes
-**Completed**: 2026-08-12
-**Criteria**: 3/4 passing (AC-4 DEFERRED — needs reference-machine PIE session, not available this session)
+**Completed**: 2026-08-12 (AC-4 partially updated 2026-08-14 — see below)
+**Criteria**: 3/4 passing + AC-4 partially closed (stability proven via real `unreal-mcp`: 100 actors, 80+s clean PIE, zero errors; exact per-actor ms timing still needs a human `stat unit`/Insights read — the MCP bridge exposes no stat/cvar/console-exec/profiling tool)
 **Deviations**: ADVISORY — ADR-0009 diagram shows quoted-string trace macro form; code correctly uses bare-token form per real UE5.8 header. Already documented in story body, tracked as separate ADR-doc fix, not this story's scope.
-**Test Evidence**: Integration — `tests/integration/movement/movement_traceability_test.ps1` + `tests/static/movement_regression_checks.ps1`, both live-verified PASS this session; evidence doc at `production/qa/evidence/movement-traceability-and-static-regression-checks-evidence.md`
+**Test Evidence**: Integration — `tests/integration/movement/movement_traceability_test.ps1` + `tests/static/movement_regression_checks.ps1`, both live-verified PASS this session; evidence doc at `production/qa/evidence/movement-traceability-and-static-regression-checks-evidence.md` (now includes 2026-08-14 MCP-driven stability run in Deferred Item 1)
 **Code Review**: Skipped — solo mode; movement code already covered by code review in commit 1561ecf
