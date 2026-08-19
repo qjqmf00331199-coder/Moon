@@ -92,59 +92,6 @@ UI 시스템 자체).
 - 60fps/16.6ms 프레임 예산(technical-preferences.md) 안에서 동작해야 함 — Tuning Knobs에
   갱신 주기(매 틱 vs 이벤트 기반) 관련 노브를 하나 넣을 것.
 
-## Ollama 위임 규칙 (qwen3:8b가 처리 가능한 하위 작업은 네가 직접 하지 말고 큐에 등록)
-
-`.claude/docs/ollama-delegation.md`와 `production/ollama-delegation-criteria.md`를 따른다.
-GDD의 핵심 설계 판단(Formulas/Player Fantasy/Edge Cases/Tuning Knobs/Core Rules, 밸런스
-수치)은 **절대 위임 금지** — 이건 네가 직접 다 쓴다. 다만 아래 3종 하위 작업은 Ollama 큐로
-넘기고 너는 실행하지 않는다:
-
-각 GDD(Luna Overdrive, Combat HUD)가 완성될 때마다, 그 GDD에 대해 아래 3개 태스크를
-OLLAMA-INSTRUCTIONS.md(레포 루트)에 **기존 Task 9/10과 정확히 같은 포맷**으로 추가한다
-(현재 마지막 태스크 번호를 확인하고 그 다음 번호부터 이어서 붙일 것 — 지금 기준 Task 11부터):
-
-1. **Registry vs GDD fact-check** — Task 9와 동일한 프롬프트 패턴, Context files를
-   `design/registry/entities.yaml` + 해당 신규 GDD로 교체.
-2. **한/영 용어 일관성 체크** — Task 10과 동일한 패턴, Context files를 신규 GDD +
-   그 시스템의 가장 밀접한 상류 의존 GDD(Luna Overdrive는 combo-tension-gauge.md,
-   Combat HUD는 luna-overdrive.md)로 교체.
-3. **GIVEN-WHEN-THEN Acceptance Criteria → 평문 QA 체크리스트 변환** — 신규 태스크 유형.
-   아래 템플릿으로 추가:
-
-   ```
-   ## [ ] Task N — Acceptance Criteria를 QA 체크리스트로 변환 ([시스템명])
-
-   **Why queued**: [시스템명].md GDD가 완성됨. GIVEN-WHEN-THEN 형식의 Acceptance Criteria를
-   QA가 바로 쓸 수 있는 평문 체크리스트로 기계적으로 변환 — 판단 없는 순수 재서식.
-
-   **Risk**: Low. Report-only, 원본 GDD는 수정하지 않음.
-
-   **Context files**:
-   - {{CONTEXT}}: design/gdd/[system-slug].md
-
-   **Prompt**:
-   \`\`\`
-   아래는 게임 디자인 문서의 Acceptance Criteria 섹션이다(GIVEN-WHEN-THEN 형식). 이것을
-   QA 테스터가 체크박스로 바로 쓸 수 있는 평문 체크리스트로 변환해라. 각 항목은:
-
-   - [ ] [조건을 간결한 평서문으로 — GIVEN/WHEN/THEN 구조를 자연스러운 한 문장으로 합칠 것]
-
-   형식만 바꿀 것 — 새 조건을 추가하거나 기존 조건을 생략/수정하지 마라. 원문에 없는 내용은
-   절대 넣지 마라.
-
-   ---
-   ACCEPTANCE CRITERIA:
-   {{CONTEXT}}
-   \`\`\`
-
-   **Output path**: `production/overnight-output/taskN-qa-checklist-[system-slug].md`
-
-   **Review checklist** (under 2 min): 원본 AC 개수와 체크리스트 항목 개수 일치 확인, 조건
-   누락/추가 없는지 대조.
-
-   ---
-   ```
-
 ## 완료 조건 및 커밋/푸시
 
 각 GDD(Luna Overdrive 먼저, 그 다음 Combat HUD)를 완성할 때마다 아래를 그 GDD 완료 직후
@@ -155,8 +102,7 @@ OLLAMA-INSTRUCTIONS.md(레포 루트)에 **기존 Task 9/10과 정확히 같은 
 2. design/registry/entities.yaml에 새 상수/포뮬러 등록 (기존 값 재선언 금지, 재사용만).
 3. design/gdd/systems-index.md 해당 행 상태를 "Designed (pending review)"로, Design Doc
    링크 채우고, Progress Tracker 카운트 갱신.
-4. 위 "Ollama 위임 규칙"에 따라 OLLAMA-INSTRUCTIONS.md에 태스크 3개 추가.
-5. production/session-state/active.md에 이번 작업 요약 append (기존 세션 로그 포맷 그대로
+4. production/session-state/active.md에 이번 작업 요약 append (기존 세션 로그 포맷 그대로
    따를 것 — STATUS 블록 갱신 + "## What changed this session" 항목 추가).
 6. Combat HUD까지 다 끝난 시점(즉 두 번째 GDD 완료 시)에는 추가로:
    - `/consistency-check` 절차를 수동으로 수행: design/registry/entities.yaml의 전체
@@ -166,10 +112,10 @@ OLLAMA-INSTRUCTIONS.md(레포 루트)에 **기존 Task 9/10과 정확히 같은 
    - production/session-state/active.md에 `<!-- CONSISTENCY-CHECK: ... -->` 주석 추가.
 7. git 커밋 + 푸시 (사용자가 이 작업 전체를 사전 승인함 — 추가 확인 불필요):
    - `git add`로 이번 단계에서 실제로 건드린 파일만 스테이징 (해당 GDD 파일, registry,
-     systems-index.md, OLLAMA-INSTRUCTIONS.md, production/session-state/active.md,
+     systems-index.md, production/session-state/active.md,
      충돌 있었으면 docs/consistency-failures.md) — `git add -A` 금지, 무관한 변경 섞지 말 것.
    - Conventional Commits 형식으로 커밋 메시지 작성 (`docs:` 또는 `feat:` 접두사), 예:
-     `docs: author Luna Overdrive GDD, queue Ollama fact-check/consistency tasks`
+     `docs: author Luna Overdrive GDD, queue fact-check/consistency tasks`
    - `git push` (force 금지, `--no-verify` 금지, hook 실패 시 원인 고치고 재커밋 — amend 금지).
    - 최종(Combat HUD까지 끝난 뒤) 커밋에는 consistency-check 결과와 "MVP 9/9 설계 완료"
      여부를 커밋 메시지 본문에 한 줄 남길 것.
@@ -184,10 +130,5 @@ OLLAMA-INSTRUCTIONS.md(레포 루트)에 **기존 Task 9/10과 정확히 같은 
 
 - 남은 MVP: `design/gdd/systems-index.md` 기준 #11 Luna Overdrive, #20 Combat HUD (7/9 완료
   상태에서 이어짐 — Combo/Tension Gauge 방금 완료).
-- Ollama 위임 3종(레지스트리 팩트체크·용어 일관성·AC→체크리스트)은 `OLLAMA-INSTRUCTIONS.md`의
-  Task 9/10 기존 패턴 + "Adding new tasks" 섹션이 명시적으로 좋은 후보로 꼽은 것(AC 재서식)을
-  그대로 재사용 — 새 포맷을 발명하지 않음.
-- 핵심 설계 판단(포뮬러/밸런스/플레이어 판타지/엣지케이스)은 `ollama-delegation-criteria.md`의
-  "맡기면 안 되는 작업" 목록에 명시적으로 걸려 Fable이 직접 하도록 프롬프트에 못박음.
 - 커밋+푸시는 사용자가 이 메시지에서 명시적으로 사전승인 — 세션당 추가 확인 없이 진행하도록
   프롬프트에 반영(단, `git add -A` 금지 등 기존 안전수칙은 유지).

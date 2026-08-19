@@ -313,8 +313,6 @@ available. Existing untracked marketplace/content/temp files were left untouched
 - systems-index.md: row #20 → "Designed (pending review)" + link; Dependency Map/enumeration row
   gained Health/Damage Core, Spell Casting (base), Dash/Evasion (upstream UI Requirements delegations
   the original index missed); progress started 9, **MVP 9/9 designed**.
-- OLLAMA-INSTRUCTIONS.md: queued Task 14 (registry fact-check HUD), Task 15 (terminology HUD vs
-  luna-overdrive), Task 16 (AC → QA checklist HUD).
 - Manual /consistency-check procedure run (registry vs all 9 GDDs, grep-targeted): **0 conflicts**.
   Shared values verified: overdrive 10s, charged 0.90, tension gains 70/25, cooldowns 6.0/2.0/2.5,
   executable_duration 3.0, telegraph 0.4, engage 400/1200. Known cosmetic staleness (not a value
@@ -348,8 +346,6 @@ available. Existing untracked marketplace/content/temp files were left untouched
 - Registry: added `overdrive_duration` constant; appended luna-overdrive.md to referenced_by on
   `effective_mana_cost`, `cast_gate_check`, `tension_gauge_max`; updated stale "undesigned" notes.
 - systems-index.md: row #11 → "Designed (pending review)" + doc link, progress started 8, MVP 8/9.
-- OLLAMA-INSTRUCTIONS.md: queued Task 11 (registry fact-check LO), Task 12 (terminology LO vs
-  combo-tension-gauge), Task 13 (AC → QA checklist, new task type per handoff template).
 - Solo mode skipped agent spawns: creative-director, systems-designer, art-director, qa-lead —
   flagged in GDD as needing manual review before Production.
 
@@ -374,7 +370,6 @@ available. Existing untracked marketplace/content/temp files were left untouched
 - Generated complete design review artifact [design_review_dash_evasion.md](file:///C:/Users/qjqmf/.gemini/antigravity-cli/brain/c10d9217-e8ef-42ec-b6a5-00f7b4193e8a/design_review_dash_evasion.md).
 - Updated `dash-evasion.md` status to `Approved`. Fixed a missing `Combat HUD` dependency in its Dependencies table.
 - Updated `systems-index.md` row #7 to `Approved`, incremented progress metrics (reviewed 6, approved 6).
-- Auto-queued Task 9 (registry check) and Task 10 (terminology consistency vs Health/Damage Core) to `OLLAMA-INSTRUCTIONS.md` per auto-queueing policy.
 
 ## What changed this session (/design-review spell-casting-base.md — full depth)
 - Full adversarial review: game-designer, systems-designer, qa-lead, ue-gas-specialist in
@@ -395,9 +390,7 @@ available. Existing untracked marketplace/content/temp files were left untouched
   Spell Weaving GDD; new AC8 = weave-guarantee execution check.
 - **3 new edge cases**: Mana=0 cast, all-3-elements-on-cooldown, bypass-release same-frame race
   (tag change resolves BEFORE gate evaluation — Luna Overdrive GDD must assume this order).
-- systems-index row #6 → Approved (reviewed 5, approved 5). Ollama queue: Task 7 (registry
-  fact-check spell-casting) + Task 8 (terminology spell-casting vs health-damage-core) appended
-  per auto-queueing policy.
+- systems-index row #6 → Approved (reviewed 5, approved 5).
 
 <!-- CONSISTENCY-CHECK: 2026-07-17 | GDDs checked: 5 | Conflicts found: 1 (resolved) | Log: docs/consistency-failures.md -->
 
@@ -448,44 +441,17 @@ available. Existing untracked marketplace/content/temp files were left untouched
   3 spells + movement + dash undecided, UE5.8 GAS attribute-init pattern needs
   `ue-gas-specialist` header verification (same gap as health-damage-core.md).
 
-## What changed this session (/design-review enemy-ai-base.md + Ollama pipeline restructure)
+## What changed this session (/design-review enemy-ai-base.md)
 - Ran a formal `/design-review` on `design/gdd/enemy-ai-base.md` (solo depth, per project default) —
   **APPROVED**, no blockers, no doc edits needed. Doc's front-matter already said Approved from the
   prior manual pass; this was the first pass through the actual `/design-review` skill.
-- Restructured the Ollama overnight pipeline at the user's request:
-  - Moved the task queue `production/ollama-instructions.md` → `OLLAMA-INSTRUCTIONS.md` (repo root),
-    so the bot reads it directly instead of the (never-actually-implemented) "Gemini scans the
-    whole repo" design the docs used to describe.
-  - Reformatted every task's "Context to inject" into strict `- {{PLACEHOLDER}}: path` lines and
-    made Tasks 3/5/6 fully self-contained (they used to say "same prompt as Task 2/4") — required
-    for the new parser, which treats each task block independently.
-  - Rewrote `tools/overnight-bot/discord_ollama_bot.py`: removed the hardcoded `TASKS` list, added
-    `parse_task_queue()` (regex-parses `OLLAMA-INSTRUCTIONS.md`, only runs `[ ]` blocks, warns in
-    Discord about malformed ones instead of silently dropping them). Verified with a standalone
-    parse test (all 6 tasks parse correctly) and `python -m py_compile` (syntax OK) — have not
-    run the live bot (needs Discord/Gemini/Ollama credentials not available in this session).
-  - Corrected the stale "Gemini reads the repo and picks tasks" framing in
-    `production/ollama-delegation-criteria.md` and `production/overnight-protocol.md` to match
-    reality: Gemini only 3-line-summarizes Ollama's output, never reads the queue or the repo.
-  - Updated all path references: `.claude/docs/ollama-delegation.md`, `AGENTS.md`,
-    `tools/overnight-bot/README.md`, `tools/overnight-bot/setup-plan-macbook.md`.
-  - Note: this was a detour, not a step in the GDD design order below — next real design work is
-    still Spell Casting (base).
 
-## Cross-tool note (added 2026-07-16, updated 2026-07-16 — 3rd worker added)
+## Cross-tool note (added 2026-07-16, updated 2026-08-19 — overnight worker removed)
 
-This project now rotates across **three** workers: **Claude Code** and **Antigravity CLI**
-(Gemini) do the real design/implementation work session to session; **Ollama** runs unattended
-overnight on a small queue of low-risk, easy-to-verify tasks (its output is never trusted
-directly — see below). Whichever tool picks up next:
+This project rotates across **two** workers: **Claude Code** and **Antigravity CLI**
+(Gemini) do the real design/implementation work session to session. Whichever tool picks up next:
 
-- Read this file first, always — it's the shared handoff point for all three workers.
-- **Check `production/overnight-output/` before starting real work** — if Ollama ran overnight,
-  review its drafts against `OLLAMA-INSTRUCTIONS.md`'s (repo root) checklists (a couple minutes),
-  promote what's good into the real files, discard the rest, then clear the directory. Full
-  protocol: `production/overnight-protocol.md`. Ollama has no file/tool access — it only ever
-  produces draft text that a human or one of you reviews; it never edits `design/gdd/`, `docs/`,
-  or `entities.yaml` directly.
+- Read this file first, always — it's the shared handoff point for both workers.
 - Antigravity CLI now has its own project context mirror at [AGENTS.md](file:///D:/moon-fragment-hunt/AGENTS.md)
   (Claude Code keeps reading `CLAUDE.md` + `.claude/` as before — unchanged).
 - `unreal-mcp` is now registered for **both** tools: Claude Code via `.mcp.json` /
