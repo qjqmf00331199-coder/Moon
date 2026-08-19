@@ -3,11 +3,12 @@
 **Date:** 2026-07-16
 **Type:** Mid-production performance/technical spike (not a concept prototype — no GDD/gate implications)
 **Related concept:** Moon Fragment Hunt — 최종장 아레나 몰핑 (arena-morphing-concept, see game-concept.md)
+**Status:** CONCLUDED — compat CONFIRMED, perf UNMEASURED (후속 필요)
 
-## Question
+## Hypothesis
 
-Nanite 메시를 Chaos Geometry Collection으로 변환해 파괴 가능한 바닥으로 쓸 수 있는가?
-붕괴 + 다수의 떠오르는 발판이 동시에 존재할 때 60fps(16.6ms) 예산을 지킬 수 있는가?
+Nanite 메시를 Chaos Geometry Collection으로 변환해 파괴 가능한 바닥으로 쓸 수 있다.
+붕괴 + 다수의 떠오르는 발판이 동시에 존재해도 60fps(16.6ms) 예산을 지킬 수 있다.
 
 Two sub-questions:
 1. **Compat**: UE5.8에서 Nanite 메시 → Geometry Collection 변환 시 Nanite 렌더링이 유지되는가, 아니면 조각(fragment)들이 non-Nanite로 강제 전환되는가?
@@ -19,13 +20,18 @@ Two sub-questions:
 나머지 5개는 GAS/Chaos/Niagara/Enhanced Input 표준 패턴 — 이미 검증된 조합. 이것만 미지수.
 프로덕션 순서를 정하기 전에 가장 리스크 큰 가정부터 깨야 함.
 
-## Scope (cut everything else)
+## How to run
 
-- [ ] Nanite 활성화 대형 static mesh 1개 → Fracture Mode로 Geometry Collection 변환 (~40 피스)
-- [ ] Field System 트리거 1개 (보스 슬램 시뮬레이션용 Radial Force)
-- [ ] 떠오르는 발판 5개 (단순 BP 타임라인 Z축 lerp)
-- [ ] 플레이어 무한 대쉬 (쿨다운 제거한 Launch Character 바인딩)
-- [ ] `stat unit` / `stat fps` / `stat Chaos` 프레임타임 측정
+전체 수동 재현 절차는 [TEST-STEPS.md](TEST-STEPS.md) 참고 (에디터 UI 직접 조작 경로).
+이번 실행은 `unreal-mcp` 스크립팅으로 대체 진행함 — 세부 로그는 아래 Progress 참고.
+
+### Scope (cut everything else)
+
+- [x] Nanite 활성화 대형 static mesh 1개 → Fracture Mode로 Geometry Collection 변환 (~40 피스)
+- [ ] Field System 트리거 1개 (보스 슬램 시뮬레이션용 Radial Force) — 미착수
+- [ ] 떠오르는 발판 5개 (단순 BP 타임라인 Z축 lerp) — 미착수
+- [ ] 플레이어 무한 대쉬 (쿨다운 제거한 Launch Character 바인딩) — 미착수
+- [ ] `stat unit` / `stat fps` / `stat Chaos` 프레임타임 측정 — 미착수 (perf 서브질문 미해결 원인)
 
 **Cut:** 실제 보스, 애니메이션, 사운드, UI, 탄막, 조명 반전, 메뉴 — 전부 다음 단계.
 
@@ -78,7 +84,7 @@ Moon 프로젝트에 C++ Source 모듈 없음 (Blueprint-only 상태). 계획은
 - `NumTransforms: 38` (요청한 35~45 범위 내 — Voronoi 파괴 실제로 적용됨)
 - `enableNanite: true`, `bEnableNaniteFallback: false` — Nanite로 강제 폴백 없이 유지
 
-## Result
+## Findings
 
 **Status: CONFIRMED — 핵심 질문(Nanite+GC 파괴 호환성) YES로 답 나옴**
 

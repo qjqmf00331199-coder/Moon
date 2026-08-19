@@ -1,14 +1,21 @@
 # Signature Combat Chain — Engine Spike Note
 
 > **Date**: 2026-07-21
-> **Status**: PASS — engine feasibility proven
+> **Status**: CONCLUDED — PASS, engine feasibility proven
 > **Classification**: SPIKE, not production implementation or a formal Vertical Slice
 
-## Question
+## Hypothesis
 
-Can one UE5.8 combat room prove the intended causal grammar — `Blackhole gather → Fire detonation → environment fracture → executable target → core extraction` — while the revised Overdrive rules prevent refresh abuse and provide a clear post-peak boundary?
+One UE5.8 combat room can prove the intended causal grammar —
+`Blackhole gather → Fire detonation → environment fracture → executable target → core extraction` —
+while the revised Overdrive rules prevent refresh abuse and provide a clear post-peak boundary.
 
-## Implemented slice
+## How to run
+
+Test map: `/Game/Moon/Maps/L_CombatTest`
+Input sequence: `1 → 2 → F`
+
+### Implemented slice
 
 - Blackhole and Fire acquire GAS targets through a Pawn object-type multi-sweep, so world geometry cannot consume the target hit.
 - Blackhole changes the target from `Idle` to `Gathered`.
@@ -16,10 +23,13 @@ Can one UE5.8 combat room prove the intended causal grammar — `Blackhole gathe
 - `F` core extraction is legal only for an executable target within 350uu. It hides/disables the target and grants the spike Mana/Tension reward through GAS.
 - The linked Overdrive state is a fixed 10-second window. It cannot be refreshed, ignores Tension gain while active, pauses Mana regeneration, and applies a 1.5-second post-window Tension lock.
 
-## PIE evidence
+### Explicitly disposable
 
-Test map: `/Game/Moon/Maps/L_CombatTest`
-Input sequence: `1 → 2 → F`
+The cylinder target, cube pillar, hard-coded placeholder damage/rewards, temporary lights, direct actor search, and single-room setup are spike scaffolding. Do not promote them unchanged into production.
+
+## Findings
+
+### PIE evidence
 
 Observed log order:
 
@@ -40,14 +50,10 @@ Overdrive automation regression:
 - `Moon.Combat.Overdrive.FixedWindow` — PASS
 - `Moon.Combat.Overdrive.RecoveryBoundary` — PASS
 
-## Decision
+### Decision
 
 The causal combat hook is technically viable and is worth carrying into a production-quality Vertical Slice after its owning GDDs and acceptance criteria are approved. This spike does not validate fun, readability under enemy pressure, balance, final destruction fidelity, or player comprehension.
 
 ## Next validation
 
 Run a small playtest with no verbal instruction. Pass only if players complete the chain within 60–90 seconds and can explain both why the target became executable and why normal resource pressure returned after Overdrive.
-
-## Explicitly disposable
-
-The cylinder target, cube pillar, hard-coded placeholder damage/rewards, temporary lights, direct actor search, and single-room setup are spike scaffolding. Do not promote them unchanged into production.

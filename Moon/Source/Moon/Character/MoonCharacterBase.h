@@ -16,6 +16,9 @@ class UInputMappingContext;
 class UInputAction;
 class USpringArmComponent;
 class UCameraComponent;
+class UMoonCameraComponent;
+class UMoonCameraSettings;
+class UMaterialInstanceDynamic;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMoonOverdriveStartedSignature);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMoonOverdriveEndedSignature, EMoonOverdriveEndReason, Reason);
@@ -187,8 +190,18 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<USpringArmComponent> CameraBoom;
 
+	// Story 005 AC-4: UMoonCameraComponent (not plain UCameraComponent) so the corner-dither state
+	// can drive its near-clip-plane override — see MoonCameraComponent.h and
+	// UpdateCameraCornerDither() below.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<UCameraComponent> FollowCamera;
+	TObjectPtr<UMoonCameraComponent> FollowCamera;
+
+	// Data-driven Tuning Knobs source (ADR-0005 Decision 2 / TR-cam-009). Read once in BeginPlay
+	// and applied to CameraBoom/FollowCamera; the constructor's literal SpringArm/Camera setup
+	// above is a CDO-preview fallback only and is never re-read once this asset is applied. If
+	// unset, BeginPlay leaves the constructor literals in place (null-asset guard).
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UMoonCameraSettings> CameraSettings;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMoonAbilitySystemComponent> AbilitySystemComponent;
@@ -364,6 +377,14 @@ private:
 	// the blend actually finishes.
 	float HitStopBlendElapsed = 0.0f;
 
+	// Corner dither state (Story 005 AC-4). CurrentDitherAlpha is the live, continuously-interpolated
+	// 0..1 value (see UpdateCameraCornerDither()). MeshDitherMID is created once, lazily, the first
+	// time the mesh has a material to spawn a dynamic instance from; stays null (no-op, no crash) if
+	// the mesh has no material assigned yet — the art-side Material graph with the matching scalar
+	// parameter does not exist as of this story, see DitherFadeParamName's doc comment in the .cpp.
+	float CurrentDitherAlpha = 0.0f;
+	TObjectPtr<UMaterialInstanceDynamic> MeshDitherMID = nullptr;
+
 	// Airborne substate (TR-mov-003): derived once per frame in Tick(), after Super::Tick(), from
 	// GetCharacterMovement()->Velocity.Z's sign. Not a stored transition table.
 	EMoonAirborneSubState AirborneSubState = EMoonAirborneSubState::Falling;
@@ -484,6 +505,30 @@ private:
 	void UpdateJumpFeelGravity();
 	void UpdateJumpAnimState(float DeltaTime);
 
+	// Story 005 AC-4 (TR-cam-005, GDD Edge Case 1 — corner dithering): measures the SpringArm's
+	// actual collided pivot-to-socket distance every frame, fades the mesh's dither material
+	// parameter and the camera's near-clip override toward the corner-dithered state below
+	// CornerDitherThreshold (and back out above it), continuously via FInterpTo rather than a hard
+	// on/off toggle (the GDD edge case explicitly forbids a stuck-transparent/flicker outcome).
+	void UpdateCameraCornerDither(float DeltaTime);
+
+protected:
+	// Pure/stateless target-alpha step (Story 005 AC-4): 1.0 at or below Threshold, 0.0 above it.
+	// Deliberately time-independent so it's unit-testable without a Tick/physics scene — the
+	// continuous fade (FInterpTo against DeltaTime) lives in UpdateCameraCornerDither() above, which
+	// calls this every frame for its target. Protected (not private) so the test-only accessor
+	// pattern (see MoonCameraCollisionGuardrailsTests.cpp) can expose it via `using` — a derived
+	// class cannot re-expose a truly private base member, only protected/public ones.
+	static float ComputeCornerDitherTargetAlpha(float ActualArmLength, float Threshold);
+
+	// Applies CameraSettings' fields to CameraBoom/FollowCamera (ADR-0005 Decision 2 / Story 001
+	// AC-5). Called once from BeginPlay(). No-op (constructor literals stand as the CDO-preview
+	// fallback) if CameraSettings is unset — see the null-asset guard note on the property above.
+	// Protected so automation accessors can exercise the application path without violating
+	// AActor's BeginPlay lifecycle invariants on transient test objects.
+	void ApplyCameraSettings();
+
+private:
 	void RefreshLocomotionAnim();
 	void OnJumpStartAnimFinished();
 	void OnLandAnimFinished();
@@ -498,4 +543,5 @@ private:
 	void UpdateHitStopPresentation(float DeltaTime);
 
 	void UpdateOverdriveState(double CurrentTime);
+
 };

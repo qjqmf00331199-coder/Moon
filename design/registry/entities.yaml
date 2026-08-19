@@ -37,7 +37,7 @@
 #   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
 
 version: 1
-last_updated: "2026-07-20"  # overdrive_tension_gain_multiplier 0.4 동기화 (직전: combat-hud.md 등록 반영 2026-07-17)
+last_updated: "2026-08-19"  # jump_air_time range + dash_invuln_duration 정정 (consistency-check grep 스캔)
 
 # ─── ENTITIES ────────────────────────────────────────────────────────────────
 # Named game-world objects: enemies, NPCs, characters, factions, bosses.
@@ -150,12 +150,17 @@ formulas:
       - JumpZVelocity
       - GravityScale
       - WorldGravityZ
-    output_range: [0.8, 1.5]
+    output_range: [0.63, 2.04]
     expression: "(2 * JumpZVelocity) / (GravityScale * WorldGravityZ)"
     notes: "WorldGravityZ is the UE engine default (980 uu/s^2), not a design tuning
-      knob. Feeds Arena Morphing's aerial combat pacing (undesigned as of 2026-07-16)."
+      knob. Feeds Arena Morphing's aerial combat pacing (undesigned as of 2026-07-16).
+      Range is player-movement.md's Safe-Range output envelope (:97); a separate
+      hard load-time Joint AirTime Bound of 0.5-3.0s (:99) exists as a safety clamp,
+      not the formula's expected output."
     added: 2026-07-16
-    revised: ""
+    revised: "2026-08-19"
+    # was [0.8, 1.5] — did not match either GDD-stated bound (Safe Range 0.63-2.04
+    # or hard Joint Bound 0.5-3.0); consistency-check grep scan caught the drift.
 
   - name: effective_damage_applied
     status: active
@@ -554,10 +559,13 @@ constants:
     source: design/gdd/dash-evasion.md
     referenced_by:
       - design/gdd/dash-evasion.md
-    value: 0.2
+    value: 0.08
     unit: seconds
     added: 2026-07-17
-    revised: ""
+    revised: "2026-08-19"
+    # was 0.2 — copy-paste error from just_dodge_window (also 0.2s). GDD Tuning
+    # Knobs table (:118) states 0.08s, Safe Range 0.06-0.12s, deliberately matched
+    # to DashDuration (0.08s, :112). Caught by consistency-check grep scan.
 
   - name: executable_duration
     status: active

@@ -2,14 +2,16 @@
 #include "TargetDummy.h"
 #include "../GAS/MoonAbilitySystemComponent.h"
 #include "../GAS/MoonAttributeSet.h"
+#include "../Camera/MoonCameraSettings.h"
+#include "../Camera/MoonCameraComponent.h"
 #include "GameplayAbilitySpec.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "TimerManager.h"
@@ -26,23 +28,51 @@ AMoonCharacterBase::AMoonCharacterBase()
 	PrimaryActorTick.bCanEverTick = true;
 
 	// Third-person follow camera. Boom handles collision so the camera never clips into the level.
+	// NOTE (ADR-0005/Story 001): everything set on CameraBoom/FollowCamera below is a CDO-preview
+	// fallback ONLY — once CameraSettings is assigned, BeginPlay's ApplyCameraSettings() re-applies
+	// every Tuning Knobs field and these literals are never read again at runtime (AC-6).
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
+	// Capsule (Root) -> SpringArm -> Camera hierarchy (GDD Rule 1 / TR-cam-001): the SpringArm's
+	// pivot sits at the character's upper body (Z=60uu), not the capsule's feet-relative origin.
+	CameraBoom->SetRelativeLocation(FVector(0.0f, 0.0f, 60.0f));
 	// Combat camera: a light right-shoulder composition keeps the player readable while
 	// opening enough space to see incoming threats. Position lag softens instant dash steps
 	// without adding rotation latency to aiming.
 	CameraBoom->TargetArmLength = 450.0f;
 	CameraBoom->SocketOffset = FVector(0.0f, 45.0f, 20.0f);
-	CameraBoom->TargetOffset = FVector(0.0f, 0.0f, 55.0f);
 	CameraBoom->bEnableCameraLag = true;
 	CameraBoom->CameraLagSpeed = 18.0f;
 	CameraBoom->CameraLagMaxDistance = 60.0f;
 	CameraBoom->bUseCameraLagSubstepping = true;
 	CameraBoom->CameraLagMaxTimeStep = 1.0f / 60.0f;
 	CameraBoom->SetRelativeRotation(FRotator(-15.0f, 0.0f, 0.0f));
+	// Controller-driven rotation inherit flags (GDD Rule 4 / TR-cam-001): pitch and yaw follow the
+	// controller, roll is explicitly excluded so the horizon never tilts. Set explicitly rather
+	// than relying on USpringArmComponent's own defaults — bInheritRoll defaults to true upstream,
+	// which would silently reintroduce the horizon-tilt regression AC-2's edge case flags.
 	CameraBoom->bUsePawnControlRotation = true;
+	CameraBoom->bInheritPitch = true;
+	CameraBoom->bInheritYaw = true;
+	CameraBoom->bInheritRoll = false;
 
-	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+	// Collision probe (ADR-0005 Decision 5 / TR-cam-005 / GDD Rule 5): ProbeSize is re-applied from
+	// CameraSettings->CameraProbeSize in ApplyCameraSettings() (Story 001); bDoCollisionTest and
+	// ProbeChannel are set explicitly here even though they already match USpringArmComponent's own
+	// engine defaults — same "don't rely on upstream defaults" discipline as bInheritRoll=false
+	// above, so the contract is visible in code rather than implicit.
+	//
+	// The GDD's "ignore ECC_Destructible" half of Rule 5 (Edge Case 3) is NOT SpringArm state —
+	// USpringArmComponent has no per-channel ignore list, only a single ProbeChannel it sweeps. That
+	// contract lives on the debris side's own collision response to the Camera channel instead: see
+	// the `[/Script/Engine.CollisionProfile]` +EditProfiles entry in Config/DefaultEngine.ini, which
+	// patches the stock "Destructible" collision profile's response to ECC_Camera to Ignore (its
+	// engine default is Block — verified against the installed UE5.8 BaseEngine.ini and
+	// CollisionProfile.cpp, not assumed).
+	CameraBoom->bDoCollisionTest = true;
+	CameraBoom->ProbeChannel = ECC_Camera;
+
+	FollowCamera = CreateDefaultSubobject<UMoonCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
 
@@ -98,6 +128,7 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 	UpdateResourceRegen(DeltaTime, CurrentWorldTime);
 	UpdateJumpFeelGravity();
 	UpdateJumpAnimState(DeltaTime);
+	UpdateCameraCornerDither(DeltaTime);
 
 	// Basic locomotion: swap the single-node playing animation between idle and jog by speed.
 	// No AnimBlueprint/blendspace yet, so this is a hard switch rather than a blend.
@@ -226,6 +257,64 @@ void AMoonCharacterBase::UpdateJumpAnimState(float DeltaTime)
 		}
 	}
 	bWasFalling = bIsFalling;
+}
+
+float AMoonCharacterBase::ComputeCornerDitherTargetAlpha(float ActualArmLength, float Threshold)
+{
+	// GDD Edge Case 1: "actual computed SpringArm length <= 80uu" is a plain step, not a spatial
+	// fade band (the GDD only ever names the single 80uu threshold). The "must fade back out, not
+	// flicker" requirement is satisfied by UpdateCameraCornerDither()'s FInterpTo toward this target
+	// over TIME, not by inventing a second distance here.
+	return (ActualArmLength <= Threshold) ? 1.0f : 0.0f;
+}
+
+void AMoonCharacterBase::UpdateCameraCornerDither(float DeltaTime)
+{
+	if (!CameraBoom)
+	{
+		return;
+	}
+
+	// Story 005 AC-4 engine-API note: this is Dist(pivot, actual post-collision socket location) —
+	// NOT a projection that strips CameraSocketOffset back out. Verified against the installed
+	// UE5.8 SpringArmComponent.cpp (UpdateDesiredArmLocation): the socket offset is rotated into the
+	// desired location BEFORE the collision sweep runs (`DesiredLoc += FRotationMatrix(DesiredRot).
+	// TransformVector(SocketOffset);` precedes `SweepSingleByChannel`), so the offset is already
+	// baked into what the collision system itself swept and resolved. This distance IS the GDD's
+	// "실시간 거리" (real-time camera-to-character distance) exactly, not an approximation of it —
+	// at TargetArmLength=450/SocketOffset=(0,45,20) it reads ~452.6uu at full extension and floors
+	// at ~49.2uu on full collapse (never exactly 0/450), which is physically correct: the shoulder
+	// offset really does keep the camera that far from the pivot even when the boom itself fully
+	// retracts.
+	const float ActualArmLength = FVector::Dist(CameraBoom->GetComponentLocation(), CameraBoom->GetSocketLocation(USpringArmComponent::SocketName));
+
+	const float Threshold = CameraSettings ? CameraSettings->CornerDitherThreshold : 80.0f;
+	const float FadeSpeed = CameraSettings ? CameraSettings->CornerDitherFadeSpeed : 8.0f;
+	const float NearClipPlane = CameraSettings ? CameraSettings->CameraNearClipPlane : 10.0f;
+
+	const float TargetAlpha = ComputeCornerDitherTargetAlpha(ActualArmLength, Threshold);
+	CurrentDitherAlpha = FMath::FInterpTo(CurrentDitherAlpha, TargetAlpha, DeltaTime, FadeSpeed);
+
+	// Material dither parameter (GDD Edge Case 1). "DitherFadeParamName" is the scalar parameter
+	// name an artist must wire into the character Material's Dither Temporal AA node — no such
+	// Material graph exists yet (art/shader work, out of this story's scope per its Implementation
+	// Notes). SetScalarParameterValue() on a UMaterialInstanceDynamic is a safe no-op when the named
+	// parameter doesn't exist in the graph (does not crash), so this degrades gracefully until that
+	// art lands.
+	static const FName DitherFadeParamName(TEXT("DitherFade"));
+	if (MeshDitherMID)
+	{
+		MeshDitherMID->SetScalarParameterValue(DitherFadeParamName, CurrentDitherAlpha);
+	}
+
+	// Near-clip override (GDD Edge Case 1): only forced while any dither is present, so the camera
+	// uses the engine's normal global near-clip the rest of the time. See UMoonCameraComponent's
+	// header comment for why this needs a small UCameraComponent subclass rather than a plain
+	// property (FMinimalViewInfo::PerspectiveNearClipPlane is only reachable via GetCameraView()).
+	if (FollowCamera)
+	{
+		FollowCamera->NearClipPlaneOverride = (CurrentDitherAlpha > KINDA_SMALL_NUMBER) ? NearClipPlane : -1.0f;
+	}
 }
 
 void AMoonCharacterBase::Landed(const FHitResult& Hit)
@@ -521,6 +610,23 @@ void AMoonCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Data-driven camera Tuning Knobs (ADR-0005 Decision 2 / TR-cam-009 / Story 001 AC-5): applies
+	// CameraSettings' fields to CameraBoom/FollowCamera. From this point on the constructor's
+	// literal values above are dead — see ApplyCameraSettings()'s null-asset guard for the
+	// no-asset-assigned fallback.
+	ApplyCameraSettings();
+
+	// Story 005 AC-4: lazily create the mesh's dither MID once, only if the mesh already has a
+	// material assigned to derive one from. Stays null (graceful no-op in
+	// UpdateCameraCornerDither()) if no material is set yet — no crash either way.
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		if (MeshComp->GetMaterial(0))
+		{
+			MeshDitherMID = MeshComp->CreateAndSetMaterialInstanceDynamic(0);
+		}
+	}
+
 	// Movement tuning clamp + AirTime joint bound enforcement (TR-mov-004) — load-time validation
 	// pass. See ValidateAndClampMovementTuning()'s header comment for the runtime-write-time caveat
 	// (no runtime setter exists yet, so this is the only call site today) and the known Tick()/
@@ -536,6 +642,39 @@ void AMoonCharacterBase::BeginPlay()
 		InitializeAttributes();
 		InitializeAbilities();
 	}
+}
+
+void AMoonCharacterBase::ApplyCameraSettings()
+{
+	// Null-asset guard (Story 001 AC-4 edge case): no CameraSettings assigned leaves CameraBoom/
+	// FollowCamera exactly as the constructor set them up — no crash, no partial application.
+	if (!CameraSettings)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[MoonCamera] CameraSettings is unset on %s — falling back to constructor literals."), *GetNameSafe(this));
+		return;
+	}
+
+	if (!CameraBoom || !FollowCamera)
+	{
+		return;
+	}
+
+	// Fields with a direct SpringArm/Camera target this story owns (ADR-0005 Decision 2).
+	CameraBoom->TargetArmLength = CameraSettings->TargetArmLength;
+	CameraBoom->SocketOffset = CameraSettings->CameraSocketOffset;
+	CameraBoom->CameraLagSpeed = CameraSettings->CameraLagSpeed;
+	// Rotation lag speed is stored for designer tuning, but GDD Rule 4 keeps rotation lag disabled
+	// for aim responsiveness — CameraRotationLagSpeed is intentionally not paired with
+	// bEnableCameraRotationLag = true here.
+	CameraBoom->CameraRotationLagSpeed = CameraSettings->CameraRotationLagSpeed;
+	CameraBoom->CameraLagMaxDistance = CameraSettings->CameraLagMaxDistance;
+	CameraBoom->ProbeSize = CameraSettings->CameraProbeSize;
+	FollowCamera->FieldOfView = CameraSettings->BaseFOV;
+
+	// CameraPitchMin/Max (Story 002 AMoonPlayerCameraManager), OverdriveFOV (Story 006), and
+	// ExecutionArmLength (Story 007) are intentionally NOT applied here — those stories own the
+	// runtime behavior that reads them. This story's job is only to make CameraSettings the single
+	// source of truth those later stories read from.
 }
 
 float AMoonCharacterBase::ComputeAirTime(float JumpZVelocity, float GravityScale) const

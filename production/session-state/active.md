@@ -108,6 +108,60 @@ sandbox so UBT could access `C:\Users\qjqmf\AppData\Local\UnrealBuildTool`; resu
 6/6 actions, total execution time 78.63s. Story 001 remains **In Progress** only because PIE/manual
 runtime validation is still pending; this session did not have Unreal MCP/Editor control tools
 available. Existing untracked marketplace/content/temp files were left untouched.
+**UPDATE 2026-08-19 (Camera epic, camera-002/camera-005 close-out session, Claude Code)**: Resumed
+camera-system-foundation-fixes. Found camera-001's own regression script
+(`tests/unit/camera/camera-settings-foundation_test.ps1`) failing — stale regex expected
+`FollowCamera = CreateDefaultSubobject<UCameraComponent>`, but Story 005 had since changed the
+concrete type to `UMoonCameraComponent` (a documented, intentional `UCameraComponent` subclass for
+the corner-dither near-clip override). Fixed the test regex to accept either type; not a code bug.
+**Real blocker found and fixed**: nothing in the project set `PlayerControllerClass` —
+`AMoonPlayerController` (Story 002) existed but was never spawned (`GameDefaultMap` points at the
+engine template map; no level WorldSettings GameMode override; `grep` for
+`GameModeClass|PlayerControllerClass` across `Moon/Config/*.ini` was empty). Without this,
+PIE/runtime always used the stock `APlayerCameraManager`, so `AMoonPlayerCameraManager::InitializeFor`
+(the pitch clamp) never ran even though `pitch-clamp_test.ps1` passed — that test only greps
+source text, it doesn't prove the class is ever instantiated. Added new
+`AMoonGameMode : AGameModeBase` (`Moon/Source/Moon/Character/MoonGameMode.h/.cpp`, sets
+`PlayerControllerClass` only, no gameplay logic) and wired it project-wide via
+`GlobalDefaultGameMode=/Script/Moon.MoonGameMode` in `[/Script/EngineSettings.GameMapsSettings]`
+(`Moon/Config/DefaultEngine.ini`) — no level in this project overrides GameMode per-level, so this
+is the only wiring point. Full `MoonEditor Win64 Development` UBT build **PASS**, 7/7 actions,
+~417s (ran outside the sandbox via `dangerouslyDisableSandbox`, same as prior sessions).
+**Deeper gap found, NOT fixed this session (needs Unreal Editor/unreal-mcp, unavailable here)**:
+no `UMoonCameraSettings` DataAsset instance exists anywhere in `Moon/Content` — confirmed via
+content-wide grep for `MoonCameraSettings` across all `.uasset` files, zero hits. This means
+`AMoonCharacterBase::CameraSettings` is null on `BP_MoonCharacter`'s CDO today, so
+`ApplyCameraSettings()` always hits its null-guard and the "data-driven" claim in Story 001/002 is
+structurally implemented but **not functionally wired** — current on-screen behavior only matches
+the GDD because the constructor's fallback literals happen to equal the GDD defaults; any future
+tuning-knob change to the asset would silently do nothing. Same gap blocks
+`AMoonPlayerCameraManager.CameraSettings` (it's a native class with no BP wrapper to set a CDO
+default on, unlike Blackhole/Dash's `ConstructorHelpers::FObjectFinder` precedent for exactly this
+situation — a real path forward once the asset exists, just needs the asset to point at first).
+**Next required**: (1) open the editor / get an unreal-mcp session, create the `UMoonCameraSettings`
+DataAsset, assign it to `BP_MoonCharacter`'s `CameraSettings` and decide `AMoonPlayerCameraManager`'s
+assignment path (BP subclass vs. `ConstructorHelpers` default vs. reading it from the possessed
+pawn); (2) PIE-verify `AMoonGameMode`/`AMoonPlayerController` actually gets spawned in
+`L_CombatTest` (no manual verification done this session, still config-only); (3) run `/story-done`
+for camera-002 and camera-005 once (1)-(2) close — do not hand-edit `production/sprint-status.yaml`
+(explicitly forbidden by its own header) or the story files' Status fields directly. camera-003/004
+are likely already functionally covered by existing `MoonCharacterBase.cpp` code (movement-basis /
+`CameraLagMaxDistance` respectively, both asserted by camera-001's own test) — check before writing
+new code for either.
+**UPDATE 2026-08-19 (Camera runtime wiring closeout, Codex)**: Fixed the remaining data/runtime
+wiring gaps. Created `/Game/Moon/Camera/DA_MoonCameraSettings`, assigned it to
+`BP_MoonCharacter.CameraSettings`, and made native `AMoonPlayerCameraManager` load the same asset as
+its CDO default (with the existing safe pitch fallback retained). Found that `L_CombatTest` does
+override the project GameMode with `GM_MoonCombat`, contrary to the previous session note; reparented
+that Blueprint from stock `AGameModeBase` to `AMoonGameMode`, preserving its `BP_MoonCharacter`
+DefaultPawnClass while inheriting `AMoonPlayerController`. UE editor-commandlet validation confirmed
+the effective `GM_MoonCombat -> AMoonPlayerController` chain and both character/camera-manager
+references to the same DataAsset. Also fixed two invalid automation-test assumptions: direct
+`BeginPlay()` calls on transient actors (UE5.8 lifecycle assert) now call protected
+`ApplyCameraSettings()`, and pitch assertions normalize the engine's 0..360 `ClampAxis` output.
+`MoonEditor Win64 Development` build PASS; all 6 `Moon.Camera` Automation tests PASS; both camera
+PowerShell static checks PASS. Interactive PIE feel/manual collision evidence is still separate;
+next workflow step is `/story-done` for camera-002/camera-005 when that evidence requirement is met.
 <!-- /STATUS -->
 
 ## Completed Spike — Signature Combat Chain + Overdrive Crash (Codex, 2026-07-21)
@@ -1004,3 +1058,24 @@ from "**This IS the exact resume point**" above.
 - Story 005 AC-4 now closed 4/4 AC, evidence-only per the AC's own edge case (no pass/fail threshold, no minimum hardware finalized). Commits: `194e625` (partial/stability), then this pass's story+evidence-doc update (numbers added, AC-4 flipped to closed).
 - **Player Movement Foundation Fixes epic (Stories 001-005) is now fully closed, all AC passing** (Story 004's AC-4 was advisory-pass, Story 005's AC-4 is evidence-only-pass — neither is a hard perf/feel gate, both closed per their own stated advisory/evidence-only nature). Production gate is the next real checkpoint — still FAIL/Pre-Production per `2026-08-12-preprod-to-production.md`; re-run `/gate-check` if attempting Production again.
 - **Reusable capability discovered**: this session now knows unreal-mcp is reachable via raw HTTP when the editor is running, and exactly what it can/can't do (spawn actors, start/stop PIE, read logs, screenshot viewport — but NOT read performance stats or execute console commands). Future PIE-dependent work in this project can use this same raw-HTTP approach instead of assuming "no MCP tool = nothing automatable."
+
+
+<!-- QA-PLAN: 2026-08-14 | System: camera-system-foundation-fixes sprint-1 | Plan written: backfilled into story-001..009 QA Test Cases sections (no standalone qa-plan doc written) -->
+
+
+## Session Extract — Sprint 1 setup + camera epic stories 2026-08-14
+- Prototype doc gap 2\uAC1C \uD574\uC18C: arena-morphing-spike, signature-combat-chain-spike \uBAA8\uB450 SPIKE-NOTE.md\u2192README.md \uB9AC\uB124\uC784+\uBCF4\uAC15 (prototype-code.md rule \uC900\uC218).
+- Sprint 1 \uC0DD\uC131 (`production/sprints/sprint-1.md`, `production/sprint-status.yaml`), review-mode=solo\uB85C producer/QL gate \uC804\uBD80 \uC2A4\uD0B5.
+- `/create-stories camera-system-foundation-fixes` \uC2E4\uD589 \u2192 9\uAC1C \uC2A4\uD1A0\uB9AC \uC0DD\uC131 (story-001~009), EPIC.md/index.md \uAC31\uC2E0. TR-cam-006/008\uB294 \uAC01 2\uAC1C \uC2A4\uD1A0\uB9AC\uB85C \uBD84\uD560(FOV/\uC2E4\uD589\uC5F0\uCD9C, \uC2E4\uD589\uC5F0\uCD9C/\uC270\uC774\uD06C).
+- QA Test Cases\uB97C 9\uAC1C \uC2A4\uD1A0\uB9AC \uD30C\uC77C\uC5D0 \uBC31\uD544 (Given/When/Then + edge case, AC\uBCC4). **\uB3C5\uB9BD QA plan \uBB38\uC11C(`production/qa/qa-plan-sprint-1-*.md`)\uB294 \uC548 \uC41C** \u2014 sprint-1.md DoD\uC758 "QA plan exists" \uD56D\uBAA9 \uBBF8\uCDA9\uC871 \uC0C1\uD0DC\uB85C \uB0A8\uC74C.
+- \uB2E4\uC74C \uC138\uC158: story-001\uBD80\uD130 `/story-readiness` \u2192 `/dev-story` \uAD6C\uD604 \uC2DC\uC791. \uC6D0\uB798 \uACC4\uD68D\uD588\uB358 `/art-bible` \u2192 UX \uC2A4\uD399 2\uAC1C \u2192 `/ux-review all` \u2192 \uCDA9\uB3CC \uD574\uC18C \u2192 engine-reference \uAC10\uC0AC \uCCB4\uC778\uC740 \uC774\uBC88 \uC138\uC158\uC5D0\uC11C \uBBF8\uCC29\uC218.
+
+## Session Extract — /story-done 2026-08-17
+- Verdict: COMPLETE WITH NOTES
+- Story: production/epics/camera-system-foundation-fixes/story-001-camera-hierarchy-and-data-driven-settings-foundation.md — Camera Hierarchy + Data-Driven Settings Foundation
+- Tech debt logged: None
+- Next recommended: Story 002 — Pitch Clamp via PlayerCameraManager (production/epics/camera-system-foundation-fixes/story-002-pitch-clamp-via-playercameramanager.md)
+
+<!-- CONSISTENCY-CHECK: 2026-08-19 | GDDs checked: 17 | Conflicts found: 2 new (registry drift) + 2 pre-existing confirmed resolved | Report: inline in docs/consistency-failures.md -->
+
+<!-- CONSISTENCY-CHECK: 2026-08-19b | GDDs checked: 9 | Conflicts found: 0 (Blocker #5 dash/camera re-verified clean) | Report: inline -->

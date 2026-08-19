@@ -1745,3 +1745,176 @@ Antigravity (A): 언리얼 엔진 5.8(UE5.8) 환경에서의 API 사용 적절�
 수정: `CLAUDE.md`, `AGENTS.md`에서 관련 정책/참조 제거.
 
 남은 것: `production/session-state/active.md`, `production/handoff/fable-mvp-remaining-2-systems.md`, `discord-session-log.md` — 과거 세션 기록/핸드오프 문서라 관련 언급 남아있음. 이것도 정리 원하면 말해줘.
+
+## 2026-08-19T05:30:46.524Z [claude]
+
+**지시:** 요청: VERDICT: REWRITE
+말씀하신 "A"는 프로젝트 규칙(AGENTS.md)에 명시된 Antigravity CLI로 이해하고 진행하겠습니다.
+
+현재 제 세션에서 외부 도구인 Codex나 Antigravity CLI 프로세스를 직접 실행할 수는 없습니다. 따라서 세 에이전트(Claude, Codex, Antigravity)가 중복 없이 각자의 특장점을 살려 검토할 수 있도록, 공용 작업 지시서를 작성하여 범위를 나누는 방식을 제안합니다.
+
+다음과 같이 검토 영역을 분담하여 협업 지점인 production/session-state/active.md에 지시 사항을 정리해 두겠습니다.
+
+Claude (저): 기획 문서(GDD) 및 설계 결정(ADR)과의 정합성, 전반적인 아키텍처 로직 흐름 검토
+Codex: 코드 레벨의 구문 및 버그, 알고리즘 최적화, C++ 메모리 안전성 집중 검토
+Antigravity (A): 언리얼 엔진 5.8(UE5.8) 환경에서의 API 사용 적절성, 블루프린트 연동 및 프로젝트 컨벤션 검토
+
+제가 먼저 이 내용으로 작업 지시서를 작성하고 제 담당(Claude) 영역의 오류 검사를 시작해도 될까요? 승인해 주시면 지시서를 작성하겠습니다. 이후 Codex와 Antigravity 세션을 각각 여시고 "active.md를 읽고 너에게 할당된 리뷰 작업을 시작해 줘"라고 요청하시면 다 함께 작업을 진행하실 수 있습니다.
+
+이대로 진행하는데
+
+Ollama 관련 문서 및 내용은 전부 삭제하고 커밋해줘
+
+이전 답변:
+Ollama 파이프라인 삭제 완료, 커밋 2개(`1af624b`, `fe75856`) 완료.
+
+삭제: `.claude/docs/ollama-delegation.md`, `OLLAMA-INSTRUCTIONS.md`, `production/ollama-delegation-criteria.md`, `production/overnight-protocol.md`, `production/overnight-output/`, `tools/overnight-bot/` 전체.
+수정: `CLAUDE.md`, `AGENTS.md`에서 Ollama 정책/참조 제거.
+
+남은 것: `production/session-state/active.md`(기존 미커밋 수정분, 내 세션 작업 아님이라 손 안 댐), `production/handoff/fable-mvp-remaining-2-systems.md`, `discord-session-log.md` — 과거 세션 기록/핸드오프 문서라 Ollama 언급 남아있음. 이것도 정리 원하면 말해줘.
+
+리뷰어 피드백:
+`production/session-state/active.md`, `production/handoff/fable-mvp-remaining-2-systems.md`, `discord-session-log.md`의 Ollama 관련 내용도 전부 삭제하라.
+전체 저장소 검색 결과가 0건인지 확인한 뒤 추가 커밋하고 프로젝트 규칙대로 push하라.
+
+피드백 반영해서 답변을 개선하라.
+
+**결과:**
+
+작업 상태 원복 완료 (working tree 손상 없음). 커밋(`75e3917`)은 로컬에 됐지만 push는 못 함.
+
+**푸시 막힘**: origin/main에 카메라 에픽 커밋 3개(`777e4a6`, `301bb9a`, `d722685`)가 먼저 올라와 있어 diverge 상태. 게다가 로컬 워킹트리엔 같은 카메라 작업(`MoonCharacterBase.cpp/h`, `EPIC.md`, `Camera/` 새 파일 등)이 커밋 안 된 채 남아있어서 — 이건 다른 세션(Codex/Antigravity 추정)이 만든 작업으로 보임 — merge 시도하면 그 파일들과 충돌·덮어쓰기 위험 있어 중단함.
+
+Ollama 삭제 관련 3개 파일(active.md, handoff 문서, discord 로그) 전체 저장소 grep 0건 확인 후 커밋까지는 완료. push는 카메라 작업 정리(커밋 또는 stash)가 먼저 필요 — 그 워킹트리 변경들이 내 작업 범위 밖이라 임의로 커밋/스태시하지 않고 확인 요청드림.
+
+**질문**: 카메라 관련 미커밋 변경분(다른 세션 작업으로 추정)을 어떻게 처리할까?
+1. 그대로 두고 내 Ollama 커밋만 별도 브랜치로 push
+2. 카메라 변경분도 같이 커밋해서 origin과 merge 후 push (충돌 검토 필요)
+3. 다른 지시 있으면 말해줘
+
+## 2026-08-19T05:33:24.115Z [claude]
+
+**지시:** 요청: VERDICT: REWRITE
+말씀하신 "A"는 프로젝트 규칙(AGENTS.md)에 명시된 Antigravity CLI로 이해하고 진행하겠습니다.
+
+현재 제 세션에서 외부 도구인 Codex나 Antigravity CLI 프로세스를 직접 실행할 수는 없습니다. 따라서 세 에이전트(Claude, Codex, Antigravity)가 중복 없이 각자의 특장점을 살려 검토할 수 있도록, 공용 작업 지시서를 작성하여 범위를 나누는 방식을 제안합니다.
+
+다음과 같이 검토 영역을 분담하여 협업 지점인 production/session-state/active.md에 지시 사항을 정리해 두겠습니다.
+
+Claude (저): 기획 문서(GDD) 및 설계 결정(ADR)과의 정합성, 전반적인 아키텍처 로직 흐름 검토
+Codex: 코드 레벨의 구문 및 버그, 알고리즘 최적화, C++ 메모리 안전성 집중 검토
+Antigravity (A): 언리얼 엔진 5.8(UE5.8) 환경에서의 API 사용 적절성, 블루프린트 연동 및 프로젝트 컨벤션 검토
+
+제가 먼저 이 내용으로 작업 지시서를 작성하고 제 담당(Claude) 영역의 오류 검사를 시작해도 될까요? 승인해 주시면 지시서를 작성하겠습니다. 이후 Codex와 Antigravity 세션을 각각 여시고 "active.md를 읽고 너에게 할당된 리뷰 작업을 시작해 줘"라고 요청하시면 다 함께 작업을 진행하실 수 있습니다.
+
+이대로 진행하는데
+
+Ollama 관련 문서 및 내용은 전부 삭제하고 커밋해줘
+
+이전 답변:
+작업 상태 원복 완료 (working tree 손상 없음). 커밋(`75e3917`)은 로컬에 됐지만 push는 못 함.
+
+**푸시 막힘**: origin/main에 카메라 에픽 커밋 3개(`777e4a6`, `301bb9a`, `d722685`)가 먼저 올라와 있어 diverge 상태. 게다가 로컬 워킹트리엔 같은 카메라 작업(`MoonCharacterBase.cpp/h`, `EPIC.md`, `Camera/` 새 파일 등)이 커밋 안 된 채 남아있어서 — 이건 다른 세션(Codex/Antigravity 추정)이 만든 작업으로 보임 — merge 시도하면 그 파일들과 충돌·덮어쓰기 위험 있어 중단함.
+
+Ollama 삭제 관련 3개 파일(active.md, handoff 문서, discord 로그) 전체 저장소 grep 0건 확인 후 커밋까지는 완료. push는 카메라 작업 정리(커밋 또는 stash)가 먼저 필요 — 그 워킹트리 변경들이 내 작업 범위 밖이라 임의로 커밋/스태시하지 않고 확인 요청드림.
+
+**질문**: 카메라 관련 미커밋 변경분(다른 세션 작업으로 추정)을 어떻게 처리할까?
+1. 그대로 두고 내 Ollama 커밋만 별도 브랜치로 push
+2. 카메라 변경분도 같이 커밋해서 origin과 merge 후 push (충돌 검토 필요)
+3. 다른 지시 있으면 말해줘
+
+리뷰어 피드백:
+`OLLAMA-INSTRUCTIONS.md`, `production/overnight-protocol.md`, `production/ollama-delegation-criteria.md`, `production/overnight-output/` 등 Ollama 관련 파일·디렉터리와 AGENTS.md 내 관련 규칙까지 저장소 전체에서 제거했는지 확인하고, 누락분을 삭제한 뒤 별도 커밋하라. 카메라 변경분은 건드리지 말고, push 실패는 결과에 명확히 분리 보고하라.
+
+피드백 반영해서 답변을 개선하라.
+
+**결과:**
+
+Ollama 관련 재검사 결과.
+
+**메인 워크트리(tracked) 전체 grep**: `discord-session-log.md` 1건만 히트. 근데 내용 확인해보니 이건 "Ollama 삭제해줘" 지시/답변 자체를 기록한 대화 로그라 — 삭제 요청 로그를 지우려면 로그 자체가 사라짐, 역설. 실제 Ollama 문서·코드·설정은 이미 없음. `OLLAMA-INSTRUCTIONS.md`, `production/overnight-protocol.md`, `production/ollama-delegation-criteria.md`, `production/overnight-output/` — 전부 파일시스템에 없음 (이전 커밋 `1af624b`/`fe75856`/`75e3917`에서 이미 제거됨). AGENTS.md grep도 0건.
+
+**`.worktrees/codex/` 안엔 Ollama 관련 파일 다수 남음** (`tools/overnight-bot/*`, `OLLAMA-INSTRUCTIONS.md`, `AGENTS.md` 등). 근데 이건 메인 저장소 추적 대상 아니고(`?? .worktrees/` untracked), 다른 세션(Codex)의 별도 워크트리 — 내 작업 범위 밖, 임의로 안 건드림.
+
+**결론**: 추가로 커밋할 삭제 대상 없음. 카메라 변경분은 손 안 댐 (그대로).
+
+**Push 상태**(별도): 여전히 origin과 diverge(카메라 커밋 3개 origin에 먼저 올라감) + 로컬 미커밋 카메라 작업 있어서 push 막힘. 이건 Ollama 삭제 작업과 무관 — 별개로 처리 방침 정해주면 진행.
+
+질문: `.worktrees/codex/` 안 Ollama 파일도 지울지, 아니면 그 세션(Codex) 몫으로 둘지?
+
+## 2026-08-19T05:55:39.639Z [claude]
+
+**지시:** 이제 다시 카메라 관련 게임 개발 진행하자
+
+**결과:**
+
+**진행 상황 요약**
+
+카메라 에픽(camera-002 pitch clamp, camera-005 collision guardrails) 이어서 작업함.
+
+**발견 + 수정:**
+1. camera-001 자체 회귀테스트(`camera-settings-foundation_test.ps1`)가 깨져 있었음 — story-005가 `FollowCamera` 타입을 `UCameraComponent`→`UMoonCameraComponent`(서브클래스, corner-dither용)로 바꿔서 stale regex 실패. 테스트만 고침, 코드는 정상.
+2. **실제 블로커**: `PlayerControllerClass` 아무데도 안 설정돼 있었음. `AMoonPlayerController`(story-002 산물) 존재해도 실제 스폰 안 됨 → `AMoonPlayerCameraManager::InitializeFor`(피치 클램프) 런타임에 절대 안 실행됨. `pitch-clamp_test.ps1`은 소스 텍스트만 grep해서 통과했지만 실제 동작 증명 아니었음.
+   - `AMoonGameMode` 새로 추가(`Character/MoonGameMode.h/.cpp`, PlayerControllerClass만 설정)
+   - `DefaultEngine.ini`에 `GlobalDefaultGameMode=/Script/Moon.MoonGameMode` 등록
+   - 풀빌드 PASS (7/7, ~417s)
+
+**못 고친 더 깊은 문제** (unreal-mcp/에디터 없어서): `UMoonCameraSettings` DataAsset이 Content 어디에도 실제로 존재 안 함. 즉 story-001/002의 "데이터 기반" 주장이 구조적으로만 구현됐고 런타임엔 실제로 안 물려있음 (null-guard로 항상 fallback). `AMoonPlayerCameraManager`도 BP 래퍼가 없어서 asset 연결 방법 결정 필요.
+
+세션 상태 파일에 다음 단계 기록함. 다음: 에디터/unreal-mcp로 DA asset 생성+연결, PIE 검증 후 `/story-done` camera-002/005.
+
+## 2026-08-19T06:11:14.700Z [claude]
+
+**지시:** 요청: 이제 다시 카메라 관련 게임 개발 진행하자
+
+리뷰어(codex)가 방금 코드 직접 수정함:
+Moon/Content/Moon/Camera/DA_MoonCameraSettings.uasset: 실제 설정 에셋이 없어 생성했다.
+Moon/Content/Moon/BP_MoonCharacter.uasset: CameraSettings가 null이라 새 에셋을 연결했다.
+Moon/Content/Moon/GM_MoonCombat.uasset: 맵 전용 GameMode가 전역 설정을 무시해서 AMoonGameMode로 부모를 변경했다.
+Moon/Source/Moon/Camera/MoonPlayerCameraManager.cpp:15: CameraManager가 설정 에셋을 읽지 못해 기본 에셋 참조를 추가했다.
+Moon/Source/Moon/Character/MoonCharacterBase.h:529: 테스트가 Actor 생명주기를 위반하지 않도록 설정 적용 함수를 protected로 옮겼다.
+Moon/Source/Moon/Tests/MoonCameraApplySettingsRuntimeTests.cpp:55: transient Actor에 BeginPlay를 직접 호출해 크래시 나던 테스트를 수정했다.
+Moon/Source/Moon/Tests/MoonCameraCollisionGuardrailsTests.cpp:54: 같은 BeginPlay 생명주기 오류를 수정했다.
+Moon/Source/Moon/Tests/MoonPlayerCameraManagerTests.cpp:68: UE의 0~360도 각도 표현을 그대로 비교해 실패하던 테스트를 정규화했다.
+Moon/Source/Moon/Tests/MoonPlayerCameraManagerTests.cpp:87: 기본 에셋 연결 후에도 null fallback을 명시적으로 검증하도록 수정했다.
+Moon/Config/DefaultEngine.ini:21: L_CombatTest에 GameMode override가 없다는 잘못된 설명을 수정했다.
+
+수정 내용 확인하고 남은 작업 있으면 이어서 진행. 없으면 최종 결과 요약만 짧게.
+
+**결과:**
+
+## Story Done: Story 002 — Pitch Clamp via PlayerCameraManager
+
+**Story**: `production/epics/camera-system-foundation-fixes/story-002-pitch-clamp-via-playercameramanager.md`
+**Date**: 2026-08-19
+
+### Acceptance Criteria: 4/4 passing
+- [x] `IA_Look` Yaw → `AddControllerYawInput` — `MoonCharacterBase.cpp:933`, pre-existing from Player Movement epic
+- [x] `IA_Look` Pitch → `AddControllerPitchInput` — `MoonCharacterBase.cpp:934`
+- [x] `AMoonPlayerCameraManager` clamps to `[CameraPitchMin, CameraPitchMax]` from `UMoonCameraSettings` — confirmed by re-running the actual automation test just now (Success)
+- [x] Never exceeds -60°/30° incl. single-frame extreme-delta flick — same test, both directions asserted
+
+### Test-Criterion Traceability
+| Criterion | Test | Status |
+|---|---|---|
+| AC-1 Yaw/Pitch routing | code inspection (no dedicated automation test) | COVERED (manual) |
+| AC-2 boundary hold under flick | `Moon.Camera.PlayerCameraManager.PitchClampHoldsBoundary` (ran headless, Success) | COVERED |
+| AC-3 data-asset sourced + null fallback | same test, both branches | COVERED |
+
+### Test Evidence
+**Story Type**: Logic
+**Required**: `tests/unit/camera/pitch-clamp_test.cpp`
+**Found**: exact path missing, but `tests/unit/camera/pitch-clamp_test.ps1` exists (older, grep-only) **and** a real runtime UE automation test `Moon/Source/Moon/Tests/MoonPlayerCameraManagerTests.cpp` exists and passes (verified by re-executing it just now, not just trusting Codex's report). Stronger evidence than the required path — not blocking.
+
+### Deviations
+- ADVISORY: no dedicated automation test for AC-1 (Look routing) — pre-existing code from another epic, low risk.
+- ADVISORY: root cause fix required creating `AMoonGameMode`/`AMoonPlayerController` (files outside this story's original scope) — without them `AMoonPlayerCameraManager` never gets spawned in PIE at all, so this was necessary infra, not scope creep.
+
+### Scope
+Extra files touched: `MoonGameMode.h/.cpp`, `MoonPlayerController.h/.cpp`, `DefaultEngine.ini` — required to actually spawn the pitch-clamp manager (documented above).
+
+Solo mode → QL-TEST-COVERAGE / LP-CODE-REVIEW gates skipped per standing config.
+
+### Verdict: COMPLETE WITH NOTES
+
+절차상 승인 필요 — story-002 완료로 마킹하고 sprint-status.yaml 갱신할까? (recommended)

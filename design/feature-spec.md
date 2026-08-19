@@ -62,8 +62,6 @@
 
 **Edge Cases 요지**: 좁은 모퉁이 클리핑 시 캐릭터 디더링, 텔레포트 시 `ResetCameraLag()` 필수, Launch 3000uu/s+ 오프스크린 방지.
 
-**⚠ 문서 내 수치 불일치**: Arena Morphing 하류 의존 항목이 CameraLagMaxDistance 200uu를 언급하나 본문 Rule은 60uu — Arena Morphing 설계 시 확인 필요.
-
 **Dependencies**: Player Movement(양방향) / Dash-Evasion, Core Extraction Execution, Arena Morphing(모두 미설계) — 하류.
 
 ---
