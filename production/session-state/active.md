@@ -1038,3 +1038,22 @@ from "**This IS the exact resume point**" above.
 - Story 005 AC-4 now closed 4/4 AC, evidence-only per the AC's own edge case (no pass/fail threshold, no minimum hardware finalized). Commits: `194e625` (partial/stability), then this pass's story+evidence-doc update (numbers added, AC-4 flipped to closed).
 - **Player Movement Foundation Fixes epic (Stories 001-005) is now fully closed, all AC passing** (Story 004's AC-4 was advisory-pass, Story 005's AC-4 is evidence-only-pass — neither is a hard perf/feel gate, both closed per their own stated advisory/evidence-only nature). Production gate is the next real checkpoint — still FAIL/Pre-Production per `2026-08-12-preprod-to-production.md`; re-run `/gate-check` if attempting Production again.
 - **Reusable capability discovered**: this session now knows unreal-mcp is reachable via raw HTTP when the editor is running, and exactly what it can/can't do (spawn actors, start/stop PIE, read logs, screenshot viewport — but NOT read performance stats or execute console commands). Future PIE-dependent work in this project can use this same raw-HTTP approach instead of assuming "no MCP tool = nothing automatable."
+
+## Session Extract — Camera `/create-stories` 사실 재검증 및 생성 2026-08-19
+- 작업 시작 시 실제 파일 시스템과 `git ls-files`를 재검증했다. 당시
+  `production/epics/camera-system-foundation-fixes/`에는 `EPIC.md`만 있었고 카메라
+  `story-001~009` 및 `production/sprint-status.yaml`은 존재하지 않았다.
+- 추적 문서 전체를 검색한 결과, 이 파일들이 이미 존재하거나 구현됐다고 선행 단정한
+  허위 문구는 없었다. `EPIC.md`, `production/epics/index.md`, 최신 gate-check가 모두
+  Camera stories 미생성 상태와 `/create-stories camera-system-foundation-fixes` 필요성을
+  일관되게 기록하고 있었다.
+- `/create-stories` 선행조건을 다시 확인했다: Camera GDD는 Approved, ADR-0005는 Accepted,
+  `TR-cam-001~009`와 control manifest가 존재하며, 선행 Player Movement Story 001은 Complete다.
+  따라서 `/create-stories`는 필요하고 실행 가능한 상태로 판정했다.
+- Camera epic을 9개 Ready story로 분해했다: data asset/component hierarchy, look/pitch clamp,
+  camera-relative movement regression, 60uu lag hard limit, collision/debris/dither, Overdrive FOV,
+  execution blend/look suppression, teleport/checkpoint lag reset, camera-shake budget/deduplication.
+  `EPIC.md`와 `production/epics/index.md`도 실제 생성 상태인 `9 stories`로 갱신했다.
+- `production/sprint-status.yaml`은 만들지 않았다. 이는 `/create-stories` 산출물이 아니며,
+  이후 `/sprint-plan` 단계에서 생성·관리해야 한다.
+- 다음 단계: `/story-readiness production/epics/camera-system-foundation-fixes/story-001-camera-settings-and-component-hierarchy.md`.
