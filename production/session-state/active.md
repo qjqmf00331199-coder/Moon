@@ -1057,3 +1057,16 @@ from "**This IS the exact resume point**" above.
 - `production/sprint-status.yaml`은 만들지 않았다. 이는 `/create-stories` 산출물이 아니며,
   이후 `/sprint-plan` 단계에서 생성·관리해야 한다.
 - 다음 단계: `/story-readiness production/epics/camera-system-foundation-fixes/story-001-camera-settings-and-component-hierarchy.md`.
+
+## Session Extract — Camera Story 001 readiness 보완 2026-08-19
+- `story-readiness` 재검토에서 지적된 두 항목을 Story 001에 보완했다. AC-2는 Camera GDD
+  Tuning Knobs 표와 ADR-0005 Decision 2에 실제 열거된 11개 필드의 이름, 기본값, 안전 범위를
+  자체 포함한다. ADR-0005의 "12개" 표현은 실제 11개 열거와 맞지 않는 산술 오류로 확인했다.
+- `CameraSocketOffset.X`는 GDD에 안전 범위가 없으므로 새 범위를 추측하지 않고 기본값 `0.0`
+  유지로 명시했다.
+- 성능 영향은 `BeginPlay` 1회 Data Asset 읽기/적용이며 새 Tick, 반복 조회, 반복 할당이 없고
+  단일 소형 Data Asset 참조만 추가된다고 명시했다.
+- 전체 체크 결과 `READY` (20/20). Camera GDD Approved, ADR-0005 Accepted, TR-cam-001/009
+  active, Manifest Version 2026-07-27, 선행 Player Movement Story 001 Complete를 재확인했다.
+  Review mode는 Solo이므로 QL-STORY-READY를 생략했다.
+- 다음 단계: `/dev-story production/epics/camera-system-foundation-fixes/story-001-camera-settings-and-component-hierarchy.md`.

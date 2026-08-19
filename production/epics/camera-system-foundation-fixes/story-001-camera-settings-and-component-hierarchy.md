@@ -31,7 +31,21 @@
 *From GDD `design/gdd/camera-system-base.md`, scoped to this story:*
 
 - [ ] The player camera hierarchy is Capsule Root -> `USpringArmComponent` -> `UCameraComponent`, with the boom pivot at torso height (`Z = 60.0uu`).
-- [ ] A `UMoonCameraSettings` data asset exposes all camera tuning knobs named by the GDD, including arm length, socket offset, pitch bounds, lag values, FOV values, execution arm length, and probe size.
+- [ ] A `UMoonCameraSettings` data asset exposes the following 11 fields actually enumerated by the GDD tuning table and ADR-0005 Decision 2, with these defaults and safe ranges:
+
+  | Field | Default | Safe Range |
+  |---|---:|---:|
+  | `TargetArmLength` | `450.0 uu` | `250.0 <= value <= 500.0 uu` |
+  | `CameraSocketOffset` | `(X=0.0, Y=45.0, Z=20.0)` | `-50.0 <= Y <= 50.0`, `-30.0 <= Z <= 50.0`; X remains at the `0.0` default because the GDD defines no X safe range |
+  | `CameraPitchMin` | `-60.0 deg` | `-80.0 <= value <= -45.0 deg` |
+  | `CameraPitchMax` | `30.0 deg` | `15.0 <= value <= 45.0 deg` |
+  | `CameraLagSpeed` | `18.0` | `5.0 <= value <= 20.0` |
+  | `CameraRotationLagSpeed` | `15.0` | `8.0 <= value <= 25.0` |
+  | `CameraLagMaxDistance` | `60.0 uu` | `40.0 <= value <= 120.0 uu` |
+  | `BaseFOV` | `90.0 deg` | `80.0 <= value <= 100.0 deg` |
+  | `OverdriveFOV` | `100.0 deg` | `95.0 <= value <= 110.0 deg` |
+  | `ExecutionArmLength` | `150.0 uu` | `100.0 <= value <= 250.0 uu` |
+  | `CameraProbeSize` | `12.0 uu` | `5.0 <= value <= 25.0 uu` |
 - [ ] At runtime, the character applies the assigned settings asset in `BeginPlay`; the current tuned defaults (`TargetArmLength=450`, `SocketOffset=(0,45,20)`, `CameraLagSpeed=18`, `CameraLagMaxDistance=60`) are preserved.
 - [ ] A missing or invalid settings asset produces an explicit diagnostic and uses documented safe fallbacks without crashing.
 
@@ -43,6 +57,8 @@
 - Keep `CameraBoom` and `FollowCamera` owned by `AMoonCharacterBase`; do not migrate to GameplayCameras.
 - Apply the data asset once during runtime initialization. Constructor values may support CDO/editor preview but must not silently override a valid asset.
 - Preserve existing tuned values; do not reset the shoulder view to Formula 5's stale historical `350uu/(0,0,0)` recovery values. GDD QA-TEST-09 and ADR-0005 establish `450uu/(0,45,20)` as the runtime base view.
+
+**Performance Impact**: No performance impact is expected. `UMoonCameraSettings` is read once in `BeginPlay` and applied to the existing camera components. This story adds no new `Tick`, repeated lookup, or repeated allocation; memory and load impact are limited to one small Data Asset reference.
 
 ---
 
