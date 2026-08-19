@@ -33,7 +33,7 @@ AMoonCharacterBase::AMoonCharacterBase()
 	// still replace or clear CameraSettings on a subclass to exercise the documented override and
 	// fallback paths.
 	static ConstructorHelpers::FObjectFinder<UMoonCameraSettings> DefaultCameraSettings(
-		TEXT("/Game/Moon/Camera/DA_CameraSettings.DA_CameraSettings"));
+		TEXT("/Game/Moon/Camera/DA_MoonCameraSettings.DA_MoonCameraSettings"));
 	if (DefaultCameraSettings.Succeeded())
 	{
 		CameraSettings = DefaultCameraSettings.Object;
@@ -88,6 +88,10 @@ AMoonCharacterBase::AMoonCharacterBase()
 
 	FollowCamera = CreateDefaultSubobject<UMoonCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	// USpringArmComponent updates its collision-resolved socket in TG_PostPhysics. Keep the
+	// dither/near-clip consumer in the same group and explicitly order it after the boom so it never
+	// reads the previous frame's socket transform during a sudden collision retract.
+	FollowCamera->AddTickPrerequisiteComponent(CameraBoom);
 	FollowCamera->bUsePawnControlRotation = false;
 	FollowCamera->SetFieldOfView(90.0f);
 
@@ -143,8 +147,6 @@ void AMoonCharacterBase::Tick(float DeltaTime)
 	UpdateResourceRegen(DeltaTime, CurrentWorldTime);
 	UpdateJumpFeelGravity();
 	UpdateJumpAnimState(DeltaTime);
-	UpdateCameraCornerDither(DeltaTime);
-
 	// Basic locomotion: swap the single-node playing animation between idle and jog by speed.
 	// No AnimBlueprint/blendspace yet, so this is a hard switch rather than a blend.
 	// Suppressed while a one-shot anim (jump start/land, dash, spell cast) controls the mesh.
@@ -303,9 +305,12 @@ void AMoonCharacterBase::UpdateCameraCornerDither(float DeltaTime)
 	// retracts.
 	const float ActualArmLength = FVector::Dist(CameraBoom->GetComponentLocation(), CameraBoom->GetSocketLocation(USpringArmComponent::SocketName));
 
-	const float Threshold = CameraSettings ? CameraSettings->CornerDitherThreshold : 80.0f;
-	const float FadeSpeed = CameraSettings ? CameraSettings->CornerDitherFadeSpeed : 8.0f;
-	const float NearClipPlane = CameraSettings ? CameraSettings->CameraNearClipPlane : 10.0f;
+	const UMoonCameraSettings* EffectiveSettings = IsValid(AppliedCameraSettings)
+		? AppliedCameraSettings.Get()
+		: GetDefault<UMoonCameraSettings>();
+	const float Threshold = EffectiveSettings->CornerDitherThreshold;
+	const float FadeSpeed = EffectiveSettings->CornerDitherFadeSpeed;
+	const float NearClipPlane = EffectiveSettings->CameraNearClipPlane;
 
 	const float TargetAlpha = ComputeCornerDitherTargetAlpha(ActualArmLength, Threshold);
 	CurrentDitherAlpha = FMath::FInterpTo(CurrentDitherAlpha, TargetAlpha, DeltaTime, FadeSpeed);
@@ -670,18 +675,19 @@ void AMoonCharacterBase::ApplyCameraSettings()
 	// Invalid/unassigned/out-of-range assets fall back to UMoonCameraSettings' documented safe
 	// defaults (IsWithinSafeRanges()) rather than leaving CameraBoom/FollowCamera on stale
 	// constructor literals — see UMoonCameraSettings.h.
-	const UMoonCameraSettings* EffectiveSettings = CameraSettings;
+	UMoonCameraSettings* EffectiveSettings = CameraSettings;
 	FString FailureReason;
 	if (!IsValid(EffectiveSettings))
 	{
-		UE_LOG(LogTemp, Error, TEXT("[MoonCamera] %s has no valid CameraSettings asset assigned. Applying UMoonCameraSettings safe defaults; assign DA_CameraSettings on the character class defaults."), *GetNameSafe(this));
-		EffectiveSettings = GetDefault<UMoonCameraSettings>();
+		UE_LOG(LogTemp, Error, TEXT("[MoonCamera] %s has no valid CameraSettings asset assigned. Applying UMoonCameraSettings safe defaults; assign DA_MoonCameraSettings on the character class defaults."), *GetNameSafe(this));
+		EffectiveSettings = GetMutableDefault<UMoonCameraSettings>();
 	}
 	else if (!EffectiveSettings->IsWithinSafeRanges(FailureReason))
 	{
 		UE_LOG(LogTemp, Error, TEXT("[MoonCamera] %s rejected CameraSettings asset '%s': %s Applying UMoonCameraSettings safe defaults."), *GetNameSafe(this), *GetNameSafe(EffectiveSettings), *FailureReason);
-		EffectiveSettings = GetDefault<UMoonCameraSettings>();
+		EffectiveSettings = GetMutableDefault<UMoonCameraSettings>();
 	}
+	AppliedCameraSettings = EffectiveSettings;
 
 	// Reassert the non-tunable hierarchy/rotation/collision contract at runtime as well as in the
 	// native constructor. This prevents stale Blueprint component-template values from preserving
@@ -963,7 +969,11 @@ void AMoonCharacterBase::SetMovementLocked(bool bLocked)
 
 void AMoonCharacterBase::Look(const FInputActionValue& Value)
 {
-	FVector2D LookAxisVector = Value.Get<FVector2D>();
+	const FVector2D LookAxisVector = Value.Get<FVector2D>();
+	if (LookAxisVector.IsNearlyZero())
+	{
+		return;
+	}
 
 	if (Controller != nullptr)
 	{

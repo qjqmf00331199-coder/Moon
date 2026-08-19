@@ -72,8 +72,12 @@ bool FMoonCameraAppliesAtRuntimeTest::RunTest(const FString& Parameters)
 			return false;
 		}
 
+		// The native constructor assigns the production asset. Clear it explicitly so this case
+		// actually exercises the missing-asset fallback rather than the asset's matching default.
+		Character->CameraSettings = nullptr;
 		TestNull(TEXT("CameraSettings starts unassigned"), Character->CameraSettings.Get());
 
+		AddExpectedError(TEXT("has no valid CameraSettings asset assigned"), EAutomationExpectedErrorFlags::Contains, 1);
 		Character->ApplyCameraSettings();
 
 		TestNotNull(TEXT("CameraBoom exists after applying settings"), Character->CameraBoom.Get());

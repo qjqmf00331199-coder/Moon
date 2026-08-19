@@ -33,17 +33,25 @@ void AMoonPlayerCameraManager::InitializeFor(APlayerController* PC)
 
 void AMoonPlayerCameraManager::ApplyPitchClamp()
 {
-	// Null-asset guard (AC-3 edge case) — must not crash with no asset assigned, falls back to the
-	// constructor's safe literal default set above.
-	if (!CameraSettings)
+	// Use the same validation contract as AMoonCharacterBase. Otherwise one invalid shared asset
+	// could be rejected by the character while this manager still applied its out-of-range pitch.
+	const UMoonCameraSettings* EffectiveSettings = CameraSettings;
+	FString FailureReason;
+	if (!IsValid(EffectiveSettings))
 	{
-		return;
+		EffectiveSettings = GetDefault<UMoonCameraSettings>();
+	}
+	else if (!EffectiveSettings->IsWithinSafeRanges(FailureReason))
+	{
+		UE_LOG(LogTemp, Error, TEXT("[MoonCamera] %s rejected CameraSettings asset '%s': %s Applying UMoonCameraSettings safe pitch defaults."),
+			*GetNameSafe(this), *GetNameSafe(EffectiveSettings), *FailureReason);
+		EffectiveSettings = GetDefault<UMoonCameraSettings>();
 	}
 
 	// Direct assignment per GDD Formula 4: theta_final = Clamp(theta_pitch, CameraPitchMin,
 	// CameraPitchMax). ViewPitchMin/ViewPitchMax are the exact engine-side bounds APlayerController's
 	// per-tick rotation update (LimitViewPitch) clamps against, including a single large-delta frame
 	// — the engine clamps unconditionally every tick, so no extra overshoot guard is needed here.
-	ViewPitchMin = CameraSettings->CameraPitchMin;
-	ViewPitchMax = CameraSettings->CameraPitchMax;
+	ViewPitchMin = EffectiveSettings->CameraPitchMin;
+	ViewPitchMax = EffectiveSettings->CameraPitchMax;
 }

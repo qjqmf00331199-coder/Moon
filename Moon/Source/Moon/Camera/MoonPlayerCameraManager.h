@@ -27,7 +27,7 @@ public:
 	AMoonPlayerCameraManager();
 
 	// Camera tuning source (ADR-0005 Key Interfaces: "it reads UMoonCameraSettings"). Assign the
-	// same DA_CameraSettings asset here as on AMoonCharacterBase — Story 001 and this story each
+	// same DA_MoonCameraSettings asset here as on AMoonCharacterBase — Story 001 and this story each
 	// read the asset independently, there is no shared-reference plumbing between them.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera")
 	TObjectPtr<UMoonCameraSettings> CameraSettings;

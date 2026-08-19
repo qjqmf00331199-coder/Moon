@@ -8,6 +8,8 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
 $settingsHeaderPath = Join-Path $repoRoot "Moon/Source/Moon/Camera/MoonCameraSettings.h"
 $settingsCppPath = Join-Path $repoRoot "Moon/Source/Moon/Camera/MoonCameraSettings.cpp"
+$cameraComponentHeaderPath = Join-Path $repoRoot "Moon/Source/Moon/Camera/MoonCameraComponent.h"
+$cameraComponentCppPath = Join-Path $repoRoot "Moon/Source/Moon/Camera/MoonCameraComponent.cpp"
 $characterHeaderPath = Join-Path $repoRoot "Moon/Source/Moon/Character/MoonCharacterBase.h"
 $characterCppPath = Join-Path $repoRoot "Moon/Source/Moon/Character/MoonCharacterBase.cpp"
 
@@ -37,12 +39,14 @@ function Get-FunctionBody {
     throw "Could not find closing brace for function: $SignaturePattern"
 }
 
-foreach ($requiredPath in @($settingsHeaderPath, $settingsCppPath, $characterHeaderPath, $characterCppPath)) {
+foreach ($requiredPath in @($settingsHeaderPath, $settingsCppPath, $cameraComponentHeaderPath, $cameraComponentCppPath, $characterHeaderPath, $characterCppPath)) {
     if (-not (Test-Path -LiteralPath $requiredPath)) { throw "Required file missing: $requiredPath" }
 }
 
 $settingsHeader = Get-Content -LiteralPath $settingsHeaderPath -Raw
 $settingsCpp = Get-Content -LiteralPath $settingsCppPath -Raw
+$cameraComponentHeader = Get-Content -LiteralPath $cameraComponentHeaderPath -Raw
+$cameraComponentCpp = Get-Content -LiteralPath $cameraComponentCppPath -Raw
 $characterHeader = Get-Content -LiteralPath $characterHeaderPath -Raw
 $characterCpp = Get-Content -LiteralPath $characterCppPath -Raw
 
@@ -98,7 +102,7 @@ function test_begin_play_applies_valid_settings_once {
     $apply = Get-FunctionBody $characterCpp "void\s+AMoonCharacterBase::ApplyCameraSettings\s*\("
 
     Assert-Matches $characterHeader 'TObjectPtr<UMoonCameraSettings>\s+CameraSettings\s*;' "Character must expose an asset reference to UMoonCameraSettings."
-	Assert-Matches $constructor '/Game/Moon/Camera/DA_CameraSettings\.DA_CameraSettings' "The native character must assign the production camera DataAsset by default."
+	Assert-Matches $constructor '/Game/Moon/Camera/DA_MoonCameraSettings\.DA_MoonCameraSettings' "The native character must assign the shared production camera DataAsset by default."
 	Assert-Matches $constructor 'CameraSettings\s*=\s*DefaultCameraSettings\.Object' "The loaded production camera DataAsset must become the character default reference."
     Assert-Matches $beginPlay 'ApplyCameraSettings\s*\(\s*\)\s*;' "BeginPlay must apply the camera DataAsset."
     Assert-NotMatches $tick 'ApplyCameraSettings\s*\(' "Camera settings must not be reapplied every Tick."
@@ -120,22 +124,43 @@ function test_missing_or_invalid_asset_logs_and_uses_safe_defaults {
     $apply = Get-FunctionBody $characterCpp "void\s+AMoonCharacterBase::ApplyCameraSettings\s*\("
     Assert-Matches $apply '!IsValid\(EffectiveSettings\)' "Missing/stale CameraSettings assets must be detected."
     Assert-Matches $apply 'IsWithinSafeRanges\(FailureReason\)' "Out-of-range CameraSettings assets must be rejected."
-    Assert-Matches $apply 'UE_LOG\(LogTemp,\s*Error[\s\S]*DA_CameraSettings' "Missing asset diagnostics must be actionable."
+    Assert-Matches $apply 'UE_LOG\(LogTemp,\s*Error[\s\S]*DA_MoonCameraSettings' "Missing asset diagnostics must be actionable."
     Assert-Matches $apply 'UE_LOG\(LogTemp,\s*Error[\s\S]*rejected CameraSettings asset' "Invalid asset diagnostics must identify the rejected asset."
-    if ([regex]::Matches($apply, 'GetDefault<UMoonCameraSettings>\(\)').Count -lt 2) {
+    if ([regex]::Matches($apply, 'Get(?:Mutable)?Default<UMoonCameraSettings>\(\)').Count -lt 2) {
         throw "Both missing and invalid asset paths must use UMoonCameraSettings safe defaults."
     }
 }
 
 function test_story_does_not_add_out_of_scope_camera_behaviour {
     Assert-NotMatches $characterCpp 'SetOverdriveFOVActive|BeginExecutionCameraBlend|EndExecutionCameraBlend' "Story 001 must not add dynamic FOV or execution blend behavior."
-    Assert-NotMatches $characterCpp 'ViewPitchMin|ViewPitchMax|PlayerCameraManager' "Story 001 must not implement Story 002 pitch clamp behavior."
+    Assert-NotMatches $characterCpp 'ViewPitchMin|ViewPitchMax' "Character code must not own the PlayerCameraManager pitch clamp."
+}
+
+function test_per_frame_camera_reads_validated_settings {
+    $tickUpdate = Get-FunctionBody $characterCpp "void\s+AMoonCharacterBase::UpdateCameraCornerDither\s*\("
+    $apply = Get-FunctionBody $characterCpp "void\s+AMoonCharacterBase::ApplyCameraSettings\s*\("
+    Assert-Matches $characterHeader 'TObjectPtr<UMoonCameraSettings>\s+AppliedCameraSettings\s*;' "Character must retain the validated effective settings."
+    Assert-Matches $apply 'AppliedCameraSettings\s*=\s*EffectiveSettings\s*;' "ApplyCameraSettings must retain the validated asset or safe fallback."
+    Assert-Matches $tickUpdate 'AppliedCameraSettings' "Per-frame camera presentation must use the validated settings."
+    Assert-NotMatches $tickUpdate 'CameraSettings\s*\?' "Per-frame camera presentation must not read a rejected source asset."
+}
+
+function test_corner_dither_runs_after_spring_arm_collision_update {
+    $actorTick = Get-FunctionBody $characterCpp "void\s+AMoonCharacterBase::Tick\s*\("
+    $componentConstructor = Get-FunctionBody $cameraComponentCpp "UMoonCameraComponent::UMoonCameraComponent\s*\("
+    $componentTick = Get-FunctionBody $cameraComponentCpp "void\s+UMoonCameraComponent::TickComponent\s*\("
+    Assert-NotMatches $actorTick 'UpdateCameraCornerDither\s*\(' "Character's pre-physics Tick must not read SpringArm's previous-frame socket transform."
+    Assert-Matches $componentConstructor 'PrimaryComponentTick\.TickGroup\s*=\s*TG_PostPhysics' "Corner dither must run in the SpringArm's post-physics tick group."
+    Assert-Matches $characterCpp 'FollowCamera->AddTickPrerequisiteComponent\(CameraBoom\)' "Corner dither must run after CameraBoom updates its collision-resolved socket."
+    Assert-Matches $componentTick 'UpdateCameraCornerDither\s*\(DeltaTime\)' "The post-physics camera component tick must drive corner dither."
 }
 
 test_component_hierarchy_and_torso_pivot_are_declared
 test_data_asset_exposes_exact_story_fields_defaults_and_ranges
 test_begin_play_applies_valid_settings_once
 test_missing_or_invalid_asset_logs_and_uses_safe_defaults
+test_per_frame_camera_reads_validated_settings
+test_corner_dither_runs_after_spring_arm_collision_update
 test_story_does_not_add_out_of_scope_camera_behaviour
 
-Write-Host "camera settings and component hierarchy contract checks passed (5 test functions)"
+Write-Host "camera settings and component hierarchy contract checks passed (6 test functions)"

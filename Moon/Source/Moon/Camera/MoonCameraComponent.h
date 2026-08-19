@@ -17,6 +17,8 @@ class MOON_API UMoonCameraComponent : public UCameraComponent
 	GENERATED_BODY()
 
 public:
+	UMoonCameraComponent();
+
 	// <= 0 disables the override (engine falls back to GNearClippingPlane, normal behavior). Set to
 	// a positive value to force that near-clip distance (GDD Edge Case 1: 10.0uu while
 	// corner-dithered).
@@ -24,4 +26,5 @@ public:
 	float NearClipPlaneOverride = -1.0f;
 
 	virtual void GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView) override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 };

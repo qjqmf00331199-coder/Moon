@@ -54,8 +54,21 @@ bool UMoonCameraSettings::IsWithinSafeRanges(FString& OutFailureReason) const
 	{
 		OutFailureReason = TEXT("CameraProbeSize must be within [5, 25].");
 	}
-	// CornerDitherThreshold, CameraNearClipPlane, and CornerDitherFadeSpeed have no GDD-approved
-	// safe range (Story 001 scope covers only the 11 core tuning knobs above); not validated here.
+	// These Story 005 fields have no GDD-approved upper tuning ranges, so do not invent any. They
+	// still have runtime invariants: non-finite/non-positive values disable the required dither or
+	// produce an invalid near clip, and FadeSpeed already declares 0.5 as its editor clamp minimum.
+	else if (!FMath::IsFinite(CornerDitherThreshold) || CornerDitherThreshold <= 0.0f)
+	{
+		OutFailureReason = TEXT("CornerDitherThreshold must be finite and greater than 0.");
+	}
+	else if (!FMath::IsFinite(CameraNearClipPlane) || CameraNearClipPlane <= 0.0f)
+	{
+		OutFailureReason = TEXT("CameraNearClipPlane must be finite and greater than 0.");
+	}
+	else if (!FMath::IsFinite(CornerDitherFadeSpeed) || CornerDitherFadeSpeed < 0.5f)
+	{
+		OutFailureReason = TEXT("CornerDitherFadeSpeed must be finite and at least 0.5.");
+	}
 
 	return OutFailureReason.IsEmpty();
 }

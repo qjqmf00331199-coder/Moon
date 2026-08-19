@@ -1,7 +1,7 @@
 # Test Evidence: Camera Settings and Component Hierarchy (Story 001)
 
 > **Epic**: Camera System Foundation Fixes
-> **Story**: `production/epics/camera-system-foundation-fixes/story-001-camera-settings-and-component-hierarchy.md`
+> **Story**: `production/epics/camera-system-foundation-fixes/story-001-camera-hierarchy-and-data-driven-settings-foundation.md`
 > **Requirements**: TR-cam-001, TR-cam-009 / ADR-0005 Decisions 1, 2, and 5
 > **Engine**: Unreal Engine 5.8 (project pin; local header verification described below)
 
@@ -24,7 +24,7 @@
 - Constructor values remain editor/CDO preview and missing-asset safety fallbacks. Once a valid
   asset is assigned, `BeginPlay()` replaces every Story-001-owned runtime camera property from the
   asset, so constructor literals are not the valid runtime source of truth.
-- The native character constructor assigns `/Game/Moon/Camera/DA_CameraSettings` as the production
+- The native character constructor assigns `/Game/Moon/Camera/DA_MoonCameraSettings` as the production
   default reference. Blueprint subclasses may override or clear that reference without making the
   Blueprint binary the canonical owner of the production default.
 
@@ -92,11 +92,11 @@ completed all 6 actions with `Result: Succeeded` in 12.58 seconds.
 
 ## Production Data Asset / PIE status
 
-`DA_CameraSettings` was created through an Unreal Editor asset write after the new reflected C++
+`DA_MoonCameraSettings` was created through an Unreal Editor asset write after the new reflected C++
 class compiled. The native constructor establishes the production default reference without
 rewriting the Blueprint binary. Remaining runtime checks are recorded below:
 
-- [x] `/Game/Moon/Camera/DA_CameraSettings` exists and uses `MoonCameraSettings` as its class.
+- [x] `/Game/Moon/Camera/DA_MoonCameraSettings` exists and uses `MoonCameraSettings` as its class.
 - [x] `AMoonCharacterBase` assigns that asset as the production default; `BP_MoonCharacter`
   inherits the reference without a binary override.
 - [ ] PIE default view confirms 450 arm length, `(0,45,20)` socket offset, lag 18/max 60, FOV 90.
@@ -115,6 +115,6 @@ byte-for-byte from its verified Git LFS object, and the production reference mov
 constructor instead.
 
 A subsequent unattended, save-free editor launch exited successfully. The log contains no failed
-lookup for `DA_CameraSettings`, confirming that the native `FObjectFinder` path resolves the new
+lookup for `DA_MoonCameraSettings`, confirming that the native `FObjectFinder` path resolves the
 asset. It does still report this worktree's already-known missing ignored ParagonAurora packages;
 because no Blueprint was saved during this verification, those references remain intact.

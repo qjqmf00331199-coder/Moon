@@ -112,30 +112,30 @@ function test_beginplay_applies_camera_settings_not_constructor_literal {
     param([string]$Cpp)
 
     $beginPlayBody = Get-FunctionBody $Cpp "void\s+AMoonCharacterBase::BeginPlay\s*\("
-    Assert-Matches $beginPlayBody "ApplyCameraSettings\s*\(\s*\)\s*;" "AC-5: BeginPlay must call ApplyCameraSettings()."
+    Assert-Matches $beginPlayBody "(?m)^\s*ApplyCameraSettings\s*\(\s*\)\s*;" "AC-5: BeginPlay must call ApplyCameraSettings()."
 
     $applyBody = Get-FunctionBody $Cpp "void\s+AMoonCharacterBase::ApplyCameraSettings\s*\("
 
-    # Null-asset guard (AC-4 edge case) must appear before any CameraSettings-> field read.
-    $guardIndex = [regex]::Match($applyBody, "if\s*\(\s*!CameraSettings\s*\)").Index
-    if ($guardIndex -lt 0) {
+    # Null/stale-asset guard (AC-4 edge case) must appear before any effective settings field read.
+    $guardMatch = [regex]::Match($applyBody, "if\s*\(\s*!IsValid\(EffectiveSettings\)\s*\)")
+    if (-not $guardMatch.Success) {
         throw "AC-4 edge case: ApplyCameraSettings must null-guard CameraSettings before use."
     }
-    $firstFieldReadIndex = [regex]::Match($applyBody, "CameraSettings->TargetArmLength").Index
-    if ($firstFieldReadIndex -lt 0) {
+    $firstFieldRead = [regex]::Match($applyBody, "EffectiveSettings->TargetArmLength")
+    if (-not $firstFieldRead.Success) {
         throw "ApplyCameraSettings must read CameraSettings->TargetArmLength."
     }
-    if ($firstFieldReadIndex -lt $guardIndex) {
+    if ($firstFieldRead.Index -lt $guardMatch.Index) {
         throw "AC-4 edge case: CameraSettings fields must not be read before the null guard."
     }
 
     # AC-4/AC-6: the applied value must be sourced from the asset, not a re-stated constructor literal.
-    Assert-Matches $applyBody "CameraBoom->TargetArmLength\s*=\s*CameraSettings->TargetArmLength\s*;" "AC-4/AC-6: TargetArmLength must be assigned from CameraSettings, not a literal."
+    Assert-Matches $applyBody "CameraBoom->TargetArmLength\s*=\s*EffectiveSettings->TargetArmLength\s*;" "AC-4/AC-6: TargetArmLength must be assigned from the validated settings, not a literal."
     Assert-NotMatches $applyBody "CameraBoom->TargetArmLength\s*=\s*450\.0f\s*;" "AC-6: ApplyCameraSettings must not re-read the constructor's literal 450.0f."
-    Assert-Matches $applyBody "CameraBoom->SocketOffset\s*=\s*CameraSettings->CameraSocketOffset\s*;" "ApplyCameraSettings must assign SocketOffset from CameraSettings."
-    Assert-Matches $applyBody "CameraBoom->CameraLagSpeed\s*=\s*CameraSettings->CameraLagSpeed\s*;" "ApplyCameraSettings must assign CameraLagSpeed from CameraSettings."
-    Assert-Matches $applyBody "CameraBoom->CameraLagMaxDistance\s*=\s*CameraSettings->CameraLagMaxDistance\s*;" "ApplyCameraSettings must assign CameraLagMaxDistance from CameraSettings."
-    Assert-Matches $applyBody "FollowCamera->FieldOfView\s*=\s*CameraSettings->BaseFOV\s*;" "ApplyCameraSettings must assign FieldOfView from CameraSettings' BaseFOV."
+    Assert-Matches $applyBody "CameraBoom->SocketOffset\s*=\s*EffectiveSettings->CameraSocketOffset\s*;" "ApplyCameraSettings must assign SocketOffset from the validated settings."
+    Assert-Matches $applyBody "CameraBoom->CameraLagSpeed\s*=\s*EffectiveSettings->CameraLagSpeed\s*;" "ApplyCameraSettings must assign CameraLagSpeed from the validated settings."
+    Assert-Matches $applyBody "CameraBoom->CameraLagMaxDistance\s*=\s*EffectiveSettings->CameraLagMaxDistance\s*;" "ApplyCameraSettings must assign CameraLagMaxDistance from the validated settings."
+    Assert-Matches $applyBody "FollowCamera->SetFieldOfView\(EffectiveSettings->BaseFOV\)\s*;" "ApplyCameraSettings must assign FieldOfView from the validated settings' BaseFOV."
 }
 
 $cpp = Get-Content -LiteralPath $characterCpp -Raw

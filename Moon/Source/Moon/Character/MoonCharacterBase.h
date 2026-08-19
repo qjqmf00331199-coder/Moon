@@ -39,6 +39,7 @@ UCLASS()
 class MOON_API AMoonCharacterBase : public ACharacter, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
+	friend class UMoonCameraComponent;
 
 public:
 	AMoonCharacterBase();
@@ -201,11 +202,17 @@ protected:
 	// above is a CDO-preview fallback only and is never re-read once this asset is applied. If
 	// unset, BeginPlay leaves the constructor literals in place (null-asset guard).
 	//
-	// The native class assigns DA_CameraSettings as the production default. Blueprint subclasses
+	// The native class assigns DA_MoonCameraSettings as the production default. Blueprint subclasses
 	// may override or clear it; an unassigned or invalid reference logs one actionable error and
 	// applies safe defaults.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMoonCameraSettings> CameraSettings;
+
+	// The validated settings selected by ApplyCameraSettings(). Per-frame camera presentation must
+	// read this pointer rather than the original asset so a rejected asset cannot leak values into
+	// the corner-dither path after the rest of the camera has fallen back to safe defaults.
+	UPROPERTY(Transient)
+	TObjectPtr<UMoonCameraSettings> AppliedCameraSettings;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMoonAbilitySystemComponent> AbilitySystemComponent;
@@ -526,8 +533,8 @@ protected:
 	static float ComputeCornerDitherTargetAlpha(float ActualArmLength, float Threshold);
 
 	// Applies CameraSettings' fields to CameraBoom/FollowCamera (ADR-0005 Decision 2 / Story 001
-	// AC-5). Called once from BeginPlay(). No-op (constructor literals stand as the CDO-preview
-	// fallback) if CameraSettings is unset — see the null-asset guard note on the property above.
+	// AC-5). Called once from BeginPlay(). Missing or invalid assets use the settings CDO's safe
+	// defaults — see the null-asset guard note on the property above.
 	// Protected so automation accessors can exercise the application path without violating
 	// AActor's BeginPlay lifecycle invariants on transient test objects.
 	void ApplyCameraSettings();

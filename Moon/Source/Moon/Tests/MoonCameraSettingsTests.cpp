@@ -49,4 +49,35 @@ bool FMoonCameraSettingsDefaultsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FMoonCameraSettingsCornerDitherValidationTest,
+	"Moon.Camera.Settings.RejectsInvalidCornerDitherValues",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FMoonCameraSettingsCornerDitherValidationTest::RunTest(const FString& Parameters)
+{
+	UMoonCameraSettings* Settings = NewObject<UMoonCameraSettings>(GetTransientPackage());
+	TestNotNull(TEXT("UMoonCameraSettings can be constructed for validation"), Settings);
+	if (!Settings)
+	{
+		return false;
+	}
+
+	FString FailureReason;
+	Settings->CornerDitherThreshold = 0.0f;
+	TestFalse(TEXT("A zero dither threshold is rejected"), Settings->IsWithinSafeRanges(FailureReason));
+
+	Settings->CornerDitherThreshold = 80.0f;
+	Settings->CameraNearClipPlane = -1.0f;
+	TestFalse(TEXT("A negative near clip plane is rejected"), Settings->IsWithinSafeRanges(FailureReason));
+
+	Settings->CameraNearClipPlane = 10.0f;
+	Settings->CornerDitherFadeSpeed = 0.0f;
+	TestFalse(TEXT("A zero dither fade speed is rejected"), Settings->IsWithinSafeRanges(FailureReason));
+
+	Settings->CornerDitherFadeSpeed = 8.0f;
+	TestTrue(TEXT("The shipped corner-dither values remain valid"), Settings->IsWithinSafeRanges(FailureReason));
+	return true;
+}
+
 #endif

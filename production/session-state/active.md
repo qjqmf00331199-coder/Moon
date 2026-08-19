@@ -1129,3 +1129,26 @@ from "**This IS the exact resume point**" above.
 - Evidence: `production/qa/evidence/camera-settings-and-component-hierarchy-evidence.md`.
 - Blockers: PIE에서 기본 뷰, 참조 제거 폴백, 범위 위반 폴백 3항목 확인 필요.
 - Next: `/code-review` 후 PIE 검증, 그다음 `/story-done`.
+
+## Session Extract — merge 4a60c3b corrective review 2026-08-19
+- Merge markers and UE 5.8 compilation were clean, but semantic review found two camera regressions:
+  native `AMoonCharacterBase` loaded `DA_CameraSettings` while the player Blueprint and
+  `AMoonPlayerCameraManager` loaded `DA_MoonCameraSettings`, and rejected settings assets still fed
+  the per-Tick corner-dither path. Both now use the shared `DA_MoonCameraSettings`; the validated
+  effective settings pointer is retained for corner dither, including CDO fallback.
+- Removed the orphaned duplicate `DA_CameraSettings` asset and the second auto-added set of nine
+  camera story files. `EPIC.md` now has one canonical story table aligned with
+  `production/sprint-status.yaml`.
+- Updated stale static tests for the merged effective-settings/fallback implementation. All three
+  camera contract scripts pass and `MoonEditor Win64 Development -NoUBA` builds successfully.
+
+## Session Extract — merge 4a60c3b independent verification fixes 2026-08-19
+- Fixed `AMoonPlayerCameraManager::ApplyPitchClamp()` to reject invalid shared settings and restore
+  class-safe pitch defaults for missing/invalid assets instead of retaining stale clamp values.
+- Fixed zero-vector Look input to be a true no-op, matching Camera Story 002's edge criterion.
+- Corrected the Camera Story 001 fallback Automation test to explicitly clear the constructor's
+  production asset, and registered the two intentional fallback error logs as expected errors.
+- Added regression checks for validated corner-dither settings, camera-manager runtime wiring,
+  zero-input behavior, and corrected the PowerShell regex no-match test to use `Match.Success`.
+- Verification: three camera PowerShell suites PASS; UE 5.8 `MoonEditor Win64 Development -NoUBA`
+  build PASS; `Automation RunTests Moon.Camera` PASS (6/6, process exit 0).

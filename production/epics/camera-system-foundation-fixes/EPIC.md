@@ -34,34 +34,20 @@ Move the camera system from hardcoded constructor tuning toward the ADR-0005 dat
 
 | # | Story | Type | Status | ADR |
 |---|-------|------|--------|-----|
-| 001 | Camera Hierarchy + Data-Driven Settings Foundation | Logic | Ready | ADR-0005 |
-| 002 | Pitch Clamp via PlayerCameraManager | Logic | Ready | ADR-0005 |
-| 003 | Camera-Relative Movement Basis + Facing Snap Verification | Logic | Ready | ADR-0005 |
-| 004 | SpringArm Lag Max-Distance Hard-Follow | Logic | Ready | ADR-0005 |
-| 005 | Collision Guardrails — Debris Ignore + Corner Dithering | Integration | Ready | ADR-0005 |
-| 006 | Overdrive FOV Interpolation Hook | Logic | Ready | ADR-0005 |
-| 007 | Execution Cutscene Camera Blend + Look-Input Suppression | Integration | Ready | ADR-0005 |
-| 008 | ResetCameraLag on Teleport/Checkpoint | Integration | Ready | ADR-0005 |
-| 009 | Camera Shake Dispatch + Amplitude Cap | Logic | Ready | ADR-0005 |
+| 001 | [Camera Hierarchy + Data-Driven Settings Foundation](story-001-camera-hierarchy-and-data-driven-settings-foundation.md) | Logic | Complete | ADR-0005 |
+| 002 | [Pitch Clamp via PlayerCameraManager](story-002-pitch-clamp-via-playercameramanager.md) | Logic | Complete | ADR-0005 |
+| 003 | [Camera-Relative Movement Basis + Facing Snap Verification](story-003-camera-relative-movement-basis-and-facing-snap-verification.md) | Logic | Ready | ADR-0005 |
+| 004 | [SpringArm Lag Max-Distance Hard-Follow](story-004-springarm-lag-max-distance-hard-follow.md) | Logic | Ready | ADR-0005 |
+| 005 | [Collision Guardrails — Debris Ignore + Corner Dithering](story-005-collision-guardrails-debris-ignore-and-corner-dithering.md) | Integration | In Progress | ADR-0005 |
+| 006 | [Overdrive FOV Interpolation Hook](story-006-overdrive-fov-interpolation-hook.md) | Logic | Ready | ADR-0005 |
+| 007 | [Execution Cutscene Camera Blend + Look-Input Suppression](story-007-execution-cutscene-camera-blend-and-look-input-suppression.md) | Integration | Ready | ADR-0005 |
+| 008 | [ResetCameraLag on Teleport/Checkpoint](story-008-resetcameralag-on-teleport-checkpoint.md) | Integration | Ready | ADR-0005 |
+| 009 | [Camera Shake Dispatch + Amplitude Cap](story-009-camera-shake-dispatch-and-amplitude-cap.md) | Logic | Ready | ADR-0005 |
 
 ## Definition of Done
 
 This epic is complete when camera QA-TEST-01 through QA-TEST-10 are executable in PIE, all runtime camera tuning comes from `UMoonCameraSettings`, and the strafe-aim facing regression remains covered by the Player Movement epic.
 
-## Stories
-
-| # | Story | Type | Status | ADR |
-|---|---|---|---|---|
-| 001 | [Camera Settings and Component Hierarchy](story-001-camera-settings-and-component-hierarchy.md) | Config/Data | Ready | ADR-0005 |
-| 002 | [Look Input and Pitch Clamp](story-002-look-input-and-pitch-clamp.md) | Logic | Ready | ADR-0005 |
-| 003 | [Camera-Relative Movement Regression Contract](story-003-camera-relative-movement-regression-contract.md) | Integration | Ready | ADR-0005, ADR-0009 |
-| 004 | [Camera Lag Hard Limit](story-004-camera-lag-hard-limit.md) | Logic | Ready | ADR-0005 |
-| 005 | [Camera Collision, Debris, and Close Occlusion](story-005-camera-collision-debris-and-close-occlusion.md) | Integration | Ready | ADR-0005 |
-| 006 | [Overdrive FOV Integration](story-006-overdrive-fov-integration.md) | Integration | Ready | ADR-0005 |
-| 007 | [Execution Camera Blend and Look Suppression](story-007-execution-camera-blend-and-look-suppression.md) | Integration | Ready | ADR-0005 |
-| 008 | [Teleport and Checkpoint Camera Lag Reset](story-008-teleport-and-checkpoint-camera-lag-reset.md) | Integration | Ready | ADR-0005, ADR-0002 |
-| 009 | [Camera Shake Budget and Deduplication](story-009-camera-shake-budget-and-deduplication.md) | Logic | Ready | ADR-0005 |
-
 ## Next Step
 
-Run `/story-readiness production/epics/camera-system-foundation-fixes/story-001-camera-settings-and-component-hierarchy.md`, then implement stories in dependency order. Create `production/sprint-status.yaml` only through the later `/sprint-plan` workflow; it is not a `/create-stories` output.
+Resume Story 005, then implement the remaining Ready stories in dependency order.

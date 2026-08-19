@@ -1918,3 +1918,378 @@ Solo mode → QL-TEST-COVERAGE / LP-CODE-REVIEW gates skipped per standing confi
 ### Verdict: COMPLETE WITH NOTES
 
 절차상 승인 필요 — story-002 완료로 마킹하고 sprint-status.yaml 갱신할까? (recommended)
+
+## 2026-08-19T06:21:36.137Z [claude]
+
+**지시:** merge 하자. 히스토리 안전, 겹치는 파일 없어 위험 낮음.
+
+merge remote changes into local main 실패
+
+충돌 6개남. 파일별 확인.
+
+실행됨 명령 1개, 읽기 파일 2개, 생성됨 파일 1개
++29
+-90
+
+cpp 파일도 병합 — 검증 함수 유지, 새 필드(CornerDither 3개)는 GDD 범위 없어서 검증 스킵, 주석으로 명시.
+
+업데이트됨
+MoonCameraSettings.cpp
++2
+-5
+
+Now MoonCharacterBase 충돌 확인.
+
+읽기 및 편집됨 MoonCharacterBase.h
++4
+-14
+
+Now 마지막 conflict — ApplyCameraSettings 중복 선언 제거.
+
+수정됨
+MoonCharacterBase.h
++0
+-7
+
+Header 다 됐음. 이제 .cpp 확인.
+
+실행됨 명령 1개, 읽기 및 편집됨 MoonCharacterBase.cpp
++0
+-18
+
+이제 646번대 conflict 확인.
+
+읽기 및 편집됨 MoonCharacterBase.cpp
++2
+-7
+
+Now ApplyCameraSettings body merge.
+
+수정됨
+MoonCharacterBase.cpp
++11
+-32
+
+cpp/h 확인 — 남은 마커 없나 체크.
+
+Verified no leftover conflict markers in character files
+
+Character 파일 완료. 이제 EPIC.md / active.md (문서) 충돌 처리.
+
+실행됨 명령 1개, 읽기 EPIC.md
+
+Trivial — 둘다 같은 뜻. HEAD 것 유지.
+
+수정됨
+EPIC.md
++0
+-4
+
+active.md 확인.
+
+실행됨 명령 1개, 읽기 active.md
+
+Log 파일, 둘 다 별개 세션 기록 — 순서대로 이어붙이면 됨. 삭제할거 없음.
+
+수정됨
+active.md
++1
+-4
+
+전체 마커 재확인.
+
+Scanned repo-wide for any remaining conflict markers
+
+false positive임 (문서 예시/생성된 빌드파일 구분선). git status로 실제 충돌 상태만 확인.
+
+Confirmed no unresolved conflicts remain
+
+6개 다 마커 없음 확인됐으니 add해서 머지커밋.
+
+Staged resolved conflict files
+
+충돌 다 해소, 나머지는 remote가 추가한 story 파일들 (clean auto-add). commit.
+
+커밋됨
+4a60c3b
+
+빌드 확인 필요 — MoonCameraComponent.h 존재하는지, UMoonCameraComponent 타입 실제 정의 확인.
+
+실행됨 명령 1개, 발견됨 파일
+
+OK 존재함, ECC_Camera는 CharacterMovementComponent.h 통해 이미 include됨(SpringArmComponent.h 안에 정의됨). push 진행.
+
+푸시됨
+main
+
+push 완료. 6개 충돌(카메라 h/cpp, 캐릭터 h/cpp, EPIC.md, active.md) 다 수동 병합, 검증 로직+주석+필드 다 살렸음. .worktrees/agy, .worktrees/codex 커밋안된 변경분은 별개 — 그대로 둠.
+
+맞는지 확인해줘
+
+**결과:**
+
+중복선언 없음, 1곳 정의 1곳 호출. header/cpp merge 정상. 빌드 커밋도 push됨(origin/main == HEAD, diff 없음).
+
+**확인 결과: 맞음.**
+- 마커 남은거 없음 (docs 구분선만 false positive)
+- 3-way merge 정상, origin/main과 로컬 완전 동기화 (diff 없음)
+- CameraSettings validation: 11개 GDD값 검증 유지, CornerDither 3개(Threshold/NearClip/FadeSpeed) 스킵+주석 정확
+- ApplyCameraSettings 중복선언 없음, 선언 1개·정의 1개·호출 1개 정상
+
+push된 머지 커밋 신뢰 가능. `.worktrees/*` 변경분은 별개 워크트리라 이 머지와 무관 — 그대로 둬도 됨.
+
+## 2026-08-19T06:32:07.179Z [claude]
+
+**지시:** 요청: merge 하자. 히스토리 안전, 겹치는 파일 없어 위험 낮음.
+
+merge remote changes into local main 실패
+
+충돌 6개남. 파일별 확인.
+
+실행됨 명령 1개, 읽기 파일 2개, 생성됨 파일 1개
++29
+-90
+
+cpp 파일도 병합 — 검증 함수 유지, 새 필드(CornerDither 3개)는 GDD 범위 없어서 검증 스킵, 주석으로 명시.
+
+업데이트됨
+MoonCameraSettings.cpp
++2
+-5
+
+Now MoonCharacterBase 충돌 확인.
+
+읽기 및 편집됨 MoonCharacterBase.h
++4
+-14
+
+Now 마지막 conflict — ApplyCameraSettings 중복 선언 제거.
+
+수정됨
+MoonCharacterBase.h
++0
+-7
+
+Header 다 됐음. 이제 .cpp 확인.
+
+실행됨 명령 1개, 읽기 및 편집됨 MoonCharacterBase.cpp
++0
+-18
+
+이제 646번대 conflict 확인.
+
+읽기 및 편집됨 MoonCharacterBase.cpp
++2
+-7
+
+Now ApplyCameraSettings body merge.
+
+수정됨
+MoonCharacterBase.cpp
++11
+-32
+
+cpp/h 확인 — 남은 마커 없나 체크.
+
+Verified no leftover conflict markers in character files
+
+Character 파일 완료. 이제 EPIC.md / active.md (문서) 충돌 처리.
+
+실행됨 명령 1개, 읽기 EPIC.md
+
+Trivial — 둘다 같은 뜻. HEAD 것 유지.
+
+수정됨
+EPIC.md
++0
+-4
+
+active.md 확인.
+
+실행됨 명령 1개, 읽기 active.md
+
+Log 파일, 둘 다 별개 세션 기록 — 순서대로 이어붙이면 됨. 삭제할거 없음.
+
+수정됨
+active.md
++1
+-4
+
+전체 마커 재확인.
+
+Scanned repo-wide for any remaining conflict markers
+
+false positive임 (문서 예시/생성된 빌드파일 구분선). git status로 실제 충돌 상태만 확인.
+
+Confirmed no unresolved conflicts remain
+
+6개 다 마커 없음 확인됐으니 add해서 머지커밋.
+
+Staged resolved conflict files
+
+충돌 다 해소, 나머지는 remote가 추가한 story 파일들 (clean auto-add). commit.
+
+커밋됨
+4a60c3b
+
+빌드 확인 필요 — MoonCameraComponent.h 존재하는지, UMoonCameraComponent 타입 실제 정의 확인.
+
+실행됨 명령 1개, 발견됨 파일
+
+OK 존재함, ECC_Camera는 CharacterMovementComponent.h 통해 이미 include됨(SpringArmComponent.h 안에 정의됨). push 진행.
+
+푸시됨
+main
+
+push 완료. 6개 충돌(카메라 h/cpp, 캐릭터 h/cpp, EPIC.md, active.md) 다 수동 병합, 검증 로직+주석+필드 다 살렸음. .worktrees/agy, .worktrees/codex 커밋안된 변경분은 별개 — 그대로 둠.
+
+맞는지 확인해줘
+
+리뷰어(codex)가 방금 코드 직접 수정함:
+- `MoonCharacterBase.cpp:36` — 캐릭터와 카메라 매니저가 서로 다른 DataAsset을 사용해서 `DA_MoonCameraSettings`로 통일했다.
+- `MoonCharacterBase.cpp:306`, `MoonCharacterBase.h:214` — 거부된 설정이 코너 디더 Tick에서 계속 사용돼, 검증 완료된 설정만 보존·사용하도록 수정했다.
+- `EPIC.md:37` — 머지로 중복 생성된 스토리 표·스토리 9개·고아 `DA_CameraSettings` 자산을 제거하고 canonical 상태로 정리했다.
+- `camera_settings_contract_check.ps1:101`, `camera-settings-foundation_test.ps1:120`, `pitch-clamp_test.ps1:44` — 머지된 구현과 맞지 않아 실패하던 검증을 수정했다.
+
+수정 내용 확인하고 남은 작업 있으면 이어서 진행. 없으면 최종 결과 요약만 짧게.
+
+**결과:**
+
+논리 일관됨. 코덱스 수정 검증 결과:
+
+1. **DA_CameraSettings → DA_MoonCameraSettings 통일** — 캐릭터(.cpp:36), PlayerCameraManager(.cpp/.h) 다 같은 자산 참조하도록 맞음. 실제 PlayerCameraManager.cpp는 원래부터 DA_MoonCameraSettings였음 (헤더 주석만 안 맞았던 것) — 맞는 지적.
+2. **AppliedCameraSettings 분리** — `ApplyCameraSettings()`에서 검증 통과된 포인터를 저장(h:214, cpp:688), corner-dither Tick(cpp:306-311)이 이제 원본 `CameraSettings`(거부됐을 수도 있는) 대신 이걸 읽음. 실제 버그였음 — 이전엔 거부된 자산이어도 Tick에서 그 필드 그대로 읽었음. 고침 맞음.
+3. **EPIC.md** — 중복 story 표 제거, story 링크 실제 파일명과 일치 확인됨(9개 다 존재).
+4. **테스트 3개** — cpp 변경사항(EffectiveSettings, GetMutableDefault, SetFieldOfView, DA_MoonCameraSettings)에 맞게 정규식 갱신됨. 논리적 불일치 없음.
+
+타입도 문제없음(`GetMutableDefault` non-const 리턴, `AppliedCameraSettings`는 non-const TObjectPtr).
+
+남은 작업: 빌드 재확인(코드 변경 있었으니 이전 6/6 PASS 결과는 무효), PIE 미확인 블로커 3개 그대로. 지금 빌드 돌릴까?
+
+## 2026-08-19T06:40:27.916Z [claude]
+
+**지시:** 요청: merge 하자. 히스토리 안전, 겹치는 파일 없어 위험 낮음.
+
+merge remote changes into local main 실패
+
+충돌 6개남. 파일별 확인.
+
+실행됨 명령 1개, 읽기 파일 2개, 생성됨 파일 1개
++29
+-90
+
+cpp 파일도 병합 — 검증 함수 유지, 새 필드(CornerDither 3개)는 GDD 범위 없어서 검증 스킵, 주석으로 명시.
+
+업데이트됨
+MoonCameraSettings.cpp
++2
+-5
+
+Now MoonCharacterBase 충돌 확인.
+
+읽기 및 편집됨 MoonCharacterBase.h
++4
+-14
+
+Now 마지막 conflict — ApplyCameraSettings 중복 선언 제거.
+
+수정됨
+MoonCharacterBase.h
++0
+-7
+
+Header 다 됐음. 이제 .cpp 확인.
+
+실행됨 명령 1개, 읽기 및 편집됨 MoonCharacterBase.cpp
++0
+-18
+
+이제 646번대 conflict 확인.
+
+읽기 및 편집됨 MoonCharacterBase.cpp
++2
+-7
+
+Now ApplyCameraSettings body merge.
+
+수정됨
+MoonCharacterBase.cpp
++11
+-32
+
+cpp/h 확인 — 남은 마커 없나 체크.
+
+Verified no leftover conflict markers in character files
+
+Character 파일 완료. 이제 EPIC.md / active.md (문서) 충돌 처리.
+
+실행됨 명령 1개, 읽기 EPIC.md
+
+Trivial — 둘다 같은 뜻. HEAD 것 유지.
+
+수정됨
+EPIC.md
++0
+-4
+
+active.md 확인.
+
+실행됨 명령 1개, 읽기 active.md
+
+Log 파일, 둘 다 별개 세션 기록 — 순서대로 이어붙이면 됨. 삭제할거 없음.
+
+수정됨
+active.md
++1
+-4
+
+전체 마커 재확인.
+
+Scanned repo-wide for any remaining conflict markers
+
+false positive임 (문서 예시/생성된 빌드파일 구분선). git status로 실제 충돌 상태만 확인.
+
+Confirmed no unresolved conflicts remain
+
+6개 다 마커 없음 확인됐으니 add해서 머지커밋.
+
+Staged resolved conflict files
+
+충돌 다 해소, 나머지는 remote가 추가한 story 파일들 (clean auto-add). commit.
+
+커밋됨
+4a60c3b
+
+빌드 확인 필요 — MoonCameraComponent.h 존재하는지, UMoonCameraComponent 타입 실제 정의 확인.
+
+실행됨 명령 1개, 발견됨 파일
+
+OK 존재함, ECC_Camera는 CharacterMovementComponent.h 통해 이미 include됨(SpringArmComponent.h 안에 정의됨). push 진행.
+
+푸시됨
+main
+
+push 완료. 6개 충돌(카메라 h/cpp, 캐릭터 h/cpp, EPIC.md, active.md) 다 수동 병합, 검증 로직+주석+필드 다 살렸음. .worktrees/agy, .worktrees/codex 커밋안된 변경분은 별개 — 그대로 둠.
+
+맞는지 확인해줘
+
+리뷰어(codex)가 방금 코드 직접 수정함:
+- `MoonPlayerCameraManager.cpp:34` — 잘못된 카메라 설정도 Pitch에 적용되던 오류를 수정해 검증 실패 시 안전 기본값을 사용하도록 했다.
+- `MoonCharacterBase.cpp:968` — 0 입력에서도 Look 함수를 호출하던 오류를 수정했다.
+- `MoonCameraApplySettingsRuntimeTests.cpp:77` — 기본 자산을 비우지 않아 fallback을 실제로 검사하지 않던 테스트를 수정했다.
+- `MoonPlayerCameraManagerTests.cpp:103` — 잘못된 설정의 거부와 기본값 복구 검증을 추가했다.
+- `camera-settings-foundation_test.ps1:120` — 정규식 불일치를 감지하지 못하던 검사를 `Match.Success` 기반으로 수정했다.
+- `camera_settings_contract_check.ps1:135`, `pitch-clamp_test.ps1:64` — 검증된 설정 사용과 실제 CameraManager 연결 회귀 검사를 추가했다.
+- UE 5.8 빌드 PASS, 카메라 Automation 6/6 PASS, 정적 검사 3종 PASS.
+
+수정 내용 확인하고 남은 작업 있으면 이어서 진행. 없으면 최종 결과 요약만 짧게.
+
+**결과:**
+
+3개 정적테스트 다 PASS 직접 확인함. 로직도 정합 (검증 컨트랙트, 안전기본값, corner-dither가 rejected asset 안 새는거, zero-input no-op). codex 수정 다 맞다.
+
+C++ 빌드/Automation은 UE 없어서 여기서 재실행 못 함 — codex 보고 신뢰.
+
+**결론**: codex 수정 6건 다 검증함, 로직 정합, 정적테스트 3개 재실행 PASS 확인. 남은 작업 없음. 커밋만 하면 됨 (아직 unstaged).
+
+commit 할까?
