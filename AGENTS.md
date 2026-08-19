@@ -76,44 +76,6 @@ same shape: PASS/CONCERNS/FAIL-style verdict + specific section-by-section gaps,
 - Commits: Conventional Commits (`feat:`, `fix:`, `chore:`, ...), reference story/task ID
 - No merge if tests fail; never disable/skip a failing test to unblock CI
 
-## Overnight worker (Ollama)
-
-A third worker, Ollama, runs unattended overnight on a small queue of low-risk, self-contained,
-fast-to-verify tasks (see `OLLAMA-INSTRUCTIONS.md` (repo root) and `production/overnight-protocol.md`).
-It has no file/tool access and never touches canonical files — it only writes drafts to
-`production/overnight-output/`. **Check that directory at the start of any session** — review and
-promote/discard its drafts before starting new work, then clear the directory.
-
-Selection criteria for what Ollama is and isn't allowed to do: `production/ollama-delegation-criteria.md`.
-This is the same file the Discord bot (`tools/overnight-bot/discord_ollama_bot.py`) feeds to
-Gemini, so it's the single source of truth for both the bot and Antigravity/Claude Code.
-
-### Delegate simple work to Ollama instead of doing it yourself
-
-Before doing any sub-task you notice along the way (not just the user's main ask — incidental
-doc-writing, boilerplate, cleanup), check it against `production/ollama-delegation-criteria.md`.
-If it matches the "맡기기 좋은 작업" list (documentation, comments, boilerplate getters/setters,
-simple UPROPERTY/UFUNCTION declarations, commit-message polish, TODO extraction, log/error
-summarization, small deterministic utility scripts, folder/naming cleanup, text formatting/
-translation) — **do not do it yourself**. Instead, add a new task entry to
-`OLLAMA-INSTRUCTIONS.md` (repo root, follow the existing task template: Why queued / Risk / Context
-files / Prompt / Output path / Review checklist), leave the actual work undone, and commit +
-push so the entry is live for the overnight run. Never route cross-cutting design judgment,
-engine-API-accurate debugging, or perf/threading/replication work to Ollama — that stays with you.
-
-**Auto-queueing on GDD Approval**: Whenever a GDD is reviewed and approved (e.g. via `/design-review` or manual design review), you MUST automatically append the corresponding registry-vs-GDD fact-check and terminology-consistency tasks to `OLLAMA-INSTRUCTIONS.md` (repo root), stage the file, and commit/push it along with the approved GDD changes. Do not wait for the user to explicitly remind you.
-
-### Commit + push after every completed task
-
-The Collaboration norm below still holds ("don't commit unless asked") **except** for this one
-standing override: commit and push to GitHub after finishing each discrete task or session,
-without waiting to be asked each time. The multi-tool handoff model depends on
-`OLLAMA-INSTRUCTIONS.md` (repo root), `production/session-state/active.md`, and any newly-registered
-tasks being live on the remote, not sitting uncommitted in one tool's local working tree. Stage
-only the files that are actually part of the task you just completed — don't sweep in unrelated
-pre-existing dirty-tree changes from other sessions without asking first — and never commit
-anything that looks like a secret.
-
 ## Collaboration norm
 
 This project's Claude Code setup asks "may I write this to [filepath]?" before writing/editing and

@@ -38,8 +38,7 @@ Every task follows: **Question -> Options -> Decision -> Draft -> Approval**
 - Agents MUST ask "May I write this to [filepath]?" before using Write/Edit tools
 - Agents MUST show drafts or summaries before requesting approval
 - Multi-file changes require explicit approval for the full changeset
-- No commits without user instruction, **except** the standing override in
-  `.claude/docs/ollama-delegation.md` (commit + push after every completed task)
+- No commits without user instruction
 - **Auto-recommended override** (user standing instruction, 2026-07-17): whenever a skill's
   `AskUserQuestion` widget marks an option `(추천)`/`(Recommended)`, auto-select it and proceed
   without waiting for the user — do not stop to ask. Applies to every skill (`/design-review`,
@@ -53,10 +52,6 @@ See `docs/COLLABORATIVE-DESIGN-PRINCIPLE.md` for full protocol and examples.
 
 > **First session?** If the project has no engine configured and no game concept,
 > run `/start` to begin the guided onboarding flow.
-
-## Ollama Delegation & Auto-Commit Policy
-
-@.claude/docs/ollama-delegation.md
 
 ## Coding Standards
 
