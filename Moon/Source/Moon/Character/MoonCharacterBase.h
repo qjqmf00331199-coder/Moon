@@ -200,6 +200,10 @@ protected:
 	// and applied to CameraBoom/FollowCamera; the constructor's literal SpringArm/Camera setup
 	// above is a CDO-preview fallback only and is never re-read once this asset is applied. If
 	// unset, BeginPlay leaves the constructor literals in place (null-asset guard).
+	//
+	// The native class assigns DA_CameraSettings as the production default. Blueprint subclasses
+	// may override or clear it; an unassigned or invalid reference logs one actionable error and
+	// applies safe defaults.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMoonCameraSettings> CameraSettings;
 
@@ -543,5 +547,4 @@ private:
 	void UpdateHitStopPresentation(float DeltaTime);
 
 	void UpdateOverdriveState(double CurrentTime);
-
 };

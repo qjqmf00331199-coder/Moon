@@ -1059,7 +1059,6 @@ from "**This IS the exact resume point**" above.
 - **Player Movement Foundation Fixes epic (Stories 001-005) is now fully closed, all AC passing** (Story 004's AC-4 was advisory-pass, Story 005's AC-4 is evidence-only-pass — neither is a hard perf/feel gate, both closed per their own stated advisory/evidence-only nature). Production gate is the next real checkpoint — still FAIL/Pre-Production per `2026-08-12-preprod-to-production.md`; re-run `/gate-check` if attempting Production again.
 - **Reusable capability discovered**: this session now knows unreal-mcp is reachable via raw HTTP when the editor is running, and exactly what it can/can't do (spawn actors, start/stop PIE, read logs, screenshot viewport — but NOT read performance stats or execute console commands). Future PIE-dependent work in this project can use this same raw-HTTP approach instead of assuming "no MCP tool = nothing automatable."
 
-
 <!-- QA-PLAN: 2026-08-14 | System: camera-system-foundation-fixes sprint-1 | Plan written: backfilled into story-001..009 QA Test Cases sections (no standalone qa-plan doc written) -->
 
 
@@ -1079,3 +1078,54 @@ from "**This IS the exact resume point**" above.
 <!-- CONSISTENCY-CHECK: 2026-08-19 | GDDs checked: 17 | Conflicts found: 2 new (registry drift) + 2 pre-existing confirmed resolved | Report: inline in docs/consistency-failures.md -->
 
 <!-- CONSISTENCY-CHECK: 2026-08-19b | GDDs checked: 9 | Conflicts found: 0 (Blocker #5 dash/camera re-verified clean) | Report: inline -->
+
+## Session Extract — Camera `/create-stories` 사실 재검증 및 생성 2026-08-19
+- 작업 시작 시 실제 파일 시스템과 `git ls-files`를 재검증했다. 당시
+  `production/epics/camera-system-foundation-fixes/`에는 `EPIC.md`만 있었고 카메라
+  `story-001~009` 및 `production/sprint-status.yaml`은 존재하지 않았다.
+- 추적 문서 전체를 검색한 결과, 이 파일들이 이미 존재하거나 구현됐다고 선행 단정한
+  허위 문구는 없었다. `EPIC.md`, `production/epics/index.md`, 최신 gate-check가 모두
+  Camera stories 미생성 상태와 `/create-stories camera-system-foundation-fixes` 필요성을
+  일관되게 기록하고 있었다.
+- `/create-stories` 선행조건을 다시 확인했다: Camera GDD는 Approved, ADR-0005는 Accepted,
+  `TR-cam-001~009`와 control manifest가 존재하며, 선행 Player Movement Story 001은 Complete다.
+  따라서 `/create-stories`는 필요하고 실행 가능한 상태로 판정했다.
+- Camera epic을 9개 Ready story로 분해했다: data asset/component hierarchy, look/pitch clamp,
+  camera-relative movement regression, 60uu lag hard limit, collision/debris/dither, Overdrive FOV,
+  execution blend/look suppression, teleport/checkpoint lag reset, camera-shake budget/deduplication.
+  `EPIC.md`와 `production/epics/index.md`도 실제 생성 상태인 `9 stories`로 갱신했다.
+- `production/sprint-status.yaml`은 만들지 않았다. 이는 `/create-stories` 산출물이 아니며,
+  이후 `/sprint-plan` 단계에서 생성·관리해야 한다.
+- 다음 단계: `/story-readiness production/epics/camera-system-foundation-fixes/story-001-camera-settings-and-component-hierarchy.md`.
+
+## Session Extract — Camera Story 001 readiness 보완 2026-08-19
+- `story-readiness` 재검토에서 지적된 두 항목을 Story 001에 보완했다. AC-2는 Camera GDD
+  Tuning Knobs 표와 ADR-0005 Decision 2에 실제 열거된 11개 필드의 이름, 기본값, 안전 범위를
+  자체 포함한다. ADR-0005의 "12개" 표현은 실제 11개 열거와 맞지 않는 산술 오류로 확인했다.
+- `CameraSocketOffset.X`는 GDD에 안전 범위가 없으므로 새 범위를 추측하지 않고 기본값 `0.0`
+  유지로 명시했다.
+- 성능 영향은 `BeginPlay` 1회 Data Asset 읽기/적용이며 새 Tick, 반복 조회, 반복 할당이 없고
+  단일 소형 Data Asset 참조만 추가된다고 명시했다.
+- 전체 체크 결과 `READY` (20/20). Camera GDD Approved, ADR-0005 Accepted, TR-cam-001/009
+  active, Manifest Version 2026-07-27, 선행 Player Movement Story 001 Complete를 재확인했다.
+  Review mode는 Solo이므로 QL-STORY-READY를 생략했다.
+- 다음 단계: `/dev-story production/epics/camera-system-foundation-fixes/story-001-camera-settings-and-component-hierarchy.md`.
+
+## Session Extract — /dev-story Camera Story 001 2026-08-19
+- Story: `production/epics/camera-system-foundation-fixes/story-001-camera-settings-and-component-hierarchy.md`
+  — Camera Settings and Component Hierarchy (`In Progress`; PIE 런타임 3항목 미검증).
+- `UMoonCameraSettings`와 `/Game/Moon/Camera/DA_CameraSettings`를 추가하고, 11개 GDD 튜닝값의
+  기본값/안전범위 검증 및 `AMoonCharacterBase::BeginPlay()` 1회 적용 경로를 구현했다. 카메라
+  계층은 Capsule -> SpringArm(Z=60) -> Camera이며, 누락/범위 위반 자산은 1회 오류 진단 후
+  클래스 안전 기본값으로 폴백한다.
+- 최초 명령행 에디터가 ParagonAurora 의존성이 없는 이 worktree에서 `BP_MoonCharacter`를
+  저장하며 기존 메시/애니메이션 참조를 제거한 문제를 독립 검수에서 발견했다. Blueprint는
+  원본 Git LFS SHA-256 `fc56d192640b1a0a3fad893c0ffb21b9381cfeb477bbf770d9146539e19a15eb`로
+  byte-for-byte 복구했고, Data Asset 기본 참조는 네이티브 생성자의 `FObjectFinder`로 옮겼다.
+- Test: `tests/static/camera/camera_settings_contract_check.ps1` 5/5 PASS. 기존 movement
+  foundation/independence/regression 정적 검사도 PASS. UE 5.8 `MoonEditor Win64 Development
+  -NoUBA` 최종 빌드 6/6 PASS (`Result: Succeeded`, 12.58s). 저장 없는 헤드리스 에디터 로드에서
+  `DA_CameraSettings` 경로 해석 실패 없음.
+- Evidence: `production/qa/evidence/camera-settings-and-component-hierarchy-evidence.md`.
+- Blockers: PIE에서 기본 뷰, 참조 제거 폴백, 범위 위반 폴백 3항목 확인 필요.
+- Next: `/code-review` 후 PIE 검증, 그다음 `/story-done`.
