@@ -1,12 +1,12 @@
 # Story 001: Camera Settings and Component Hierarchy
 
 > **Epic**: Camera System Foundation Fixes
-> **Status**: Ready
+> **Status**: In Progress
 > **Layer**: Core
 > **Type**: Config/Data
 > **Estimate**: 2-4 hours
 > **Manifest Version**: 2026-07-27
-> **Last Updated**: Not started
+> **Last Updated**: 2026-08-19
 
 ## Context
 
@@ -97,7 +97,7 @@
 - `tests/static/camera/camera_settings_contract_check.ps1`
 - `production/qa/evidence/camera-settings-and-component-hierarchy-evidence.md`
 
-**Status**: [ ] Not yet created
+**Status**: [x] Created; static contract and UE 5.8 build pass, PIE checks remain pending
 
 ---
 

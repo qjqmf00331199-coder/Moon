@@ -1070,3 +1070,22 @@ from "**This IS the exact resume point**" above.
   active, Manifest Version 2026-07-27, 선행 Player Movement Story 001 Complete를 재확인했다.
   Review mode는 Solo이므로 QL-STORY-READY를 생략했다.
 - 다음 단계: `/dev-story production/epics/camera-system-foundation-fixes/story-001-camera-settings-and-component-hierarchy.md`.
+
+## Session Extract — /dev-story Camera Story 001 2026-08-19
+- Story: `production/epics/camera-system-foundation-fixes/story-001-camera-settings-and-component-hierarchy.md`
+  — Camera Settings and Component Hierarchy (`In Progress`; PIE 런타임 3항목 미검증).
+- `UMoonCameraSettings`와 `/Game/Moon/Camera/DA_CameraSettings`를 추가하고, 11개 GDD 튜닝값의
+  기본값/안전범위 검증 및 `AMoonCharacterBase::BeginPlay()` 1회 적용 경로를 구현했다. 카메라
+  계층은 Capsule -> SpringArm(Z=60) -> Camera이며, 누락/범위 위반 자산은 1회 오류 진단 후
+  클래스 안전 기본값으로 폴백한다.
+- 최초 명령행 에디터가 ParagonAurora 의존성이 없는 이 worktree에서 `BP_MoonCharacter`를
+  저장하며 기존 메시/애니메이션 참조를 제거한 문제를 독립 검수에서 발견했다. Blueprint는
+  원본 Git LFS SHA-256 `fc56d192640b1a0a3fad893c0ffb21b9381cfeb477bbf770d9146539e19a15eb`로
+  byte-for-byte 복구했고, Data Asset 기본 참조는 네이티브 생성자의 `FObjectFinder`로 옮겼다.
+- Test: `tests/static/camera/camera_settings_contract_check.ps1` 5/5 PASS. 기존 movement
+  foundation/independence/regression 정적 검사도 PASS. UE 5.8 `MoonEditor Win64 Development
+  -NoUBA` 최종 빌드 6/6 PASS (`Result: Succeeded`, 12.58s). 저장 없는 헤드리스 에디터 로드에서
+  `DA_CameraSettings` 경로 해석 실패 없음.
+- Evidence: `production/qa/evidence/camera-settings-and-component-hierarchy-evidence.md`.
+- Blockers: PIE에서 기본 뷰, 참조 제거 폴백, 범위 위반 폴백 3항목 확인 필요.
+- Next: `/code-review` 후 PIE 검증, 그다음 `/story-done`.

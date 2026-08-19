@@ -16,6 +16,7 @@ class UInputMappingContext;
 class UInputAction;
 class USpringArmComponent;
 class UCameraComponent;
+class UMoonCameraSettings;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FMoonOverdriveStartedSignature);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMoonOverdriveEndedSignature, EMoonOverdriveEndReason, Reason);
@@ -189,6 +190,16 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UCameraComponent> FollowCamera;
+
+	/**
+	 * Runtime camera tuning source applied once in BeginPlay.
+	 *
+	 * The native class assigns DA_CameraSettings as the production default. Blueprint subclasses
+	 * may override or clear it; an unassigned or invalid reference logs one actionable error and
+	 * applies safe defaults.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Moon|Camera", meta = (AllowPrivateAccess = "true"))
+	TObjectPtr<UMoonCameraSettings> CameraSettings;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Abilities", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<UMoonAbilitySystemComponent> AbilitySystemComponent;
@@ -498,4 +509,8 @@ private:
 	void UpdateHitStopPresentation(float DeltaTime);
 
 	void UpdateOverdriveState(double CurrentTime);
+
+	// One-time runtime camera initialization. Constructor literals remain CDO/editor-preview
+	// fallbacks only; a valid UMoonCameraSettings asset replaces them here during BeginPlay.
+	void ApplyCameraSettings();
 };

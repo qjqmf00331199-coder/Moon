@@ -9,12 +9,14 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
+#include "../Camera/MoonCameraSettings.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "TimerManager.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
+#include "UObject/ConstructorHelpers.h"
 // Movement Insights trace scopes (TR-mov-009 / ADR-0009 Decision 6). Header lives in Core/Public
 // (Core is already a PublicDependencyModuleName in Moon.Build.cs), so no Build.cs change is
 // needed. Verified against this project's actual UE5.8 install
@@ -25,26 +27,47 @@ AMoonCharacterBase::AMoonCharacterBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
+	// Production default. The asset owns camera values; this path only establishes the default
+	// reference so native and Blueprint-derived characters use the same data source. Designers may
+	// still replace or clear CameraSettings on a subclass to exercise the documented override and
+	// fallback paths.
+	static ConstructorHelpers::FObjectFinder<UMoonCameraSettings> DefaultCameraSettings(
+		TEXT("/Game/Moon/Camera/DA_CameraSettings.DA_CameraSettings"));
+	if (DefaultCameraSettings.Succeeded())
+	{
+		CameraSettings = DefaultCameraSettings.Object;
+	}
+
 	// Third-person follow camera. Boom handles collision so the camera never clips into the level.
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
+	CameraBoom->SetRelativeLocation(FVector(0.0f, 0.0f, 60.0f));
 	// Combat camera: a light right-shoulder composition keeps the player readable while
 	// opening enough space to see incoming threats. Position lag softens instant dash steps
 	// without adding rotation latency to aiming.
 	CameraBoom->TargetArmLength = 450.0f;
 	CameraBoom->SocketOffset = FVector(0.0f, 45.0f, 20.0f);
-	CameraBoom->TargetOffset = FVector(0.0f, 0.0f, 55.0f);
+	CameraBoom->TargetOffset = FVector::ZeroVector;
 	CameraBoom->bEnableCameraLag = true;
+	CameraBoom->bEnableCameraRotationLag = false;
 	CameraBoom->CameraLagSpeed = 18.0f;
+	CameraBoom->CameraRotationLagSpeed = 15.0f;
 	CameraBoom->CameraLagMaxDistance = 60.0f;
 	CameraBoom->bUseCameraLagSubstepping = true;
 	CameraBoom->CameraLagMaxTimeStep = 1.0f / 60.0f;
 	CameraBoom->SetRelativeRotation(FRotator(-15.0f, 0.0f, 0.0f));
 	CameraBoom->bUsePawnControlRotation = true;
+	CameraBoom->bInheritPitch = true;
+	CameraBoom->bInheritYaw = true;
+	CameraBoom->bInheritRoll = false;
+	CameraBoom->bDoCollisionTest = true;
+	CameraBoom->ProbeChannel = ECC_Camera;
+	CameraBoom->ProbeSize = 12.0f;
 
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
 	FollowCamera->bUsePawnControlRotation = false;
+	FollowCamera->SetFieldOfView(90.0f);
 
 	// Movement/Camera contract: facing snaps to controller yaw while movement remains camera-relative.
 	bUseControllerRotationYaw = true;
@@ -521,6 +544,8 @@ void AMoonCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	ApplyCameraSettings();
+
 	// Movement tuning clamp + AirTime joint bound enforcement (TR-mov-004) — load-time validation
 	// pass. See ValidateAndClampMovementTuning()'s header comment for the runtime-write-time caveat
 	// (no runtime setter exists yet, so this is the only call site today) and the known Tick()/
@@ -536,6 +561,50 @@ void AMoonCharacterBase::BeginPlay()
 		InitializeAttributes();
 		InitializeAbilities();
 	}
+}
+
+void AMoonCharacterBase::ApplyCameraSettings()
+{
+	if (!CameraBoom || !FollowCamera)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[MoonCamera] %s cannot apply camera settings because the required CameraBoom/FollowCamera hierarchy is incomplete."), *GetNameSafe(this));
+		return;
+	}
+
+	const UMoonCameraSettings* EffectiveSettings = CameraSettings;
+	FString FailureReason;
+	if (!IsValid(EffectiveSettings))
+	{
+		UE_LOG(LogTemp, Error, TEXT("[MoonCamera] %s has no valid CameraSettings asset assigned. Applying UMoonCameraSettings safe defaults; assign DA_CameraSettings on the character class defaults."), *GetNameSafe(this));
+		EffectiveSettings = GetDefault<UMoonCameraSettings>();
+	}
+	else if (!EffectiveSettings->IsWithinSafeRanges(FailureReason))
+	{
+		UE_LOG(LogTemp, Error, TEXT("[MoonCamera] %s rejected CameraSettings asset '%s': %s Applying UMoonCameraSettings safe defaults."), *GetNameSafe(this), *GetNameSafe(EffectiveSettings), *FailureReason);
+		EffectiveSettings = GetDefault<UMoonCameraSettings>();
+	}
+
+	// Reassert the non-tunable hierarchy/rotation/collision contract at runtime as well as in the
+	// native constructor. This prevents stale Blueprint component-template values from preserving
+	// the pre-story TargetOffset-based pivot or overriding the required SpringArm flags.
+	CameraBoom->SetRelativeLocation(FVector(0.0f, 0.0f, 60.0f));
+	CameraBoom->TargetOffset = FVector::ZeroVector;
+	CameraBoom->bUsePawnControlRotation = true;
+	CameraBoom->bInheritPitch = true;
+	CameraBoom->bInheritYaw = true;
+	CameraBoom->bInheritRoll = false;
+	CameraBoom->bEnableCameraLag = true;
+	CameraBoom->bEnableCameraRotationLag = false;
+	CameraBoom->bDoCollisionTest = true;
+	CameraBoom->ProbeChannel = ECC_Camera;
+
+	CameraBoom->TargetArmLength = EffectiveSettings->TargetArmLength;
+	CameraBoom->SocketOffset = EffectiveSettings->CameraSocketOffset;
+	CameraBoom->CameraLagSpeed = EffectiveSettings->CameraLagSpeed;
+	CameraBoom->CameraRotationLagSpeed = EffectiveSettings->CameraRotationLagSpeed;
+	CameraBoom->CameraLagMaxDistance = EffectiveSettings->CameraLagMaxDistance;
+	CameraBoom->ProbeSize = EffectiveSettings->CameraProbeSize;
+	FollowCamera->SetFieldOfView(EffectiveSettings->BaseFOV);
 }
 
 float AMoonCharacterBase::ComputeAirTime(float JumpZVelocity, float GravityScale) const
